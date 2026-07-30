@@ -5,18 +5,35 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: max(1rem, env(safe-area-inset-top, 0px))
+    max(1rem, env(safe-area-inset-right, 0px))
+    max(1rem, env(safe-area-inset-bottom, 0px))
+    max(1rem, env(safe-area-inset-left, 0px));
   background: rgba(15, 23, 42, 0.55);
 }
 
 .account-rebalance-modal {
   width: min(32rem, 100%);
-  max-height: min(90vh, 44rem);
-  overflow: auto;
-  padding: 1rem 1.1rem 1.1rem;
+  max-height: min(
+    calc(
+      100dvh - 2rem - env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px)
+    ),
+    44rem
+  );
+  overflow: hidden;
+  padding: 1rem 1.1rem 0;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.account-rebalance-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.35rem;
 }
 
 .account-rebalance-modal__head {
@@ -581,17 +598,11 @@ html:not([data-theme="light"]) .account-rebalance-modal__sim-badge {
   flex-direction: column;
   align-items: stretch;
   gap: 0.55rem;
-  margin-top: 0.25rem;
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
   padding-top: 0.55rem;
-  padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(
-    to top,
-    var(--card) calc(100% - 0.35rem),
-    color-mix(in srgb, var(--card) 88%, transparent)
-  );
+  padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
+  background: var(--card);
   border-top: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent);
 }
 
@@ -661,6 +672,17 @@ html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-hint--blocked
   gap: 0.45rem;
 }
 
+.account-rebalance-modal__foot-zone-actions .btn {
+  flex: 1 1 calc(50% - 0.25rem);
+  min-width: min(100%, 9rem);
+  min-height: 44px;
+  justify-content: center;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+  padding-inline: 0.55rem;
+}
+
 .account-rebalance-modal__foot .btn {
   touch-action: manipulation;
 }
@@ -688,6 +710,7 @@ html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-hint--blocked
   justify-content: center;
   gap: 0.12rem;
   line-height: 1.25;
+  width: 100%;
   min-height: 48px;
 }
 
@@ -733,7 +756,7 @@ html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-hint--blocked
       ),
       44rem
     );
-    padding-bottom: 0.35rem;
+    padding-inline: 0.85rem;
   }
 
   .account-rebalance-modal__retry {
@@ -746,7 +769,7 @@ html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-hint--blocked
     margin-inline: -0.15rem;
     padding-inline: 0.15rem;
     padding-top: 0.65rem;
-    padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
   }
 
   .account-rebalance-modal__foot-zone--real {
@@ -758,16 +781,9 @@ html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-hint--blocked
   .account-rebalance-modal__foot-zone-actions .btn {
     flex: 1 1 calc(50% - 0.25rem);
     min-width: min(100%, 9.5rem);
-    min-height: 44px;
-    justify-content: center;
-    white-space: normal;
-    text-align: center;
-    line-height: 1.25;
-    padding-inline: 0.55rem;
   }
 
   .account-rebalance-modal__btn-real {
-    flex: 1 1 100%;
     min-height: 52px;
     font-size: 0.92rem;
     box-shadow: 0 2px 10px rgba(220, 38, 38, 0.28);

@@ -286,6 +286,7 @@ export default function AccountRebalanceScheduleModal({
   const monthLabel = `${year}년 ${monthIndex + 1}월`;
   const buyNowAllowed = anySelectedMarketRegularOpen(markets);
   const buyNowRunSummaryLine = buildRebalanceRunSummaryLine(plans, markets);
+  const showScheduleForm = !loading && !loadError;
 
   const renderMarketChip = (m: "kr" | "us") => {
     const on = markets.includes(m);
@@ -385,7 +386,10 @@ export default function AccountRebalanceScheduleModal({
           </button>
         </header>
 
-        <div data-vu="account-rebalance-ready">
+        <div
+          className="account-rebalance-modal__body"
+          data-vu="account-rebalance-ready"
+        >
           {loading ? (
             <p
               className="account-rebalance-modal__hint"
@@ -687,101 +691,101 @@ export default function AccountRebalanceScheduleModal({
                 {msg}
               </p>
             ) : null}
-
-            <footer className="account-rebalance-modal__foot">
-              <section
-                className="account-rebalance-modal__foot-zone account-rebalance-modal__foot-zone--preview"
-                aria-label={ko.app.accountManageRebalancePreviewZoneLabel}
-              >
-                <p className="account-rebalance-modal__foot-zone-label">
-                  {ko.app.accountManageRebalancePreviewZoneLabel}
-                </p>
-                <div className="account-rebalance-modal__foot-zone-actions">
-                  <button
-                    type="button"
-                    className="btn account-rebalance-modal__btn-preview"
-                    data-vu="account-rebalance-dry-run"
-                    disabled={running || saving || buyingNow}
-                    onClick={() => void onPreviewRun()}
-                  >
-                    {ko.app.accountManageRebalanceDryRun}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    data-vu="account-rebalance-save"
-                    disabled={saving || running || buyingNow}
-                    onClick={() => void onSave()}
-                  >
-                    {saving
-                      ? ko.app.accountManageRebalanceSaving
-                      : ko.app.accountManageRebalanceSave}
-                  </button>
-                </div>
-              </section>
-              <section
-                className="account-rebalance-modal__foot-zone account-rebalance-modal__foot-zone--real"
-                aria-label={ko.app.accountManageRebalanceRealOrderZoneLabel}
-              >
-                <p className="account-rebalance-modal__foot-zone-label account-rebalance-modal__foot-zone-label--real">
-                  {ko.app.accountManageRebalanceRealOrderZoneLabel}
-                  <span className="account-rebalance-modal__real-badge">
-                    {ko.app.accountManageRebalanceRealBadge}
-                  </span>
-                </p>
-                <p
-                  className={[
-                    "account-rebalance-modal__hint account-rebalance-modal__foot-zone-hint",
-                    buyNowAllowed
-                      ? ""
-                      : "account-rebalance-modal__foot-zone-hint--blocked",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  role={buyNowAllowed ? undefined : "status"}
-                >
-                  {buyNowAllowed
-                    ? withRebalanceAmountNote(ko.app.accountManageRebalanceNowHoursHint)
-                    : ko.app.accountManageRebalanceNowHoursBlocked}
-                </p>
-                {buyNowAllowed && buyNowRunSummaryLine ? (
-                  <p
-                    className="account-rebalance-modal__hint account-rebalance-modal__foot-zone-summary"
-                    data-vu="account-rebalance-buy-now-summary"
-                  >
-                    {buyNowRunSummaryLine}
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  className="btn account-rebalance-modal__btn-real"
-                  data-vu="account-rebalance-buy-now"
-                  disabled={saving || running || buyingNow || !buyNowAllowed}
-                  title={
-                    buyNowAllowed
-                      ? undefined
-                      : ko.app.accountManageRebalanceNowHoursBlocked
-                  }
-                  onClick={() => void onBuyNow()}
-                >
-                  <span className="account-rebalance-modal__btn-real-text">
-                    {buyingNow
-                      ? ko.app.accountManageRebalanceNowRunning
-                      : ko.app.accountManageRebalanceNowRun}
-                  </span>
-                  {!buyingNow ? (
-                    <span className="account-rebalance-modal__btn-real-sub">
-                      {buildRebalanceNowRunSubLabel(buyNowPlanSummary, {
-                        repeatSummary: false,
-                      })}
-                    </span>
-                  ) : null}
-                </button>
-              </section>
-            </footer>
             </>
           )}
         </div>
+
+        {showScheduleForm ? (
+          <footer className="account-rebalance-modal__foot">
+            <section
+              className="account-rebalance-modal__foot-zone account-rebalance-modal__foot-zone--preview"
+              aria-label={ko.app.accountManageRebalancePreviewZoneLabel}
+            >
+              <p className="account-rebalance-modal__foot-zone-label">
+                {ko.app.accountManageRebalancePreviewZoneLabel}
+              </p>
+              <div className="account-rebalance-modal__foot-zone-actions">
+                <button
+                  type="button"
+                  className="btn account-rebalance-modal__btn-preview"
+                  data-vu="account-rebalance-dry-run"
+                  disabled={running || saving || buyingNow}
+                  onClick={() => void onPreviewRun()}
+                >
+                  {ko.app.accountManageRebalanceDryRun}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  data-vu="account-rebalance-save"
+                  disabled={saving || running || buyingNow}
+                  onClick={() => void onSave()}
+                >
+                  {saving
+                    ? ko.app.accountManageRebalanceSaving
+                    : ko.app.accountManageRebalanceSave}
+                </button>
+              </div>
+            </section>
+            <section
+              className="account-rebalance-modal__foot-zone account-rebalance-modal__foot-zone--real"
+              aria-label={ko.app.accountManageRebalanceRealOrderZoneLabel}
+            >
+              <p className="account-rebalance-modal__foot-zone-label account-rebalance-modal__foot-zone-label--real">
+                {ko.app.accountManageRebalanceRealOrderZoneLabel}
+                <span className="account-rebalance-modal__real-badge">
+                  {ko.app.accountManageRebalanceRealBadge}
+                </span>
+              </p>
+              <p
+                className={[
+                  "account-rebalance-modal__hint account-rebalance-modal__foot-zone-hint",
+                  buyNowAllowed
+                    ? ""
+                    : "account-rebalance-modal__foot-zone-hint--blocked",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                role={buyNowAllowed ? undefined : "status"}
+              >
+                {buyNowAllowed
+                  ? withRebalanceAmountNote(ko.app.accountManageRebalanceNowHoursHint)
+                  : ko.app.accountManageRebalanceNowHoursBlocked}
+              </p>
+              {buyNowAllowed && buyNowRunSummaryLine ? (
+                <p
+                  className="account-rebalance-modal__hint account-rebalance-modal__foot-zone-summary"
+                  data-vu="account-rebalance-buy-now-summary"
+                >
+                  {buyNowRunSummaryLine}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                className="btn account-rebalance-modal__btn-real"
+                data-vu="account-rebalance-buy-now"
+                disabled={saving || running || buyingNow || !buyNowAllowed}
+                title={
+                  buyNowAllowed
+                    ? undefined
+                    : ko.app.accountManageRebalanceNowHoursBlocked
+                }
+                onClick={() => void onBuyNow()}
+              >
+                <span className="account-rebalance-modal__btn-real-text">
+                  {buyingNow
+                    ? ko.app.accountManageRebalanceNowRunning
+                    : ko.app.accountManageRebalanceNowRun}
+                </span>
+                {!buyingNow ? (
+                  <span className="account-rebalance-modal__btn-real-sub">
+                    {buildRebalanceNowRunSubLabel(null, { repeatSummary: false })}
+                  </span>
+                ) : null}
+              </button>
+            </section>
+          </footer>
+        ) : null}
       </div>
     </div>
   );
