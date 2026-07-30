@@ -1045,7 +1045,7 @@ export default function AccountManageTab({
   const ready = provider === "toss" ? tossReady : bithumbReady;
   const hasAccountData =
     provider === "toss" ? Boolean(tossSnapshot) : Boolean(bithumbSnapshot);
-  /** status ?? ???? ??? ???? ??? ?????? ?? ?? */
+  /** status pending/fail: still show portfolio when snapshot exists */
   const canShowAccount = hasAccountData || (!statusPending && ready);
   const summaryPending =
     canShowAccount && loading && !hasAccountData;
