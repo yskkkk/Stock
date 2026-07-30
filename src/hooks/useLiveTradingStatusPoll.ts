@@ -34,7 +34,14 @@ function pollTick() {
     .catch(() => {
       void fetchAuthMe()
         .then((me) => {
-          if (!me.user) clearLiveTradingStatus();
+          if (!me.user) {
+            clearLiveTradingStatus();
+            return;
+          }
+          // 로그인 상태인데 status 실패 → 짧은 재시도(계좌 탭 ready 게이트 고착 방지)
+          window.setTimeout(() => {
+            void fetchLiveTradingStatus().then(notify).catch(() => {});
+          }, 2_500);
         })
         .catch(() => {
           clearLiveTradingStatus();

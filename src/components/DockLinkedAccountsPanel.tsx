@@ -153,10 +153,19 @@ function DockLinkedAccountsPanelInner({
           <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
         )
       ) : !bithumbReady ? (
-        <LiveTradeApiNotConnectedNotice
-          exchange="bithumb"
-          className="dock-linked-accounts__hint dock-linked-accounts__hint--api"
-        />
+        snapshot ? (
+          <BithumbAccountSnapshotCard
+            snapshot={snapshot}
+            feeLabelKo={bithumbFeeLabel}
+            updatedAtMs={updatedAtMs}
+            variant="inline"
+          />
+        ) : (
+          <LiveTradeApiNotConnectedNotice
+            exchange="bithumb"
+            className="dock-linked-accounts__hint dock-linked-accounts__hint--api"
+          />
+        )
       ) : bithumbLoading && !snapshot ? (
         <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
       ) : !snapshot ? (
@@ -172,12 +181,36 @@ function DockLinkedAccountsPanelInner({
         />
       )
     ) : statusPending ? (
-      <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+      tossSnapshot ? (
+        <TossAccountSnapshotCard
+          snapshot={tossSnapshot}
+          feeLabelKo={tossFeeLabel}
+          tossRoundTripFeeRate={tossRoundTripFeeRate}
+          tossFeeRatesByMarket={tossFeeRatesByMarket}
+          updatedAtMs={tossUpdatedAtMs}
+          variant="inline"
+          onOpenHoldingChart={onOpenHoldingChart}
+        />
+      ) : (
+        <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+      )
     ) : !tossReady ? (
-      <LiveTradeApiNotConnectedNotice
-        exchange="toss"
-        className="dock-linked-accounts__hint dock-linked-accounts__hint--api"
-      />
+      tossSnapshot ? (
+        <TossAccountSnapshotCard
+          snapshot={tossSnapshot}
+          feeLabelKo={tossFeeLabel}
+          tossRoundTripFeeRate={tossRoundTripFeeRate}
+          tossFeeRatesByMarket={tossFeeRatesByMarket}
+          updatedAtMs={tossUpdatedAtMs}
+          variant="inline"
+          onOpenHoldingChart={onOpenHoldingChart}
+        />
+      ) : (
+        <LiveTradeApiNotConnectedNotice
+          exchange="toss"
+          className="dock-linked-accounts__hint dock-linked-accounts__hint--api"
+        />
+      )
     ) : tossLoading && !tossSnapshot ? (
       <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
     ) : !tossSnapshot ? (

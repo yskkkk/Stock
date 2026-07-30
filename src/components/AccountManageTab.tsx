@@ -612,7 +612,7 @@ export default function AccountManageTab({
         markets,
       );
     } catch {
-      /* 미리보기 없으면 generic 확인 문구 */
+      /* ???? ??? generic ?? ?? */
     }
     if (!window.confirm(confirmMsg)) return;
     setBuyingNow(true);
@@ -1041,19 +1041,23 @@ export default function AccountManageTab({
   const loading =
     provider === "toss" ? tossLoading && !tossSnapshot : bithumbLoading && !bithumbSnapshot;
   const err = provider === "toss" ? tossErr : bithumbErr;
+  const statusPending = status == null;
   const ready = provider === "toss" ? tossReady : bithumbReady;
   const hasAccountData =
     provider === "toss" ? Boolean(tossSnapshot) : Boolean(bithumbSnapshot);
-  const summaryPending = ready && loading && !hasAccountData;
+  /** status ?? ?�?? ??? ???? ??? ?????? ?? ?? */
+  const canShowAccount = hasAccountData || (!statusPending && ready);
+  const summaryPending =
+    canShowAccount && loading && !hasAccountData;
   const updatedAtMs =
     provider === "toss"
       ? quotesUpdatedAtMs ?? tossUpdatedAtMs
       : bithumbUpdatedAtMs;
 
   const contentReady =
-    ready &&
+    canShowAccount &&
     !loading &&
-    (provider !== "toss" || Boolean(tossSnapshot) || Boolean(bithumbSnapshot));
+    hasAccountData;
 
   return (
     <div
@@ -1126,8 +1130,12 @@ export default function AccountManageTab({
         />
       </div>
 
-      {!ready ? (
-        <LiveTradeApiNotConnectedNotice exchange={provider} />
+      {!canShowAccount ? (
+        statusPending || loading ? (
+          <DockPanelCenterLoading label={ko.app.accountManageLoading} />
+        ) : (
+          <LiveTradeApiNotConnectedNotice exchange={provider} />
+        )
       ) : err && !hasAccountData ? (
         <p className="account-manage-tab__error" role="alert">
           {err}
@@ -1180,7 +1188,7 @@ export default function AccountManageTab({
                               m === "us" ? "is-usd" : "is-krw",
                             ].join(" ")}
                           >
-                            {m === "us" ? "$" : "원"}
+                            {m === "us" ? "$" : "?"}
                           </span>
                           <span className="account-manage-tab__rebalance-hour-name">
                             {m === "us"
@@ -1277,7 +1285,7 @@ export default function AccountManageTab({
                     aria-hidden={balanceHidden || undefined}
                   >
                     {summaryPending
-                      ? "…"
+                      ? "?"
                       : money((holdingsTotalKrw ?? 0) + cashKrw)}
                   </span>
                 </span>
@@ -1306,7 +1314,7 @@ export default function AccountManageTab({
                     className="account-manage-tab__money"
                     aria-hidden={balanceHidden || undefined}
                   >
-                    {summaryPending ? "…" : money(holdingsTotalKrw)}
+                    {summaryPending ? "?" : money(holdingsTotalKrw)}
                   </span>
                   {!summaryPending && holdingsReturnPct != null ? (
                     <span className="account-manage-tab__stat-pct">
@@ -1338,14 +1346,14 @@ export default function AccountManageTab({
                   >
                     <span className="account-manage-tab__stat-label" aria-hidden="true">
                       <span className="account-rebalance-modal__badge is-krw" aria-hidden="true">
-                        원
+                        ?
                       </span>
                       {ko.app.accountManageCashKrw}
                     </span>
                     <span className="account-manage-tab__stat-value" aria-hidden="true">
                       <span className="account-manage-tab__money">
                         {summaryPending
-                          ? "…"
+                          ? "?"
                           : formatPrice(cashNativeKrw, "KRW")}
                       </span>
                     </span>
@@ -1382,7 +1390,7 @@ export default function AccountManageTab({
                     <span className="account-manage-tab__stat-value" aria-hidden="true">
                       <span className="account-manage-tab__money">
                         {summaryPending
-                          ? "…"
+                          ? "?"
                           : formatPrice(cashNativeUsd, "USD")}
                       </span>
                       {!summaryPending &&
@@ -1412,7 +1420,7 @@ export default function AccountManageTab({
                       className="account-manage-tab__money"
                       aria-hidden={balanceHidden || undefined}
                     >
-                      {summaryPending ? "…" : money(cashKrw)}
+                      {summaryPending ? "?" : money(cashKrw)}
                     </span>
                   </span>
                 </div>
