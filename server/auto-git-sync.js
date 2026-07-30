@@ -13,7 +13,9 @@
  *   AUTO_GIT_SYNC_INTERVAL_MS — 기본 60000 (1분), 최소 10000
  *   AUTO_GIT_REMOTE — 기본 origin
  *   AUTO_GIT_BRANCH — 비우면 현재 체크아웃 브랜치명 사용
- *   AUTO_GIT_STASH_BEFORE_PULL=1 — pull 전에 로컬 변경이 있으면 `git stash push` 후 pull, 성공 시 `stash apply`+`drop` (충돌 시 stash 유지·수동 처리)
+ *   AUTO_GIT_STASH_BEFORE_PULL=1 — (기본 켜짐) pull 전 로컬 tracked 변경이 있으면 `git stash push` 후 pull, 성공 시 `stash apply`+`drop`
+ *   AUTO_GIT_NO_STASH_BEFORE_PULL=1 — 위 stash 동작 끔 (로컬 WIP 있으면 ff-only pull 실패 가능)
+ *   stash apply 충돌 시: worktree는 pull된 HEAD로 reset, stash는 유지, 서버 재시작은 계속
  *   AUTO_GIT_POST_PULL_CMD — pull 이후 추가 셸. 실패 시 기본은 재시작 진행(경고). `AUTO_GIT_RESTART_ONLY_IF_BUILD_OK=1`이면 빌드·후크 실패 시 재시작 안 함
  *   AUTO_GIT_SKIP_NPM_REFRESH=1 — 긴급 시에만: npm ci/install·build 생략하고 바로 재시작
  *
@@ -54,6 +56,11 @@ const GIT_INDEX_LOCK_POLL_MS = 500;
 function truthy(v) {
   const s = String(v ?? "").toLowerCase();
   return s === "1" || s === "true" || s === "yes" || s === "on";
+}
+
+/** VU/에이전트 WIP와 원격 겹침 시 pull skip 방지 — 기본 stash-on */
+function stashBeforePullEnabled() {
+  return !truthy(process.env.AUTO_GIT_NO_STASH_BEFORE_PULL);
 }
 
 function execGitOut(args) {
@@ -472,9 +479,20 @@ function isStashApply3wayUnsupported(detail) {
 }
 
 /**
+ * stash apply 충돌로 index/worktree가 어수선할 때 pull된 HEAD로 되돌림.
+ * @returns {{ ok: true } | { ok: false; detail: string }}
+ */
+function resetWorktreeToHead() {
+  const reset = execGitTry(["reset", "--hard", "HEAD"]);
+  if (reset.ok) return { ok: true };
+  return { ok: false, detail: gitErrorDetail(reset) };
+}
+
+/**
  * stash 복원. apply(--3way)→drop 으로 pop 대신 stash 유지·수동 복구 가능.
+ * pull 성공 후 apply 충돌이면 worktree만 HEAD로 reset하고 stash 유지(remote 반영 우선).
  * @param {{ context: "after-pull" | "after-pull-failed" }} opts
- * @returns {boolean}
+ * @returns {{ restored: boolean; remoteClean?: boolean }}
  */
 function restoreStashedChanges(opts) {
   const { context } = opts;
@@ -493,6 +511,27 @@ function restoreStashedChanges(opts) {
   }
   if (!apply.ok) {
     const detail = gitErrorDetail(apply);
+    if (context === "after-pull") {
+      const reset = resetWorktreeToHead();
+      if (reset.ok) {
+        appendServerEventLog(
+          "auto-git",
+          `stash apply conflict — worktree reset to pulled HEAD; local WIP kept in stash (${detail.slice(0, 240)})`,
+          "warn",
+        );
+        appendServerEventLog(
+          "auto-git",
+          "resolve stash manually: git stash list → git stash apply → git stash drop",
+          "warn",
+        );
+        return { restored: false, remoteClean: true };
+      }
+      appendServerEventLog(
+        "auto-git",
+        `stash apply failed and reset --hard failed: ${reset.detail}`,
+        "error",
+      );
+    }
     const prefix =
       context === "after-pull"
         ? "stash apply failed after pull (resolve conflicts manually)"
@@ -504,7 +543,7 @@ function restoreStashedChanges(opts) {
       "stash kept — resolve conflicts then run git stash drop",
       "error",
     );
-    return false;
+    return { restored: false };
   }
   const drop = execGitTry(["stash", "drop"]);
   if (!drop.ok) {
@@ -515,7 +554,7 @@ function restoreStashedChanges(opts) {
     );
   }
   appendServerEventLog("auto-git", "restored stashed changes");
-  return true;
+  return { restored: true };
 }
 
 /**
@@ -747,7 +786,7 @@ export function startAutoGitSync({ httpServer }) {
     }
 
     let stashed = false;
-    if (truthy(process.env.AUTO_GIT_STASH_BEFORE_PULL)) {
+    if (stashBeforePullEnabled()) {
       if (prePullPorcelain) {
         const { trackedDirty } = parsePorcelainStatus(prePullPorcelain);
         if (trackedDirty.length) {
@@ -810,7 +849,7 @@ export function startAutoGitSync({ httpServer }) {
         if (overlapping.length) {
           appendServerEventLog(
             "auto-git",
-            `dirty worktree + overlap without AUTO_GIT_STASH_BEFORE_PULL — pull may fail: ${overlapping.join(", ")}`,
+            `dirty worktree + overlap with AUTO_GIT_NO_STASH_BEFORE_PULL=1 — pull may fail: ${overlapping.join(", ")}`,
             "warn",
           );
         }
@@ -823,7 +862,7 @@ export function startAutoGitSync({ httpServer }) {
       appendServerEventLog("auto-git", `worktree: ${describeGitWorktree()}`, "error");
       if (stashed) {
         const restored = restoreStashedChanges({ context: "after-pull-failed" });
-        if (!restored) {
+        if (!restored.restored) {
           notifyOpsAutoGitFailed({
             phase: `stash restore after failed pull ${remote}/${branch}`,
             detail: describeGitWorktree(),
@@ -843,14 +882,21 @@ export function startAutoGitSync({ httpServer }) {
 
     if (stashed) {
       const restored = restoreStashedChanges({ context: "after-pull" });
-      if (!restored) {
-        notifyOpsAutoGitFailed({
-          phase: `stash restore after pull ${remote}/${branch}`,
-          detail: describeGitWorktree(),
-          errorText:
-            "stash apply failed after pull — resolve conflicts manually (stash kept)",
-        });
-        return;
+      if (!restored.restored) {
+        if (restored.remoteClean) {
+          appendServerEventLog(
+            "auto-git",
+            "remote synced; local WIP remains in stash — continuing restart",
+          );
+        } else {
+          notifyOpsAutoGitFailed({
+            phase: `stash restore after pull ${remote}/${branch}`,
+            detail: describeGitWorktree(),
+            errorText:
+              "stash apply failed after pull — resolve conflicts manually (stash kept)",
+          });
+          return;
+        }
       }
     }
 
