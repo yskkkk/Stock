@@ -10,6 +10,7 @@ import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
+import { formatTimeMsKst, formatUpdatedAt } from "../lib/format";
 import {
   consumePendingDockAccountView,
   dispatchDockAccountProvider,
@@ -55,6 +56,8 @@ function DockLinkedAccountsPanelInner({
   const tossReady = Boolean(status?.toss?.ready);
 
   const [provider, setProvider] = useState<LinkedProvider>(readDockAccountProvider);
+  const [slowFetch, setSlowFetch] = useState(false);
+  const [freshnessTick, setFreshnessTick] = useState(0);
 
   const selectProvider = useCallback((next: LinkedProvider) => {
     setProvider(next);
@@ -86,6 +89,7 @@ function DockLinkedAccountsPanelInner({
     feeLabelKo: bithumbFeeLabel,
     updatedAtMs,
     loading: bithumbLoading,
+    syncing: bithumbSyncing,
     err: bithumbErr,
   } = useBithumbAccountSnapshot({ poll: provider === "bithumb" });
 
@@ -96,6 +100,7 @@ function DockLinkedAccountsPanelInner({
     tossFeeRatesByMarket: tossFeeRatesByMarketHook,
     updatedAtMs: tossUpdatedAtMs,
     loading: tossLoading,
+    syncing: tossSyncing,
     err: tossErr,
   } = useTossAccountSnapshot({
     poll: provider === "toss",
@@ -120,6 +125,25 @@ function DockLinkedAccountsPanelInner({
   }, [status?.feeRates?.toss, tossFeeRatesByMarketHook]);
 
   const statusPending = status == null;
+  const panelUpdatedAtMs = provider === "bithumb" ? updatedAtMs : tossUpdatedAtMs;
+  const panelSyncing = provider === "bithumb" ? bithumbSyncing : tossSyncing;
+  const panelErr = provider === "bithumb" ? bithumbErr : tossErr;
+  const hasPanelData =
+    provider === "bithumb" ? Boolean(snapshot) : Boolean(tossSnapshot);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setFreshnessTick((t) => t + 1), 10_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!panelSyncing) {
+      setSlowFetch(false);
+      return;
+    }
+    const id = window.setTimeout(() => setSlowFetch(true), 1200);
+    return () => window.clearTimeout(id);
+  }, [panelSyncing]);
 
   if (!authChecked) {
     return (
@@ -236,6 +260,35 @@ function DockLinkedAccountsPanelInner({
         selected={provider}
         onSelect={selectProvider}
       />
+      {user && hasPanelData ? (
+        <p
+          className="dock-linked-accounts__freshness"
+          role="status"
+          aria-live="polite"
+          aria-busy={panelSyncing || undefined}
+          data-freshness-tick={freshnessTick}
+        >
+          {panelSyncing && slowFetch ? (
+            <span
+              className="dock-linked-accounts__freshness-spinner"
+              aria-hidden
+            />
+          ) : null}
+          {ko.app.accountManageUpdated}
+          {panelSyncing && slowFetch
+            ? ` · ${ko.app.accountManageRefreshing}`
+            : panelUpdatedAtMs
+              ? ` · ${formatUpdatedAt(panelUpdatedAtMs)} · ${formatTimeMsKst(panelUpdatedAtMs)}`
+              : panelSyncing
+                ? "…"
+                : ""}
+        </p>
+      ) : null}
+      {panelErr && hasPanelData ? (
+        <p className="dock-linked-accounts__stale-hint" role="status">
+          {panelErr}
+        </p>
+      ) : null}
       <div
         className="dock-linked-accounts__body"
         role="region"

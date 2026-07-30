@@ -83,6 +83,43 @@
   min-width: 0;
 }
 
+.account-manage-tab__freshness {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.account-manage-tab__freshness-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-manage-tab__freshness-time {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.account-manage-tab__refresh-spinner--freshness {
+  flex: none;
+}
+
+.account-manage-tab__stale-hint {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--warn, #d97706);
+  background: color-mix(in srgb, var(--warn, #d97706) 8%, transparent);
+  border-radius: 4px;
+}
+
 .account-manage-tab__refresh-indicator {
   flex: 1 1 auto;
   display: inline-flex;
@@ -1531,6 +1568,14 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   .account-manage-tab__toolbar-grow,
   .account-manage-tab__refresh-indicator {
     display: none;
+  }
+
+  .account-manage-tab__freshness {
+    order: -1;
+    width: 100%;
+    justify-content: flex-start;
+    min-height: 44px;
+    padding: 0.15rem 0;
   }
 
   .account-manage-tab__rebalance-hours {

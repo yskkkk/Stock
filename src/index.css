@@ -11980,6 +11980,38 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   box-sizing: border-box;
 }
 
+.dock-linked-accounts__freshness {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.dock-linked-accounts__freshness-spinner {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid color-mix(in srgb, var(--muted) 35%, transparent);
+  border-top-color: var(--accent, #14b8a6);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex: none;
+}
+
+.dock-linked-accounts__stale-hint {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--warn, #d97706);
+  background: color-mix(in srgb, var(--warn, #d97706) 8%, transparent);
+  border-radius: 4px;
+}
+
 .dock-linked-accounts__block {
   display: flex;
   flex-direction: column;

@@ -77,9 +77,11 @@ export function useTossAccountSnapshot(opts?: {
     return null;
   });
   const [loading, setLoading] = useState(() => !peek?.snapshot);
+  const [syncing, setSyncing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const userRef = useRef<AuthUser | null>(null);
   const snapshotRef = useRef<TossTestSnapshot | null>(peek?.snapshot ?? null);
+  const syncingRef = useRef(0);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -163,6 +165,8 @@ export function useTossAccountSnapshot(opts?: {
 
   const reload = useCallback(
     async (refresh = false, silent = false) => {
+      syncingRef.current += 1;
+      setSyncing(true);
       const uid = userRef.current?.id ?? null;
       const hasLocal = Boolean(uid && readTossSnapshotCache(uid));
       if (!silent && !hasLocal && !snapshotRef.current) setLoading(true);
@@ -212,6 +216,8 @@ export function useTossAccountSnapshot(opts?: {
           setUpdatedAtMs(null);
         }
       } finally {
+        syncingRef.current = Math.max(0, syncingRef.current - 1);
+        setSyncing(syncingRef.current > 0);
         setAuthChecked(true);
         if (!silent) setLoading(false);
       }
@@ -262,6 +268,7 @@ export function useTossAccountSnapshot(opts?: {
     tossFeeRatesByMarket,
     updatedAtMs,
     loading,
+    syncing,
     err,
     reload,
   };

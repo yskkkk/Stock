@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchAuthMe,
   fetchBithumbAccountSnapshot,
@@ -17,7 +17,9 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
   const [feeLabelKo, setFeeLabelKo] = useState<string | null>(null);
   const [updatedAtMs, setUpdatedAtMs] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const syncingRef = useRef(0);
 
   const applySnapshotResponse = useCallback(
     (out: Awaited<ReturnType<typeof fetchBithumbAccountSnapshot>>) => {
@@ -42,6 +44,8 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
 
   const reload = useCallback(
     async (refresh = false, silent = false) => {
+      syncingRef.current += 1;
+      setSyncing(true);
       if (!silent) setLoading(true);
       try {
         const me = await fetchAuthMe();
@@ -60,6 +64,8 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
         setUpdatedAtMs(null);
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
+        syncingRef.current = Math.max(0, syncingRef.current - 1);
+        setSyncing(syncingRef.current > 0);
         setAuthChecked(true);
         if (!silent) setLoading(false);
       }
@@ -101,6 +107,7 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
     feeLabelKo,
     updatedAtMs,
     loading,
+    syncing,
     err,
     reload,
   };

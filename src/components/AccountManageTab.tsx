@@ -36,7 +36,7 @@ import {
   computeTossAccountCombinedPnl,
   tossHoldingsTotalNetMarketValueKrw,
 } from "../lib/tossHoldingPnl";
-import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
+import { formatPercent, formatPrice, formatSignedMoney, formatTimeMsKst, formatUpdatedAt } from "../lib/format";
 import {
   buildRebalanceNowConfirmMessage,
   buildRebalanceNowRunSubLabel,
@@ -179,10 +179,17 @@ export default function AccountManageTab({
   >(["kr", "us"]);
   const [buyingNow, setBuyingNow] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [slowFetch, setSlowFetch] = useState(false);
   const [, setHoursTick] = useState(0);
+  const [freshnessTick, setFreshnessTick] = useState(0);
 
   useEffect(() => {
     const id = window.setInterval(() => setHoursTick((t) => t + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setFreshnessTick((t) => t + 1), 10_000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -219,6 +226,7 @@ export default function AccountManageTab({
     tossFeeRatesByMarket: tossFeeRatesByMarketHook,
     updatedAtMs: tossUpdatedAtMs,
     loading: tossLoading,
+    syncing: tossSyncing,
     err: tossErr,
     reload: reloadToss,
   } = useTossAccountSnapshot({
@@ -231,6 +239,7 @@ export default function AccountManageTab({
     feeLabelKo: bithumbFeeLabel,
     updatedAtMs: bithumbUpdatedAtMs,
     loading: bithumbLoading,
+    syncing: bithumbSyncing,
     err: bithumbErr,
     reload: reloadBithumb,
   } = useBithumbAccountSnapshot({
@@ -867,6 +876,18 @@ export default function AccountManageTab({
     [provider, cashNativeKrw, cashNativeUsd],
   );
 
+  const snapshotSyncing = provider === "toss" ? tossSyncing : bithumbSyncing;
+  const fetchActivity = refreshing || snapshotSyncing;
+
+  useEffect(() => {
+    if (!fetchActivity) {
+      setSlowFetch(false);
+      return;
+    }
+    const id = window.setTimeout(() => setSlowFetch(true), 1200);
+    return () => window.clearTimeout(id);
+  }, [fetchActivity]);
+
   const renderStyleStrip = () =>
     styleSegments.length > 0 ? (
       <div
@@ -1149,22 +1170,40 @@ export default function AccountManageTab({
             aria-busy={summaryPending || undefined}
           >
             <div className="account-manage-tab__summary-toolbar">
-              {refreshing ? (
-                <span
-                  className="account-manage-tab__refresh-indicator"
-                  role="status"
-                  aria-live="polite"
-                  aria-label={ko.app.accountManageRefreshing}
-                  title={ko.app.accountManageRefreshing}
-                >
+              <span
+                className="account-manage-tab__freshness"
+                role="status"
+                aria-live="polite"
+                aria-busy={fetchActivity || undefined}
+              >
+                {fetchActivity && slowFetch ? (
                   <span
-                    className="account-manage-tab__refresh-spinner"
+                    className="account-manage-tab__refresh-spinner account-manage-tab__refresh-spinner--freshness"
                     aria-hidden
                   />
+                ) : null}
+                <span
+                  className="account-manage-tab__freshness-text"
+                  data-freshness-tick={freshnessTick}
+                >
+                  {ko.app.accountManageUpdated}
+                  {fetchActivity && slowFetch
+                    ? ` · ${ko.app.accountManageRefreshing}`
+                    : updatedAtMs
+                      ? ` · ${formatUpdatedAt(updatedAtMs)}`
+                      : fetchActivity
+                        ? "…"
+                        : ""}
                 </span>
-              ) : (
-                <span className="account-manage-tab__toolbar-grow" aria-hidden />
-              )}
+                {updatedAtMs ? (
+                  <time
+                    className="account-manage-tab__freshness-time"
+                    dateTime={new Date(updatedAtMs).toISOString()}
+                  >
+                    {formatTimeMsKst(updatedAtMs)}
+                  </time>
+                ) : null}
+              </span>
               {provider === "toss" ? (
                 <>
                   <div
@@ -1273,6 +1312,11 @@ export default function AccountManageTab({
                   : ko.app.accountManageMoneyHide}
               </button>
             </div>
+            {err && hasAccountData ? (
+              <p className="account-manage-tab__stale-hint" role="status">
+                {err}
+              </p>
+            ) : null}
           <div className="account-manage-tab__summary-row">
             <div className="account-manage-tab__summary account-manage-tab__summary--primary">
               <div className="account-manage-tab__stat">
