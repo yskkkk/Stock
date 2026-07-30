@@ -156,19 +156,7 @@ _재발 17619회 (최초 2026-05-27 07:14:23.020 KST)_
 
 ---
 
-### [WARN] auto-git — 2026-07-30 18:32:28.388 KST
-
-<!-- id:log-auto-git-dcc7d905cf -->
-
-**문제**: remote origin/main overlaps dirty: src/components/AccountRebalanceScheduleModal.tsx, src/i18n/ko.ts, src/lib/rebalancePlanSummary.test.ts, src/lib/rebalancePlanSummary.ts · branch=main · dirty=13 tracked — stash then pull (VU/agent sync; pop may need manual resolve)
-
-**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
-
-**근거**: server/.logs 접근 로그 INTERNAL auto-git
-
----
-
-### [WARN] virtual-user — 2026-07-30 11:18:29.578 KST
+### [WARN] virtual-user — 2026-07-30 23:21:35.665 KST
 
 <!-- id:logfreq-d708c2d972 -->
 
@@ -178,7 +166,19 @@ _재발 17619회 (최초 2026-05-27 07:14:23.020 KST)_
 
 **근거**: server/.logs 오늘 INTERNAL 3회
 
-_재발 16회 (최초 2026-07-30 07:34:04.764 KST)_
+_재발 24회 (최초 2026-07-30 07:34:04.764 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-30 18:32:28.388 KST
+
+<!-- id:log-auto-git-dcc7d905cf -->
+
+**문제**: remote origin/main overlaps dirty: src/components/AccountRebalanceScheduleModal.tsx, src/i18n/ko.ts, src/lib/rebalancePlanSummary.test.ts, src/lib/rebalancePlanSummary.ts · branch=main · dirty=13 tracked — stash then pull (VU/agent sync; pop may need manual resolve)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
 
 ---
 
@@ -716,4 +716,4 @@ _재발 33회 (최초 2026-05-28 07:59:33.276 KST)_
 
 ## 최근 자동 점검
 
-2026-07-30 20:05:09.992 KST — probes 완료 · 열린 54건 · 이번 기록 0건
+2026-07-30 23:48:21.276 KST — probes 완료 · 열린 54건 · 이번 기록 0건

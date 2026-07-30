@@ -980,17 +980,6 @@ export default function StockVaultTab({
     filter !== "favorite" &&
     selectedScanSources.length === 0;
 
-  const showEntryHintInEmpty =
-    !loading &&
-    !error &&
-    filtered.length === 0 &&
-    !isHistoricalView &&
-    filter === "all" &&
-    !needsScanCondition &&
-    !showEmptyIntersection;
-
-  const showEntryHintAtTop = !showEntryHintInEmpty;
-
   const activeFilterLabels = useMemo(
     () =>
       buildVaultActiveFilterLabels({
@@ -1028,9 +1017,20 @@ export default function StockVaultTab({
     !loading &&
     !error &&
     filtered.length === 0 &&
-    !showEntryHintInEmpty &&
     !needsScanCondition &&
     activeFilterLabels.length > 0;
+
+  const showEntryHintInEmpty =
+    !loading &&
+    !error &&
+    filtered.length === 0 &&
+    !isHistoricalView &&
+    filter === "all" &&
+    !needsScanCondition &&
+    !showEmptyIntersection &&
+    !showFilterEmptyState;
+
+  const showEntryHintAtTop = !showEntryHintInEmpty;
 
   const resetVaultFilters = useCallback(() => {
     const defaults = defaultStockVaultTabUi();
@@ -1797,11 +1797,7 @@ export default function StockVaultTab({
             {error}
           </p>
         ) : filtered.length === 0 ? (
-          showEntryHintInEmpty ? (
-            <p className="stock-vault-tab__entry-hint stock-vault-tab__entry-hint--empty">
-              {ko.stockVault.entryHint}
-            </p>
-          ) : showFilterEmptyState ? (
+          showFilterEmptyState ? (
             <div className="stock-vault-tab__empty-filter">
               <p className="stock-vault-tab__muted">
                 {ko.stockVault.emptyFilteredReason(activeFilterLabels.join(" · "))}
@@ -1815,6 +1811,10 @@ export default function StockVaultTab({
                 {ko.stockVault.filterReset}
               </button>
             </div>
+          ) : showEntryHintInEmpty ? (
+            <p className="stock-vault-tab__entry-hint stock-vault-tab__entry-hint--empty">
+              {ko.stockVault.entryHint}
+            </p>
           ) : (
             <p className="stock-vault-tab__muted">
               {isHistoricalView
