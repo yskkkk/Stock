@@ -635,6 +635,8 @@ html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-label--real {
 .account-rebalance-modal__foot-zone-hint {
   font-size: 0.68rem;
   line-height: 1.4;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .account-rebalance-modal__foot-zone-summary {
@@ -699,6 +701,10 @@ html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-hint--blocked
   font-weight: 700;
   opacity: 0.92;
   letter-spacing: 0.01em;
+  text-align: center;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .account-rebalance-modal__btn-real:hover:not(:disabled) {

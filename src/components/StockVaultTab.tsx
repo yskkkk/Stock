@@ -25,6 +25,7 @@ import { ko } from "../i18n/ko";
 import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import { pickChartInsight } from "../lib/stockVaultChartInsights";
 import {
+  buildVaultActiveFilterLabels,
   buildVaultDisplayRows,
   countItemsByScanSource,
   countScanSourceTotals,
@@ -990,6 +991,58 @@ export default function StockVaultTab({
 
   const showEntryHintAtTop = !showEntryHintInEmpty;
 
+  const activeFilterLabels = useMemo(
+    () =>
+      buildVaultActiveFilterLabels({
+        selectedScanDate,
+        filter,
+        selectedScanSources,
+        timeframeFilter,
+        marketFilter,
+        industryFilter,
+        ma120ApproachFilter,
+        scanSourceLabel: (source) => SCAN_SOURCE_LABEL[source],
+        labels: {
+          historyAll: ko.stockVault.historyAll,
+          scanDatePrefix: ko.stockVault.filterScanDatePrefix,
+          filterFavorite: ko.stockVault.filterFavorite,
+          marketKr: ko.app.marketKr,
+          marketUs: ko.app.marketUs,
+          ma120FromBelow: ko.stockVault.ma120ApproachFromBelow,
+          ma120FromAbove: ko.stockVault.ma120ApproachFromAbove,
+          timeframeWeekly: ko.stockVault.timeframeWeekly,
+        },
+      }),
+    [
+      selectedScanDate,
+      filter,
+      selectedScanSources,
+      timeframeFilter,
+      marketFilter,
+      industryFilter,
+      ma120ApproachFilter,
+    ],
+  );
+
+  const showFilterEmptyState =
+    !loading &&
+    !error &&
+    filtered.length === 0 &&
+    !showEntryHintInEmpty &&
+    !needsScanCondition &&
+    activeFilterLabels.length > 0;
+
+  const resetVaultFilters = useCallback(() => {
+    const defaults = defaultStockVaultTabUi();
+    setFilter(defaults.filter);
+    setSelectedScanSources([...defaults.selectedScanSources]);
+    setMa120ApproachFilter(defaults.ma120ApproachFilter);
+    setTimeframeFilter(defaults.timeframeFilter);
+    setMarketFilter(defaults.marketFilter);
+    setIndustryFilter(defaults.industryFilter);
+    setSelectedScanDate(defaults.selectedScanDate);
+  }, []);
+
   useEffect(() => {
     setListVisibleCount(VAULT_LIST_INITIAL_ROWS);
   }, [
@@ -1748,6 +1801,20 @@ export default function StockVaultTab({
             <p className="stock-vault-tab__entry-hint stock-vault-tab__entry-hint--empty">
               {ko.stockVault.entryHint}
             </p>
+          ) : showFilterEmptyState ? (
+            <div className="stock-vault-tab__empty-filter">
+              <p className="stock-vault-tab__muted">
+                {ko.stockVault.emptyFilteredReason(activeFilterLabels.join(" · "))}
+              </p>
+              <button
+                type="button"
+                className="stock-vault-tab__filter-reset"
+                aria-label={ko.stockVault.filterResetAria}
+                onClick={resetVaultFilters}
+              >
+                {ko.stockVault.filterReset}
+              </button>
+            </div>
           ) : (
             <p className="stock-vault-tab__muted">
               {isHistoricalView

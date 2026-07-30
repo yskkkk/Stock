@@ -14,6 +14,68 @@
 
 ## 열린 항목
 
+### [ERROR] auto-git — 2026-07-30 18:32:32.919 KST
+
+<!-- id:log-auto-git-2f32b6940f -->
+
+**문제**: stash kept — resolve conflicts then run git stash drop
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 2회 (최초 2026-07-30 04:49:53.848 KST)_
+
+---
+
+### [ERROR] auto-git — 2026-07-30 18:32:32.915 KST
+
+<!-- id:log-auto-git-3c4cf1d803 -->
+
+**문제**: worktree: branch=main · conflicts=src/components/AccountRebalanceScheduleModal.tsx, src/i18n/ko.ts, src/lib/rebalancePlanSummary.test.ts
+
+**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [ERROR] auto-git — 2026-07-30 18:32:32.648 KST
+
+<!-- id:log-auto-git-18665c8e7d -->
+
+**문제**: stash apply failed after pull (resolve conflicts manually): Auto-merging src/components/AccountRebalanceScheduleModal.tsx CONFLICT (content): Merge conflict in src/components/AccountRebalanceScheduleModal.tsx Auto-merging src/i18n/ko.ts CONFLICT (content): Merge conflict in src/i18n/ko.ts Auto-merging src/lib/rebalancePlanSummary.test.ts CONFLICT (content): Merge conflict in src/lib/rebalancePlanSummary.test.ts Auto-merging src/lib/rebalancePlanSummary.ts On branch main Your branch is up to date with 'origin/main'.  Changes to be committed:   (use "git restore --staged <file>..." to unstage) 	
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [ERROR] auto-git — 2026-07-30 04:49:53.846 KST
+
+<!-- id:log-auto-git-b753567b90 -->
+
+**문제**: worktree: branch=main · conflicts=src/components/AccountManageTab.tsx, src/components/AccountRebalanceScheduleModal.tsx, src/i18n/ko.ts · untracked=1
+
+**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [ERROR] auto-git — 2026-07-30 04:49:53.578 KST
+
+<!-- id:log-auto-git-e34444f53b -->
+
+**문제**: stash apply failed after pull (resolve conflicts manually): Auto-merging src/components/AccountManageTab.tsx CONFLICT (content): Merge conflict in src/components/AccountManageTab.tsx Auto-merging src/components/AccountRebalanceScheduleModal.tsx CONFLICT (content): Merge conflict in src/components/AccountRebalanceScheduleModal.tsx Auto-merging src/components/account-rebalance-schedule-modal.css Auto-merging src/i18n/ko.ts CONFLICT (content): Merge conflict in src/i18n/ko.ts On branch main Your branch is up to date with 'origin/main'.  Changes to be committed:   (use "git restore --staged <file>
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
 ### [ERROR] auto-git — 2026-07-30 01:35:10.982 KST
 
 <!-- id:log-auto-git-4ed933128f -->
@@ -91,6 +153,44 @@ _재발 32회 (최초 2026-07-28 07:34:19.167 KST)_
 **근거**: 누적 1회
 
 _재발 17619회 (최초 2026-05-27 07:14:23.020 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-30 18:32:28.388 KST
+
+<!-- id:log-auto-git-dcc7d905cf -->
+
+**문제**: remote origin/main overlaps dirty: src/components/AccountRebalanceScheduleModal.tsx, src/i18n/ko.ts, src/lib/rebalancePlanSummary.test.ts, src/lib/rebalancePlanSummary.ts · branch=main · dirty=13 tracked — stash then pull (VU/agent sync; pop may need manual resolve)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] virtual-user — 2026-07-30 11:18:29.578 KST
+
+<!-- id:logfreq-d708c2d972 -->
+
+**문제**: 오늘 로그에서 반복 오류: explore tick fail EPERM (3회)
+
+**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
+
+**근거**: server/.logs 오늘 INTERNAL 3회
+
+_재발 16회 (최초 2026-07-30 07:34:04.764 KST)_
+
+---
+
+### [WARN] auto-git — 2026-07-30 04:49:49.170 KST
+
+<!-- id:log-auto-git-e763e8c069 -->
+
+**문제**: remote origin/main overlaps dirty: src/components/AccountManageTab.tsx, src/components/AccountRebalanceScheduleModal.tsx, src/components/account-rebalance-schedule-modal.css, src/i18n/ko.ts · branch=main · dirty=5 tracked · untracked=1 — stash then pull (VU/agent sync; pop may need manual resolve)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
 
 ---
 
@@ -616,4 +716,4 @@ _재발 33회 (최초 2026-05-28 07:59:33.276 KST)_
 
 ## 최근 자동 점검
 
-2026-07-30 04:34:22.557 KST — probes 완료 · 열린 46건 · 이번 기록 0건
+2026-07-30 20:05:09.992 KST — probes 완료 · 열린 54건 · 이번 기록 0건

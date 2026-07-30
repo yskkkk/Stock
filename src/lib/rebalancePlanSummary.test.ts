@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildRebalanceNowConfirmMessage,
   buildRebalanceNowRunSubLabel,
+  buildRebalanceRunSummaryLine,
+  buildRebalanceSpendSummary,
   formatRebalanceMoney,
-  summarizeRebalancePlanTotals,
   withRebalanceAmountNote,
 } from "./rebalancePlanSummary";
 
@@ -13,8 +14,8 @@ describe("rebalancePlanSummary", () => {
     expect(formatRebalanceMoney(12.5, "USD")).toBe("12.50$");
   });
 
-  it("summarizes enabled market totals in preview format", () => {
-    const summary = summarizeRebalancePlanTotals(
+  it("summarizes cashToSpend in preview format (not order sum)", () => {
+    const summary = buildRebalanceSpendSummary(
       [
         {
           market: "kr",
@@ -56,7 +57,9 @@ describe("rebalancePlanSummary", () => {
       ],
       ["kr", "us"],
     );
-    expect(summary).toBe("50,000원 · 25.50$");
+    expect(summary).toBe(
+      "원화 현금 이번 사용 50,000원 · 달러 현금 이번 사용 50.00$",
+    );
   });
 
   it("builds confirm with summary and shared amount note", () => {
@@ -80,7 +83,7 @@ describe("rebalancePlanSummary", () => {
       ],
       ["kr"],
     );
-    expect(msg).toContain("10,000원");
+    expect(msg).toContain("원화 현금 이번 사용 10,000원");
     expect(msg).toContain("수수료·세금 미포함");
     expect(msg).toContain("미리보기와 동일하게");
   });
@@ -105,5 +108,23 @@ describe("rebalancePlanSummary", () => {
     expect(sub).not.toContain("50,000원");
     expect(sub).toContain("수수료·세금 미포함");
     expect(sub).toContain("돈이 나갑니다");
+  });
+
+  it("builds run summary line with shared amount note", () => {
+    const line = buildRebalanceRunSummaryLine(
+      [
+        {
+          market: "kr",
+          currency: "KRW",
+          cashAvailable: 10_000,
+          cashToSpend: 10_000,
+          orders: [],
+        },
+      ],
+      ["kr"],
+    );
+    expect(line).toContain("원화 현금 이번 사용 10,000원");
+    expect(line).toContain("수수료·세금 미포함");
+    expect(line).toContain("미리보기와 동일");
   });
 });

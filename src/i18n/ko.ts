@@ -266,7 +266,8 @@ export const ko = {
     accountManageRebalanceNow: "정규장 · 실제 매수",
     accountManageRebalanceNowRun: "정규장 · 실제 매수 실행",
     accountManageRebalanceNowRunning: "매수 중…",
-    accountManageRebalanceNowRunSummary: "미리보기 합계 {summary}",
+    accountManageRebalanceNowRunSummary:
+      "미리보기와 동일 · {summary} · {amountNote}",
     accountManageRebalanceNowConfirm:
       "미리보기와 동일하게 시장가 매수합니다.\n\n{summary}\n({amountNote})\n\n정규장(시간외·애프터 제외)만 실행됩니다. 실제 주문이 나갑니다. 계속할까요?",
     accountManageRebalanceNowConfirmGeneric:
@@ -1413,6 +1414,13 @@ export const ko = {
     selectScanCondition:
       "아래 탐색 조건 칩(골든크로스 등)을 하나 이상 눌러 주세요. 【기본】은 최신·전체·일봉·골든크로스입니다.",
     emptyIntersection: "선택한 조건을 모두 만족하는 종목이 없습니다.",
+    emptyFilteredReason: (filters: string) =>
+      filters
+        ? `${filters} 조건으로 결과 0건입니다.`
+        : "선택한 조건에 맞는 종목이 없습니다.",
+    filterReset: "필터 초기화",
+    filterResetAria: "필터를 기본(최신·전체·일봉·골든크로스)으로 되돌리기",
+    filterScanDatePrefix: "일자",
     tabGolden: "골든크로스",
     tabMaAlign: "정배열",
   tabMa120Near: "120선 근처",

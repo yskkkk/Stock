@@ -12,8 +12,8 @@ import { formatPercent } from "../lib/format";
 import {
   buildRebalanceNowConfirmMessage,
   buildRebalanceNowRunSubLabel,
+  buildRebalanceRunSummaryLine,
   formatRebalanceMoney,
-  summarizeRebalancePlanTotals,
   withRebalanceAmountNote,
 } from "../lib/rebalancePlanSummary";
 import {
@@ -285,7 +285,7 @@ export default function AccountRebalanceScheduleModal({
 
   const monthLabel = `${year}년 ${monthIndex + 1}월`;
   const buyNowAllowed = anySelectedMarketRegularOpen(markets);
-  const buyNowPlanSummary = summarizeRebalancePlanTotals(plans, markets);
+  const buyNowRunSummaryLine = buildRebalanceRunSummaryLine(plans, markets);
 
   const renderMarketChip = (m: "kr" | "us") => {
     const on = markets.includes(m);
@@ -744,15 +744,12 @@ export default function AccountRebalanceScheduleModal({
                     ? withRebalanceAmountNote(ko.app.accountManageRebalanceNowHoursHint)
                     : ko.app.accountManageRebalanceNowHoursBlocked}
                 </p>
-                {buyNowAllowed && buyNowPlanSummary ? (
+                {buyNowAllowed && buyNowRunSummaryLine ? (
                   <p
                     className="account-rebalance-modal__hint account-rebalance-modal__foot-zone-summary"
                     data-vu="account-rebalance-buy-now-summary"
                   >
-                    {ko.app.accountManageRebalanceNowRunSummary.replace(
-                      "{summary}",
-                      buyNowPlanSummary,
-                    )}
+                    {buyNowRunSummaryLine}
                   </p>
                 ) : null}
                 <button

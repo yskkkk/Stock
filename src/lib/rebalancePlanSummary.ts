@@ -10,6 +10,12 @@ export function formatRebalanceMoney(
   return formatPrice(amount, currency);
 }
 
+export function rebalanceCashLabel(currency: "KRW" | "USD"): string {
+  return currency === "USD"
+    ? ko.app.accountManageRebalanceCashUsd
+    : ko.app.accountManageRebalanceCashKrw;
+}
+
 /** 통화·수수료 반영 여부 — 미리보기·확인·실행 버튼에서 동일 문구 */
 export function rebalanceAmountNote(): string {
   return ko.app.accountManageRebalanceAmountNote;
@@ -28,19 +34,45 @@ export function withRebalanceAmountNote(
   return out;
 }
 
-/** 켜진 시장별 주문 합계 — 확인 다이얼로그·실행 버튼 부제에 미리보기와 동일 포맷 */
-export function summarizeRebalancePlanTotals(
+/** 켜진 시장별 cashToSpend — 미리보기 「이번 사용」과 동일 포맷 */
+export function buildRebalanceSpendSummary(
   plans: TossRebalanceBuyPlan[],
   enabledMarkets: Array<"kr" | "us">,
 ): string {
   const parts: string[] = [];
   for (const m of enabledMarkets) {
     const plan = plans.find((p) => p.market === m);
-    if (!plan || plan.orders.length === 0) continue;
-    const total = plan.orders.reduce((s, o) => s + o.amount, 0);
-    parts.push(formatRebalanceMoney(total, plan.currency));
+    if (!plan) continue;
+    parts.push(
+      ko.app.accountManageRebalanceSpendLine
+        .replace("{cashLabel}", rebalanceCashLabel(plan.currency))
+        .replace(
+          "{spend}",
+          formatRebalanceMoney(plan.cashToSpend, plan.currency),
+        ),
+    );
   }
   return parts.join(" · ");
+}
+
+/** @deprecated buildRebalanceSpendSummary 사용 — 하위 호환 alias */
+export function summarizeRebalancePlanTotals(
+  plans: TossRebalanceBuyPlan[],
+  enabledMarkets: Array<"kr" | "us">,
+): string {
+  return buildRebalanceSpendSummary(plans, enabledMarkets);
+}
+
+/** 실행 버튼 위 요약 — 미리보기 「이번 사용」·수수료 안내와 동일 포맷 */
+export function buildRebalanceRunSummaryLine(
+  plans: TossRebalanceBuyPlan[],
+  enabledMarkets: Array<"kr" | "us">,
+): string | null {
+  const summary = buildRebalanceSpendSummary(plans, enabledMarkets);
+  if (!summary) return null;
+  return withRebalanceAmountNote(
+    ko.app.accountManageRebalanceNowRunSummary.replace("{summary}", summary),
+  );
 }
 
 export function buildRebalanceNowConfirmMessage(
@@ -48,7 +80,7 @@ export function buildRebalanceNowConfirmMessage(
   enabledMarkets: Array<"kr" | "us">,
 ): string {
   const amountNote = rebalanceAmountNote();
-  const summary = summarizeRebalancePlanTotals(plans, enabledMarkets);
+  const summary = buildRebalanceSpendSummary(plans, enabledMarkets);
   if (summary) {
     return ko.app.accountManageRebalanceNowConfirm
       .replace("{summary}", summary)

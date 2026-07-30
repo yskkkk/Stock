@@ -260,6 +260,33 @@
   text-align: center;
 }
 
+.stock-vault-tab__empty-filter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.45rem 0 0;
+  text-align: center;
+}
+
+.stock-vault-tab__filter-reset {
+  margin: 0;
+  padding: 0.28rem 0.65rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stock-vault-tab__filter-reset:hover {
+  color: var(--text);
+  border-color: var(--accent-border);
+}
+
 .stock-vault-tab__desc,
 .stock-vault-tab__scan-hint,
 .stock-vault-tab__muted {

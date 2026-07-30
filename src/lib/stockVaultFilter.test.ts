@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildVaultActiveFilterLabels,
   buildVaultDisplayRows,
   countVaultIntersection,
   visibleStockVaultScanSources,
@@ -165,5 +166,61 @@ describe("stockVaultFilter", () => {
   it("일봉 탭 — 저점기울기 필터 숨김", () => {
     const daily = visibleStockVaultScanSources("1d");
     expect(daily).not.toContain("low_slope_flip");
+  });
+
+  it("buildVaultActiveFilterLabels — 복합 필터 라벨", () => {
+    const labels = buildVaultActiveFilterLabels({
+      selectedScanDate: "2026-06-08",
+      filter: "favorite",
+      selectedScanSources: ["golden_cross", "ma_align"],
+      timeframeFilter: "1wk",
+      marketFilter: "kr",
+      industryFilter: "반도체",
+      ma120ApproachFilter: null,
+      scanSourceLabel: (s) =>
+        s === "golden_cross" ? "골든크로스" : s === "ma_align" ? "정배열" : s,
+      labels: {
+        historyAll: "전체",
+        scanDatePrefix: "일자",
+        filterFavorite: "즐겨찾기",
+        marketKr: "국내",
+        marketUs: "미국",
+        ma120FromBelow: "하단접근",
+        ma120FromAbove: "상단접근",
+        timeframeWeekly: "주봉",
+      },
+    });
+    expect(labels).toEqual([
+      "일자 2026-06-08",
+      "즐겨찾기",
+      "골든크로스+정배열",
+      "주봉",
+      "국내",
+      "반도체",
+    ]);
+  });
+
+  it("buildVaultActiveFilterLabels — 기본값이면 빈 배열", () => {
+    const labels = buildVaultActiveFilterLabels({
+      selectedScanDate: null,
+      filter: "all",
+      selectedScanSources: ["golden_cross"],
+      timeframeFilter: "1d",
+      marketFilter: "all",
+      industryFilter: "all",
+      ma120ApproachFilter: null,
+      scanSourceLabel: () => "골든크로스",
+      labels: {
+        historyAll: "전체",
+        scanDatePrefix: "일자",
+        filterFavorite: "즐겨찾기",
+        marketKr: "국내",
+        marketUs: "미국",
+        ma120FromBelow: "하단접근",
+        ma120FromAbove: "상단접근",
+        timeframeWeekly: "주봉",
+      },
+    });
+    expect(labels).toEqual([]);
   });
 });

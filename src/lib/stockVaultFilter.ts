@@ -1,10 +1,81 @@
 import { sortGoldenCrossItems } from "./goldenCrossRecency";
+import { STOCK_VAULT_SCAN_DATE_ALL } from "./stockVaultScanDate";
+import type { Ma120ApproachFilter } from "./stockVaultTabSession";
 import { normalizeStockVaultTimeframe } from "./stockVaultTimeframe";
 import type {
   StockVaultItem,
   StockVaultScanSource,
   StockVaultTimeframe,
 } from "../types";
+
+const DEFAULT_SCAN_SOURCES: StockVaultScanSource[] = ["golden_cross"];
+
+export type VaultActiveFilterLabelsInput = {
+  selectedScanDate: string | null;
+  filter: "all" | "favorite";
+  selectedScanSources: StockVaultScanSource[];
+  timeframeFilter: StockVaultTimeframe;
+  marketFilter: "all" | "kr" | "us";
+  industryFilter: string;
+  ma120ApproachFilter: Ma120ApproachFilter | null;
+  scanSourceLabel: (source: StockVaultScanSource) => string;
+  labels: {
+    historyAll: string;
+    scanDatePrefix: string;
+    filterFavorite: string;
+    marketKr: string;
+    marketUs: string;
+    ma120FromBelow: string;
+    ma120FromAbove: string;
+    timeframeWeekly: string;
+  };
+};
+
+/** 빈 목록 안내용 — 기본(최신·전체·일봉·골든크로스)에서 벗어난 필터 라벨 */
+export function buildVaultActiveFilterLabels(
+  input: VaultActiveFilterLabelsInput,
+): string[] {
+  const parts: string[] = [];
+
+  if (input.selectedScanDate === STOCK_VAULT_SCAN_DATE_ALL) {
+    parts.push(input.labels.historyAll);
+  } else if (input.selectedScanDate != null) {
+    parts.push(`${input.labels.scanDatePrefix} ${input.selectedScanDate}`);
+  }
+
+  if (input.filter === "favorite") {
+    parts.push(input.labels.filterFavorite);
+  }
+
+  const sources = input.selectedScanSources;
+  if (sources.length >= 2) {
+    parts.push(sources.map(input.scanSourceLabel).join("+"));
+  } else if (
+    sources.length === 1 &&
+    sources[0] !== DEFAULT_SCAN_SOURCES[0]
+  ) {
+    parts.push(input.scanSourceLabel(sources[0]!));
+  }
+
+  if (normalizeStockVaultTimeframe(input.timeframeFilter) === "1wk") {
+    parts.push(input.labels.timeframeWeekly);
+  }
+
+  if (input.marketFilter === "kr") parts.push(input.labels.marketKr);
+  if (input.marketFilter === "us") parts.push(input.labels.marketUs);
+
+  if (input.industryFilter !== "all" && input.industryFilter.trim()) {
+    parts.push(input.industryFilter.trim());
+  }
+
+  if (input.ma120ApproachFilter === "from_below") {
+    parts.push(input.labels.ma120FromBelow);
+  } else if (input.ma120ApproachFilter === "from_above") {
+    parts.push(input.labels.ma120FromAbove);
+  }
+
+  return parts;
+}
 
 /** 자동 탐색 조건 — 새 유형 추가 시 여기만 확장 */
 export const STOCK_VAULT_SCAN_SOURCES: readonly StockVaultScanSource[] = [
