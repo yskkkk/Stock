@@ -19,9 +19,9 @@ export default function AppSp500EtfMicroStack({
   const rootClass = ["macro-bar__quick-stack", className].filter(Boolean).join(" ");
 
   return (
-    <div className={rootClass} aria-label="S&P500 · 나스닥 ETF">
+    <div className={rootClass} aria-label={ko.app.mainNavHub}>
       <div className="macro-bar__quick-item">
-        <Sp500SectorWheelMicro caption="S&P" />
+        <Sp500SectorWheelMicro caption={ko.app.tabSp500Sector} />
       </div>
       <button
         type="button"
@@ -32,8 +32,8 @@ export default function AppSp500EtfMicroStack({
         }
         data-vu="nasdaq-etf-micro"
         onClick={onOpenNasdaqEtf}
-        title={ko.macro.nasdaqEtfBtnHint}
-        aria-label={ko.macro.nasdaqEtfBtnHint}
+        title={ko.app.nasdaqEtfTitle}
+        aria-label={ko.app.nasdaqEtfTitle}
         aria-pressed={nasdaqEtfActive}
       >
         <span className="macro-bar__quick-etf-mark" aria-hidden>
@@ -66,7 +66,7 @@ export default function AppSp500EtfMicroStack({
             </defs>
           </svg>
         </span>
-        <span className="macro-bar__quick-etf-label">ETF</span>
+        <span className="macro-bar__quick-etf-label">{ko.app.tabNasdaqEtf}</span>
       </button>
     </div>
   );

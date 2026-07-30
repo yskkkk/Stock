@@ -57,11 +57,30 @@
     touch-action: manipulation;
     scroll-margin-inline: max(0.5rem, env(safe-area-inset-left, 0px))
       max(0.5rem, env(safe-area-inset-right, 0px));
+    scroll-snap-align: center;
+  }
+
+  /* S&P·ETF·레딧·계좌 — 고정 순서·한 줄 묶음 (탭·마이크로 라벨과 동일) */
+  .main-tabs__hub {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 2px;
+    padding-inline: 0.2rem;
+    margin-inline: 0.08rem;
+    border-inline: 1px solid color-mix(in srgb, var(--card-border) 85%, transparent);
+    border-radius: 999px;
+    scroll-snap-align: start;
+  }
+
+  .main-tabs__hub .main-tab {
+    padding-inline: 0.5rem;
+    white-space: nowrap;
   }
 
   /* 가로 스크롤 메인 탭 — 비활성/활성 대비·밑줄 강화 */
   .top-bar .main-tab:not(.active):not([aria-current="page"]) {
-    opacity: 0.32;
+    opacity: 0.46;
     font-weight: 600;
   }
 
@@ -444,6 +463,7 @@
   }
 
   .top-bar__right {
+    scroll-snap-type: x proximity;
     scrollbar-width: none;
     -webkit-mask-image: linear-gradient(
       90deg,

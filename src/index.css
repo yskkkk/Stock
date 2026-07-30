@@ -105,6 +105,12 @@
   align-items: center;
 }
 
+.main-tabs__hub {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .macro-bar__quick-stack .sp500-wheel-micro,
 .macro-bar__quick-stack .sp500-wheel-micro--loading {
   width: 2.85rem;

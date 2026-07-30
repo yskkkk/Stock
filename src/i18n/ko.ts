@@ -15,6 +15,7 @@ export const ko = {
     telegramResetAria: "오늘 텔레그램 알림 이력 초기화",
     telegramResetLabel: "알림 초기화",
     mainNav: "메인 메뉴",
+    mainNavHub: "S&P · ETF · 레딧 · 계좌",
     themeToggleAria: "다크 모드와 화이트 모드 전환",
     themeUseLight: "화이트 모드",
     themeUseDark: "다크 모드",
