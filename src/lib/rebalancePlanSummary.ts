@@ -59,3 +59,16 @@ export function buildRebalanceNowConfirmMessage(
     amountNote,
   );
 }
+
+/** 실행 버튼 부제 — 미리보기 합계·amountNote를 동일 포맷으로 (합계는 별도 줄이 있으면 생략) */
+export function buildRebalanceNowRunSubLabel(
+  summary?: string | null,
+  opts?: { repeatSummary?: boolean },
+): string {
+  if (summary && opts?.repeatSummary !== false) {
+    return withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSubAmount, {
+      summary,
+    });
+  }
+  return withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSub);
+}

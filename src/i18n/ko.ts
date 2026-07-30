@@ -239,7 +239,7 @@ export const ko = {
     accountManageRebalanceRealOrderZoneLabel: "실제 매수 · 정규장만",
     accountManageRebalanceAmountNote:
       "수수료·세금 미포함 · 시장별 원통화(국내 원·미국 $)",
-    accountManageRebalanceNowRunSub: "돈이 나갑니다",
+    accountManageRebalanceNowRunSub: "{amountNote} · 돈이 나갑니다",
     accountManageRebalanceNowRunSubAmount:
       "{summary} · {amountNote} · 돈이 나갑니다",
     accountManageRebalancePreviewHint:

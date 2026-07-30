@@ -275,6 +275,15 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-label--real {
   font-weight: 700;
 }
 
+.account-manage-tab__rebalance-zone-summary {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  color: var(--text, inherit);
+}
+
 html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked {
   color: #f87171;
 }
