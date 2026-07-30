@@ -6,6 +6,7 @@ import {
   fetchTossRebalanceSchedule,
   putAccountHoldingStyleOverride,
   runTossRebalanceNow,
+  type TossRebalanceBuyPlan,
   type TossTestHolding,
 } from "../api";
 import { ko } from "../i18n/ko";
@@ -38,6 +39,8 @@ import {
 import { formatPercent, formatPrice, formatSignedMoney } from "../lib/format";
 import {
   buildRebalanceNowConfirmMessage,
+  buildRebalanceNowRunSubLabel,
+  summarizeRebalancePlanTotals,
   withRebalanceAmountNote,
 } from "../lib/rebalancePlanSummary";
 import { anySelectedMarketRegularOpen, isMarketRegularOpenClient } from "../lib/marketRegularHours";
@@ -168,6 +171,12 @@ export default function AccountManageTab({
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
   const [displayCurrency, setDisplayCurrency] = useAccountManageDisplayCurrency();
   const [rebalanceOpen, setRebalanceOpen] = useState(false);
+  const [rebalancePreviewPlans, setRebalancePreviewPlans] = useState<
+    TossRebalanceBuyPlan[]
+  >([]);
+  const [rebalancePreviewMarkets, setRebalancePreviewMarkets] = useState<
+    Array<"kr" | "us">
+  >(["kr", "us"]);
   const [buyingNow, setBuyingNow] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [, setHoursTick] = useState(0);
@@ -176,6 +185,27 @@ export default function AccountManageTab({
     const id = window.setInterval(() => setHoursTick((t) => t + 1), 60_000);
     return () => window.clearInterval(id);
   }, []);
+
+  const loadRebalancePreview = useCallback(async () => {
+    if (!user || !tossReady) {
+      setRebalancePreviewPlans([]);
+      return;
+    }
+    try {
+      const res = await fetchTossRebalanceSchedule();
+      const markets = (
+        res.schedule?.markets?.length ? res.schedule.markets : ["kr", "us"]
+      ).filter((m): m is "kr" | "us" => m === "kr" || m === "us");
+      setRebalancePreviewMarkets(markets.length ? markets : ["kr", "us"]);
+      setRebalancePreviewPlans(res.preview?.plans ?? []);
+    } catch {
+      setRebalancePreviewPlans([]);
+    }
+  }, [user, tossReady]);
+
+  useEffect(() => {
+    void loadRebalancePreview();
+  }, [loadRebalancePreview]);
 
   useEffect(() => {
     if (tossReady && !bithumbReady) setProvider("toss");
@@ -625,14 +655,19 @@ export default function AccountManageTab({
         );
       }
       await reloadToss?.(true);
+      await loadRebalancePreview();
     } catch (e) {
       window.alert(e instanceof Error ? e.message : String(e));
     } finally {
       setBuyingNow(false);
     }
-  }, [buyingNow, reloadToss]);
+  }, [buyingNow, reloadToss, loadRebalancePreview]);
 
   const buyNowToolbarAllowed = anySelectedMarketRegularOpen(["kr", "us"]);
+  const buyNowToolbarSummary = summarizeRebalancePlanTotals(
+    rebalancePreviewPlans,
+    rebalancePreviewMarkets,
+  );
 
   const renderRebalanceActionButtons = (
     variant: "toolbar" | "wheel" | "bridge",
@@ -698,6 +733,17 @@ export default function AccountManageTab({
             ? withRebalanceAmountNote(ko.app.accountManageRebalanceNowHoursHint)
             : ko.app.accountManageRebalanceNowHoursBlocked}
         </p>
+        {buyNowToolbarAllowed && buyNowToolbarSummary ? (
+          <p
+            className="account-manage-tab__rebalance-zone-summary"
+            data-vu="account-rebalance-buy-now-summary"
+          >
+            {ko.app.accountManageRebalanceNowRunSummary.replace(
+              "{summary}",
+              buyNowToolbarSummary,
+            )}
+          </p>
+        ) : null}
         <button
           type="button"
           className={[
@@ -733,7 +779,9 @@ export default function AccountManageTab({
           </span>
           {!buyingNow ? (
             <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--real">
-              {withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSub)}
+              {buildRebalanceNowRunSubLabel(buyNowToolbarSummary, {
+                repeatSummary: false,
+              })}
             </span>
           ) : null}
         </button>
@@ -2369,8 +2417,14 @@ export default function AccountManageTab({
 
       {rebalanceOpen ? (
         <AccountRebalanceScheduleModal
-          onClose={() => setRebalanceOpen(false)}
-          onOrdersPlaced={() => void reloadToss?.(true)}
+          onClose={() => {
+            setRebalanceOpen(false);
+            void loadRebalancePreview();
+          }}
+          onOrdersPlaced={() => {
+            void reloadToss?.(true);
+            void loadRebalancePreview();
+          }}
         />
       ) : null}
     </div>

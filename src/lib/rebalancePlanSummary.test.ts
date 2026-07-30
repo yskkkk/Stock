@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRebalanceNowConfirmMessage,
+  buildRebalanceNowRunSubLabel,
   formatRebalanceMoney,
   summarizeRebalancePlanTotals,
   withRebalanceAmountNote,
@@ -80,13 +81,29 @@ describe("rebalancePlanSummary", () => {
       ["kr"],
     );
     expect(msg).toContain("10,000원");
-    expect(msg).toContain("매수 수수료 별도");
-    expect(msg).toContain("미리보기와 동일 금액");
+    expect(msg).toContain("수수료·세금 미포함");
+    expect(msg).toContain("미리보기와 동일하게");
   });
 
   it("substitutes amount note in templates", () => {
     expect(
       withRebalanceAmountNote("실주문 · {amountNote}"),
-    ).toContain("매수 수수료 별도");
+    ).toContain("수수료·세금 미포함");
+  });
+
+  it("builds run sub with summary when toolbar has no separate line", () => {
+    const sub = buildRebalanceNowRunSubLabel("50,000원 · 25.50$");
+    expect(sub).toContain("50,000원");
+    expect(sub).toContain("수수료·세금 미포함");
+    expect(sub).toContain("돈이 나갑니다");
+  });
+
+  it("avoids duplicate summary on modal button sub", () => {
+    const sub = buildRebalanceNowRunSubLabel("50,000원", {
+      repeatSummary: false,
+    });
+    expect(sub).not.toContain("50,000원");
+    expect(sub).toContain("수수료·세금 미포함");
+    expect(sub).toContain("돈이 나갑니다");
   });
 });

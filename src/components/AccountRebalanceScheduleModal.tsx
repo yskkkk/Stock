@@ -11,6 +11,7 @@ import { ko } from "../i18n/ko";
 import { formatPercent } from "../lib/format";
 import {
   buildRebalanceNowConfirmMessage,
+  buildRebalanceNowRunSubLabel,
   formatRebalanceMoney,
   summarizeRebalancePlanTotals,
   withRebalanceAmountNote,
@@ -773,7 +774,9 @@ export default function AccountRebalanceScheduleModal({
                   </span>
                   {!buyingNow ? (
                     <span className="account-rebalance-modal__btn-real-sub">
-                      {withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSub)}
+                      {buildRebalanceNowRunSubLabel(buyNowPlanSummary, {
+                        repeatSummary: false,
+                      })}
                     </span>
                   ) : null}
                 </button>
