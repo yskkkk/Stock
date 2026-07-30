@@ -1188,7 +1188,7 @@ export default function AccountManageTab({
                               m === "us" ? "is-usd" : "is-krw",
                             ].join(" ")}
                           >
-                            {m === "us" ? "$" : "?"}
+                            {m === "us" ? "$" : "원"}
                           </span>
                           <span className="account-manage-tab__rebalance-hour-name">
                             {m === "us"
