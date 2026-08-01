@@ -1420,7 +1420,7 @@ export const ko = {
     emptyIntersection: "선택한 조건을 모두 만족하는 종목이 없습니다.",
     emptyFilteredReason: (filters: string) =>
       filters
-        ? `${filters} 조건으로 결과 0건입니다.`
+        ? `선택한 조건(${filters})에 맞는 종목이 없습니다.`
         : "선택한 조건에 맞는 종목이 없습니다.",
     filterReset: "필터 초기화",
     filterResetAria: "필터를 기본(최신·전체·일봉·골든크로스)으로 되돌리기",
