@@ -318,28 +318,48 @@
 }
 .macro-card {
   --macro-near: 0;
-  --macro-card-fill: color-mix(in srgb, var(--warn) 42%, var(--surface));
+  --macro-card-fill: var(--surface);
   position: relative;
   flex: 0 0 auto;
   width: min(148px, 42vw);
   padding: 0.38rem 0.6rem 0.34rem;
   scroll-snap-align: start;
-  background: color-mix(
-    in srgb,
-    var(--macro-card-fill) calc(var(--macro-near) * 100%),
-    var(--surface)
-  );
+  background: var(--macro-card-fill);
   border: 1px solid color-mix(
     in srgb,
-    var(--warn) calc(var(--macro-near) * 52%),
+    var(--warn) calc(var(--macro-near) * 72%),
     var(--card-border)
   );
   border-radius: var(--radius-sm);
+  box-shadow: inset 3px 0 0 0
+    color-mix(
+      in srgb,
+      var(--warn) calc(var(--macro-near) * 88%),
+      transparent
+    );
   transition:
     color 0.15s,
     opacity 0.15s,
     background 0.35s ease,
-    border-color 0.35s ease;
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.macro-card::before {
+  content: "";
+  position: absolute;
+  left: 0.45rem;
+  right: 0.45rem;
+  top: 0;
+  height: 2.5px;
+  border-radius: 0 0 2px 2px;
+  background: color-mix(
+    in srgb,
+    var(--warn) calc(18% + var(--macro-near) * 82%),
+    transparent
+  );
+  opacity: calc(0.2 + var(--macro-near) * 0.8);
+  pointer-events: none;
 }
 .macro-card:hover {
   transform: none;
@@ -481,9 +501,14 @@ html[data-theme="light"] .macro-card__brand-bg {
   margin: 0;
   font-family: var(--font-mono);
   font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 700;
+  color: color-mix(
+    in srgb,
+    var(--warn) calc(var(--macro-near) * 75%),
+    var(--text)
+  );
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 .macro-card__when {
   margin: 0.1rem 0 0;

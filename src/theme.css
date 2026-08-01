@@ -203,18 +203,35 @@ html[data-theme="light"] .top-bar__macro::after {
 }
 
 html[data-theme="light"] .macro-card {
-  --macro-card-fill: color-mix(in srgb, #334155 32%, var(--surface));
-  background: color-mix(
-    in srgb,
-    var(--macro-card-fill) calc(var(--macro-near) * 100%),
-    var(--surface)
-  );
+  --macro-card-fill: #fff;
+  background: var(--macro-card-fill);
   border: 1px solid color-mix(
     in srgb,
-    rgba(15, 23, 42, 0.32) calc(var(--macro-near) * 78%),
+    #d97706 calc(var(--macro-near) * 55%),
     var(--card-border)
   );
-  box-shadow: none;
+  box-shadow: inset 3px 0 0 0
+    color-mix(
+      in srgb,
+      #d97706 calc(var(--macro-near) * 80%),
+      transparent
+    );
+}
+
+html[data-theme="light"] .macro-card::before {
+  background: color-mix(
+    in srgb,
+    #d97706 calc(22% + var(--macro-near) * 78%),
+    transparent
+  );
+}
+
+html[data-theme="light"] .macro-card__countdown {
+  color: color-mix(
+    in srgb,
+    #b45309 calc(var(--macro-near) * 70%),
+    var(--text)
+  );
 }
 
 html[data-theme="light"] .macro-bar__track-wrap::before {

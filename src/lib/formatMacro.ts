@@ -1,16 +1,17 @@
 export function formatMacroCountdown(msLeft: number): string {
-  if (msLeft <= 0) return "00:00:00";
+  if (msLeft <= 0) return "D-day";
   const totalSec = Math.floor(msLeft / 1000);
   const days = Math.floor(totalSec / 86400);
   const hours = Math.floor((totalSec % 86400) / 3600);
   const minutes = Math.floor((totalSec % 3600) / 60);
   const seconds = totalSec % 60;
   const pad = (n: number) => String(n).padStart(2, "0");
+  const clock = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 
   if (days > 0) {
-    return `${days}일 ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    return `D-${days} ${clock}`;
   }
-  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  return `D-day ${clock}`;
 }
 
 export function formatMacroWhen(at: number, timeZone?: string): string {
@@ -36,9 +37,10 @@ const MACRO_CARD_GRADIENT_MAX_DAYS = 10;
 const MS_PER_DAY = 86_400_000;
 
 /**
- * 지표 카드 배경 농도 0~1 (CSS `--macro-near`).
+ * 지표 카드 임박도 0~1 (CSS `--macro-near`).
+ * 배경을 어둡게 하지 않고 테두리·상단 바 강조에 사용.
  * 10일 초과: 0. 10일~당일: 일수당 +10% 선형(10일=0.1 … 당일=1)을
- * 0.34~1로 재매핑 — 10% 구간에서도 배경 차이가 보이게.
+ * 0.2~1로 재매핑.
  */
 export function macroCardNearness(msLeft: number): number {
   if (msLeft <= 0) return 1;
@@ -48,7 +50,7 @@ export function macroCardNearness(msLeft: number): number {
     1,
     (MACRO_CARD_GRADIENT_MAX_DAYS + 1 - days) * 0.1,
   );
-  const VISUAL_FLOOR = 0.34;
+  const VISUAL_FLOOR = 0.2;
   return VISUAL_FLOOR + ((linear - 0.1) / 0.9) * (1 - VISUAL_FLOOR);
 }
 
