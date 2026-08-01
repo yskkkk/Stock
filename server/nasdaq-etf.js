@@ -1,26 +1,29 @@
 /**
- * 나스닥 상장 ETF 목록 (Yahoo screener + 네이버 한글명·설명).
+ * 미국 주요 거래소 ETF 목록 (Yahoo screener + 네이버 한글명·설명).
+ * 나스닥(NMS/NGM/…) + Cboe BZX(BTS) + NYSE Arca(PCX) — DRAM/RAM 등 Cboe 상장 ETF 포함.
  */
 import { getKoreanStockName, hasHangul, resolveDisplayName } from "./names-ko.js";
 import { getYahooSession, yahooGet, yahooPost } from "./yahoo.js";
 
-/** Nasdaq Global Select / Global Market / Capital Market */
-const NASDAQ_ETF_EXCHANGES = ["NMS", "NGM", "NAS", "NCM"];
+/** Nasdaq + Cboe US(BTS) + NYSE Arca(PCX) — Yahoo screener exchange 코드 */
+const US_ETF_EXCHANGES = ["NMS", "NGM", "NAS", "NCM", "BTS", "PCX"];
+/** @deprecated 호환용 별칭 */
+const NASDAQ_ETF_EXCHANGES = US_ETF_EXCHANGES;
 
-/** 거래소당 스크리너 상한 — 신규·소형 ETF(예: IQQ)가 AUM 하위권에 있어도 포함 */
+/** 거래소당 스크리너 상한 — 신규·소형 ETF가 AUM 하위권에 있어도 포함 */
 const PER_EXCHANGE_MAX = (() => {
-  const n = Number(process.env.STOCK_NASDAQ_ETF_PER_EX ?? 2500);
-  return Number.isFinite(n) && n >= 500 ? Math.min(n, 5000) : 2500;
+  const n = Number(process.env.STOCK_NASDAQ_ETF_PER_EX ?? 3000);
+  return Number.isFinite(n) && n >= 500 ? Math.min(n, 5000) : 3000;
 })();
 
 const TARGET = (() => {
-  const n = Number(process.env.STOCK_NASDAQ_ETF_TARGET ?? 6000);
-  return Number.isFinite(n) && n >= 100 ? Math.min(n, 12_000) : 6000;
+  const n = Number(process.env.STOCK_NASDAQ_ETF_TARGET ?? 8000);
+  return Number.isFinite(n) && n >= 100 ? Math.min(n, 12_000) : 8000;
 })();
 
 /**
- * Yahoo가 quoteType=EQUITY로 잘못 태깅하거나 AUM 하위라 스크리너 끝단에 있는 ETF 보강.
- * (예: 2026년 상장 iShares Nasdaq 100 ETF — IQQ)
+ * Yahoo가 quoteType=EQUITY로 잘못 태깅하거나 AUM 하위·신규 상장이라 스크리너에 빠진 ETF 보강.
+ * (예: IQQ, Roundhill Memory DRAM / 2x RAM — Cboe BZX)
  */
 const SUPPLEMENTAL_ETF_SYMBOLS = [
   "IQQ",
@@ -31,6 +34,23 @@ const SUPPLEMENTAL_ETF_SYMBOLS = [
   "SQQQ",
   "QYLD",
   "QQQI",
+  "DRAM",
+  "RAM",
+  "SMH",
+  "SOXX",
+  "SOXL",
+  "SOXS",
+  "USD",
+  "SEMI",
+];
+
+/** 검색으로 놓친 티커를 더 끌어오기 */
+const SUPPLEMENTAL_SEARCH_QUERIES = [
+  "iShares Nasdaq 100 ETF",
+  "Roundhill Memory ETF",
+  "Roundhill DRAM",
+  "2X Long DRAM",
+  "VanEck Semiconductor ETF",
 ];
 
 
@@ -172,7 +192,7 @@ async function fetchExchangeEtfUniverse(region, exchange, maxCount) {
  * @param {string} symbol
  * @returns {Promise<object | null>}
  */
-async function fetchQuoteAsNasdaqEtfRow(symbol) {
+async function fetchQuoteAsUsEtfRow(symbol) {
   const sym = String(symbol ?? "").trim().toUpperCase();
   if (!sym) return null;
   try {
@@ -182,7 +202,7 @@ async function fetchQuoteAsNasdaqEtfRow(symbol) {
     const r = data?.quoteResponse?.result?.[0];
     if (!r) return null;
     const exchange = String(r.exchange ?? "").trim().toUpperCase();
-    if (!NASDAQ_ETF_EXCHANGES.includes(exchange)) return null;
+    if (!US_ETF_EXCHANGES.includes(exchange)) return null;
     const name = resolveDisplayName(sym, r.shortName, r.longName);
     const qt = String(r.quoteType ?? "").toUpperCase();
     const looksEtf =
@@ -215,30 +235,38 @@ async function fetchQuoteAsNasdaqEtfRow(symbol) {
   }
 }
 
+/** @deprecated 별칭 */
+const fetchQuoteAsNasdaqEtfRow = fetchQuoteAsUsEtfRow;
+
 /**
  * @param {Map<string, object>} bySym
  */
 async function mergeSupplementalEtfs(bySym) {
+  /** @type {string[]} */
   const missing = SUPPLEMENTAL_ETF_SYMBOLS.filter((s) => !bySym.has(s));
-  // 검색으로 NASDAQ 표기 ETF 추가 후보
-  try {
-    const data = await yahooGet(
-      `/v1/finance/search?q=${encodeURIComponent("iShares Nasdaq 100 ETF")}&quotesCount=15&newsCount=0`,
-    );
-    for (const q of data?.quotes ?? []) {
-      const sym = String(q.symbol ?? "").trim().toUpperCase();
-      if (!sym || bySym.has(sym) || missing.includes(sym)) continue;
-      if (String(q.quoteType ?? "").toUpperCase() === "ETF" || /ETF/i.test(String(q.shortname ?? ""))) {
-        missing.push(sym);
+  for (const q of SUPPLEMENTAL_SEARCH_QUERIES) {
+    try {
+      const data = await yahooGet(
+        `/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=20&newsCount=0`,
+      );
+      for (const row of data?.quotes ?? []) {
+        const sym = String(row.symbol ?? "").trim().toUpperCase();
+        if (!sym || bySym.has(sym) || missing.includes(sym)) continue;
+        if (
+          String(row.quoteType ?? "").toUpperCase() === "ETF" ||
+          /ETF/i.test(String(row.shortname ?? row.longname ?? ""))
+        ) {
+          missing.push(sym);
+        }
       }
+    } catch {
+      /* ignore */
     }
-  } catch {
-    /* ignore */
   }
 
   for (const sym of missing) {
     if (bySym.has(sym)) continue;
-    const row = await fetchQuoteAsNasdaqEtfRow(sym);
+    const row = await fetchQuoteAsUsEtfRow(sym);
     if (row) bySym.set(sym, row);
   }
 }
@@ -388,8 +416,8 @@ function fallbackDescriptionKo(englishName, symbol) {
   if (/short|bear|inverse|-1x|-2x|-3x/i.test(text)) {
     return "인버스(하락 추종) ETF로, 기초 자산과 반대 방향의 일일 성과를 목표로 합니다. 단기 헤지 성격이 강합니다.";
   }
-  if (/semiconductor|SOX|chip/i.test(text) || ["SOXL", "SOXS", "SMH"].includes(symbol)) {
-    return "반도체·관련 기업에 집중 투자하는 ETF입니다.";
+  if (/semiconductor|SOX|chip|memory|DRAM|NAND|HBM/i.test(text) || ["SOXL", "SOXS", "SMH", "SOXX", "DRAM", "RAM", "SEMI", "USD"].includes(symbol)) {
+    return "반도체·메모리(DRAM·NAND·HBM 등) 관련 기업에 집중 투자하는 ETF입니다.";
   }
   if (/gold|silver|metal|commodity|원유|oil/i.test(text)) {
     return "원자재·상품 관련 ETF입니다. 현물·선물·관련 기업 등으로 구성될 수 있습니다.";
@@ -401,7 +429,7 @@ function fallbackDescriptionKo(englishName, symbol) {
     return "특정 팩터(성장·가치·모멘텀 등)를 반영하는 주식형 ETF입니다.";
   }
   const label = String(englishName || symbol).trim() || symbol;
-  return `${label}(${symbol})에 투자하는 나스닥 상장 ETF입니다. 세부 구성·전략은 발행사 자료를 참고하세요.`;
+  return `${label}(${symbol})에 투자하는 미국 상장 ETF입니다. 세부 구성·전략은 발행사 자료를 참고하세요.`;
 }
 
 /**
@@ -500,7 +528,7 @@ export async function fetchNasdaqEtfsPayload(opts = {}) {
   /** @type {Map<string, object>} */
   const bySym = new Map();
 
-  for (const ex of NASDAQ_ETF_EXCHANGES) {
+  for (const ex of US_ETF_EXCHANGES) {
     const part = await fetchExchangeEtfUniverse("us", ex, PER_EXCHANGE_MAX);
     for (const row of part) {
       if (!bySym.has(row.symbol)) bySym.set(row.symbol, row);
@@ -540,7 +568,7 @@ export async function fetchNasdaqEtfsPayload(opts = {}) {
     etfs,
     count: etfs.length,
     updatedAt: Date.now(),
-    source: "yahoo-screener-etf-nasdaq+naver",
+    source: "yahoo-screener-etf-us-nasdaq-cboe-arca+naver",
   };
   cached = { data, at: Date.now() };
   return data;
