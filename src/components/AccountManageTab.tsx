@@ -1481,11 +1481,6 @@ export default function AccountManageTab({
                 {err}
               </p>
             ) : null}
-          {provider === "toss" ? (
-            <p className="account-manage-tab__cash-group-hint">
-              {ko.app.accountManageCashSplitHint}
-            </p>
-          ) : null}
           <div className="account-manage-tab__summary-row">
             <div className="account-manage-tab__summary account-manage-tab__summary--primary">
               <div className="account-manage-tab__stat">
@@ -1805,20 +1800,6 @@ export default function AccountManageTab({
                     </span>
                   </p>
                 </div>
-                {provider === "toss" ? (
-                  <div
-                    className="account-manage-tab__wheel-rebalance"
-                    role="group"
-                    aria-label={ko.app.accountManageRebalanceTitle}
-                  >
-                    <span className="account-manage-tab__wheel-rebalance-label">
-                      {ko.app.accountManageRebalanceTitle}
-                    </span>
-                    <div className="account-manage-tab__wheel-rebalance-actions">
-                      {renderRebalanceActionButtons("wheel")}
-                    </div>
-                  </div>
-                ) : null}
               </div>
 
               <div className="account-manage-tab__mode" role="group">
@@ -2077,17 +2058,7 @@ export default function AccountManageTab({
                 </ul>
               )}
 
-              {focusKey ? (
-                renderChartFilterBar(undefined, "weight")
-              ) : styleFocusKey ? (
-                <p className="account-manage-tab__hint account-manage-tab__hint--passive">
-                  {ko.app.accountManageStyleFilterPassive}
-                </p>
-              ) : (
-                <p className="account-manage-tab__hint">
-                  {ko.app.accountManagePickHint} {ko.app.accountManageHoverHint}
-                </p>
-              )}
+              {focusKey ? renderChartFilterBar(undefined, "weight") : null}
             </aside>
 
             {styleSegments.length > 0 ? (
