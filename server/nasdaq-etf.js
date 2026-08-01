@@ -438,6 +438,7 @@ function fallbackDescriptionKo(englishName, symbol) {
  */
 async function enrichKoreanMeta(etfs, concurrency = 10) {
   const pinion = await loadPinionKoByTicker();
+  const supplemental = new Set(SUPPLEMENTAL_ETF_SYMBOLS);
 
   for (const row of etfs) {
     const sym = row.symbol;
@@ -448,10 +449,30 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
       const quick = buildNameKo(row.name || "", sym, null);
       if (quick && hasHangul(quick)) row.nameKo = quick;
     }
+    if (!row.description) {
+      row.description = fallbackDescriptionKo(row.name || "", sym);
+    }
   }
 
-  // 설명이 비어 있는 종목 전부 네이버 보강 (AUM 하위·신규 ETF 포함)
-  const needNaver = etfs.filter((r) => !r.description || !r.categoryKo);
+  // 네이버/야후 상세 보강은 상위 AUM + 강제 포함 티커만 (전체 5천+는 타임아웃·rate limit)
+  const NAVER_ENRICH_CAP = (() => {
+    const n = Number(process.env.STOCK_NASDAQ_ETF_NAVER_ENRICH ?? 900);
+    return Number.isFinite(n) && n >= 100 ? Math.min(n, 2500) : 900;
+  })();
+  const ranked = [...etfs].sort((a, b) => {
+    const an = a.netAssets;
+    const bn = b.netAssets;
+    if (an != null && bn != null && an !== bn) return bn - an;
+    if (an != null && bn == null) return -1;
+    if (an == null && bn != null) return 1;
+    return 0;
+  });
+  /** @type {Set<object>} */
+  const enrichSet = new Set(ranked.slice(0, NAVER_ENRICH_CAP));
+  for (const row of etfs) {
+    if (supplemental.has(row.symbol)) enrichSet.add(row);
+  }
+  const needNaver = [...enrichSet].filter((r) => !r.categoryKo);
   const limit = Math.max(1, Math.min(concurrency, 12));
   /** @type {object[]} */
   const needYahooDesc = [];
@@ -462,7 +483,7 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
       chunk.map(async (row) => {
         const naver = await fetchNaverEtfMeta(row.symbol);
         if (!naver) {
-          if (!row.description) needYahooDesc.push(row);
+          needYahooDesc.push(row);
           return;
         }
         if (!row.nameKo || !hasHangul(row.nameKo)) {
@@ -470,7 +491,7 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
           if (built && hasHangul(built)) row.nameKo = built;
         }
         if (naver.tip) row.description = naver.tip;
-        else if (!row.description) needYahooDesc.push(row);
+        else needYahooDesc.push(row);
 
         const cat = [naver.large, naver.middle].filter(Boolean).join(" · ");
         if (cat) row.categoryKo = cat;
@@ -478,17 +499,14 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
     );
   }
 
-  for (const row of etfs) {
-    if (!row.description) needYahooDesc.push(row);
-  }
-
-  // 중복 제거
   const yahooSeen = new Set();
-  const yahooTargets = needYahooDesc.filter((r) => {
-    if (r.description || yahooSeen.has(r.symbol)) return false;
-    yahooSeen.add(r.symbol);
-    return true;
-  });
+  const yahooTargets = needYahooDesc
+    .filter((r) => {
+      if (yahooSeen.has(r.symbol)) return false;
+      yahooSeen.add(r.symbol);
+      return true;
+    })
+    .slice(0, 200);
 
   for (let i = 0; i < yahooTargets.length; i += 4) {
     const chunk = yahooTargets.slice(i, i + 4);
@@ -500,11 +518,14 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
     );
   }
 
-  // 최후: 이름 패턴 기반 한글 안내문
   for (const row of etfs) {
-    if (row.description) continue;
-    const fb = fallbackDescriptionKo(row.name || "", row.symbol);
-    if (fb) row.description = fb;
+    if (!row.description) {
+      row.description = fallbackDescriptionKo(row.name || "", row.symbol);
+    }
+    if (!row.nameKo || !hasHangul(row.nameKo)) {
+      const built = buildNameKo(row.name || "", row.symbol, null);
+      if (built) row.nameKo = built;
+    }
   }
 }
 
