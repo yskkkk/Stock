@@ -11,7 +11,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { logoutAuth } from "../api";
+import { logoutLiveTradeAndClearCaches } from "../lib/clearLiveTradeClientCachesOnLogout";
 import { FeedbackDockRailButton, type FeedbackCornerHandle } from "./FeedbackCorner";
 import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import LiveTradeDockApiRail from "./LiveTradeDockApiRail";
@@ -690,11 +690,8 @@ export default function AppLiveTradeSideDock({
     if (logoutBusy) return;
     setLogoutConfirmOpen(false);
     setLogoutBusy(true);
-    void logoutAuth()
+    void logoutLiveTradeAndClearCaches()
       .then(() => {
-        invalidateLiveTradingPrefetch();
-        refreshLiveTradingStatusNow();
-        notifyLiveTradeAuthChange();
         setAuthPopoverOpen(false);
         closePanel?.();
         persistOpen(false);

@@ -81,6 +81,17 @@ export function clearTossSnapshotCache(userId?: string): void {
     return;
   }
   memory.clear();
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(LS_PREFIX)) keys.push(k);
+    }
+    for (const k of keys) localStorage.removeItem(k);
+  } catch {
+    /* ignore */
+  }
+  clearTossSnapshotUserId();
 }
 
 /** 로그인 전·직후 — 마지막 사용자 캐시로 초기값 */

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, type ReactNode } from "react";
-import { logoutAuth, type TossTestHolding } from "../api";
+import { type TossTestHolding } from "../api";
+import { logoutLiveTradeAndClearCaches } from "../lib/clearLiveTradeClientCachesOnLogout";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { ko } from "../i18n/ko";
@@ -65,6 +66,10 @@ export default function AppRightDockRailPanels({
     notifyLiveTradeAuthChange();
   }, []);
 
+  const onLogout = useCallback(() => {
+    void logoutLiveTradeAndClearCaches();
+  }, []);
+
   if (!authChecked || !ctx) return null;
 
   const ids = LIVE_TRADE_DOCK_RAIL_TAB_IDS;
@@ -78,7 +83,7 @@ export default function AppRightDockRailPanels({
               <LiveTradeAuthSignedInCard
                 user={user}
                 variant="dock"
-                onLogout={() => void logoutAuth().then(onAuthChange)}
+                onLogout={onLogout}
               />
             </>
           ) : (

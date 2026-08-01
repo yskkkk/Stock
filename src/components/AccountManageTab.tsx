@@ -171,7 +171,9 @@ export default function AccountManageTab({
   const wheelRef = useRef<HTMLElement | null>(null);
   const holdingsRef = useRef<HTMLElement | null>(null);
   const [balanceHidden, toggleBalanceHidden] = useBithumbBalanceHidden();
-  const [displayCurrency, setDisplayCurrency] = useAccountManageDisplayCurrency();
+  const [displayCurrency, setDisplayCurrency] = useAccountManageDisplayCurrency(
+    user?.id,
+  );
   const [rebalanceOpen, setRebalanceOpen] = useState(false);
   const [rebalancePreviewPlans, setRebalancePreviewPlans] = useState<
     TossRebalanceBuyPlan[]

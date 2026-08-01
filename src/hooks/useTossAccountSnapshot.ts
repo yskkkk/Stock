@@ -9,8 +9,6 @@ import {
 import { LIVE_TRADE_AUTH_CHANGE } from "../lib/liveTradeAuthEvents";
 import {
   clearTossSnapshotCache,
-  clearTossSnapshotUserId,
-  peekTossSnapshotCacheForLastUser,
   readTossSnapshotCache,
   rememberTossSnapshotUserId,
   writeTossSnapshotCache,
@@ -55,32 +53,21 @@ export function useTossAccountSnapshot(opts?: {
   const pollIntervalMs = opts?.pollIntervalMs ?? TOSS_LEDGER_POLL_MS;
   const apiRefreshIntervalMs =
     opts?.apiRefreshIntervalMs ?? TOSS_LEDGER_API_REFRESH_MS;
-  const peek = peekTossSnapshotCacheForLastUser();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [snapshot, setSnapshot] = useState<TossTestSnapshot | null>(
-    () => peek?.snapshot ?? null,
-  );
-  const [feeLabelKo, setFeeLabelKo] = useState<string | null>(
-    () => peek?.feeLabelKo ?? null,
-  );
+  const [snapshot, setSnapshot] = useState<TossTestSnapshot | null>(null);
+  const [feeLabelKo, setFeeLabelKo] = useState<string | null>(null);
   const [tossRoundTripFeeRate, setTossRoundTripFeeRate] = useState<number | null>(
-    () =>
-      peek?.tossRoundTripFeeRate != null && Number.isFinite(peek.tossRoundTripFeeRate)
-        ? peek.tossRoundTripFeeRate
-        : null,
+    null,
   );
   const [tossFeeRatesByMarket, setTossFeeRatesByMarket] =
-    useState<TossFeeRatesByMarket | null>(() => peek?.tossFeeRatesByMarket ?? null);
-  const [updatedAtMs, setUpdatedAtMs] = useState<number | null>(() => {
-    if (peek?.syncedAtMs != null && peek.syncedAtMs > 0) return peek.syncedAtMs;
-    return null;
-  });
-  const [loading, setLoading] = useState(() => !peek?.snapshot);
+    useState<TossFeeRatesByMarket | null>(null);
+  const [updatedAtMs, setUpdatedAtMs] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const userRef = useRef<AuthUser | null>(null);
-  const snapshotRef = useRef<TossTestSnapshot | null>(peek?.snapshot ?? null);
+  const snapshotRef = useRef<TossTestSnapshot | null>(null);
   const syncingRef = useRef(0);
 
   useEffect(() => {
@@ -174,6 +161,7 @@ export function useTossAccountSnapshot(opts?: {
       if (!silent && !hasLocal && !snapshotRef.current) setLoading(true);
       try {
         const me = await fetchAuthMe();
+        const prevId = userRef.current?.id ?? null;
         setUser(me.user);
         userRef.current = me.user;
         if (!me.user) {
@@ -183,8 +171,18 @@ export function useTossAccountSnapshot(opts?: {
           setTossFeeRatesByMarket(null);
           setUpdatedAtMs(null);
           setErr(null);
-          clearTossSnapshotUserId();
+          snapshotRef.current = null;
+          clearTossSnapshotCache();
           return;
+        }
+        if (prevId && prevId !== me.user.id) {
+          setSnapshot(null);
+          setFeeLabelKo(null);
+          setTossRoundTripFeeRate(null);
+          setTossFeeRatesByMarket(null);
+          setUpdatedAtMs(null);
+          setErr(null);
+          snapshotRef.current = null;
         }
         rememberTossSnapshotUserId(me.user.id);
         const cached = hydrateFromClientCache(me.user.id);
@@ -234,11 +232,7 @@ export function useTossAccountSnapshot(opts?: {
 
     void (async () => {
       if (cancelled) return;
-      const hadPeek = Boolean(peek?.snapshot);
-      await reload(false, hadPeek);
-      if (cancelled || !poll) return;
-      // 캐시로 먼저 그린 경우에만 즉시 서버 갱신 — 콜드 로드 직후 이중 요청 방지
-      if (hadPeek) await reload(true, true);
+      await reload(false, false);
     })();
 
     const cacheId = poll
