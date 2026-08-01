@@ -126,6 +126,8 @@ describe("virtual-user-runner", () => {
     expect(prompt).toContain("satisfaction: 3");
     expect(prompt).toContain("UI 방향");
     expect(prompt).toContain("최소 diff");
+    expect(prompt).toContain("PC와 모바일");
+    expect(prompt).toContain("단순 통일");
   });
 
   it("mobile prompt forbids changing layout frame", () => {

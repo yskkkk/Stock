@@ -38,5 +38,6 @@ npm run cap:ios         # Xcode (macOS)
 
 - [ ] `src/api.ts` 경유 또는 `withApiBase` 사용
 - [ ] 모바일 좁은 폭(≤900px) 레이아웃 깨짐 없음
+- [ ] PC 넓은 뷰도 함께 확인(단순 통일으로 PC/모바일 한쪽이 깨지지 않음)
 - [ ] 필요 시 `ko.ts` 문구 추가
 - [ ] 대규모 UI 변경 후 `npm run build:mobile` 로 sync 가능 여부

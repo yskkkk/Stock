@@ -12,7 +12,9 @@ export const VU_UI_DIRECTION_MUST = [
   "3열 골격(좌측 열 | 본문 shell≈1680px | 우측 패널)과 좌측 열(테마·주요지수·환율)을 유지한다.",
   "테마 토글은 좌측 열 상단에 둔다. 본문 위 전폭 테마 띠로 빼지 않는다.",
   "웹·Android·iOS 동일 `src/` UI. 네이티브 전용 화면을 만들지 않는다.",
-  "모바일은 패딩·줄바꿈·overflow·터치(~44px)·safe-area·모달 footer wrap·폰트/간격만 기존 컴포넌트 안에서 조정한다.",
+  "UI 수정 시 **PC(넓은 뷰포트)와 모바일(좁은 폭·터치)을 항상 함께** 고려해 동시에 맞춘다. 한쪽만 고치고 끝내지 않는다.",
+  "단순 통일 금지: 같은 마크업이라도 레이아웃·간격·줄바꿈·터치 영역은 미디어쿼리/기존 반응형 패턴으로 **환경에 맞게** 조정한다. PC용을 모바일에 억지로 끼우거나, 모바일 한 열을 PC에 그대로 복제하지 않는다.",
+  "모바일은 패딩·줄바꿈·overflow·터치(~44px)·safe-area·모달 footer wrap·폰트/간격만 기존 컴포넌트 안에서 조정한다. PC는 3열·여백·가독성·호버/클릭 밀도를 깨지 않는다.",
   "카피·빈/로딩/에러 문구는 짧고 한글이 깨지지 않게(UTF-8). 물음표(???) 라벨을 남기지 않는다.",
   "기능 on/off는 `shared/ui-feature-catalog` + `useUiFeature`로만. compile-time uiFlags 신규 금지.",
   "계좌관리: 비중 도넛 + 성장·가치·현금 성향, 원화/달러·켜짐/꺼짐·미리보기 vs 즉시매수 구분을 유지·명확화한다.",
@@ -31,6 +33,7 @@ export const VU_UI_DIRECTION_MUST_NOT = [
   "아이콘에 흰 사각 매트를 남기지 않는다(투명 매트 유지, 교체 시 ?v= bump).",
   "기업 실적 아이콘 레일·지수 벨트·탭 줄에 단축 컨트롤을 끼워 넣어 시각적으로 꼬이거나 겹치게 만들지 않는다.",
   "기존 아이콘·YS 마크·거래소 마크를 제거하거나, 라이트 모드에서 안 보이게 두지 않는다.",
+  "PC·모바일을 ‘한 레이아웃으로 퉁치기’만 하고 한쪽이 깨지거나 과도한 여백/밀집이 생기게 두지 않는다.",
 ];
 
 /** 프롬프트용 요약 블록 */
@@ -55,7 +58,7 @@ export function buildVuUiDirectionPromptBlock() {
 export function vuUiDirectionSuggestionGuard(suggestion) {
   const base = String(suggestion || "").trim();
   const guard =
-  "기존 UI 패턴·골격 유지(좌측 열/3열 금지 변경). 단축 UI는 관련 섹션에만 정렬·겹침 없이. 최소 diff로 해당 화면만.";
+    "기존 UI 패턴·골격 유지(좌측 열/3열 금지 변경). PC·모바일을 동시에 맞추되 단순 통일하지 말고 각 환경에 맞게. 단축 UI는 관련 섹션에만 정렬·겹침 없이. 최소 diff로 해당 화면만.";
   if (!base) return guard;
   if (base.includes("기존 UI 패턴") || base.includes("최소 diff")) return base;
   return `${guard} ${base}`;
