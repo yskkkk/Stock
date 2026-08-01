@@ -681,11 +681,7 @@ export default function App() {
         setOpsCursorAgentAvailable(cfg.opsCursorAgentAvailable ?? false);
       })
       .catch(() => {
-        if (cancelled) return;
-        setTelegramNotify(false);
-        setAdminIpConsole(false);
-        setAccessAdmin(false);
-        setOpsCursorAgentAvailable(false);
+        /* 일시적 5xx·네트워크 — 관리자 플래그 유지(깜빡임·무한 로딩 방지) */
       })
       .finally(() => {
         if (!cancelled) setConfigReady(true);

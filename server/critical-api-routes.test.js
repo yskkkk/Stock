@@ -160,7 +160,94 @@ test("picks returns JSON error object when screener throws", async () => {
   }
 });
 
+test("stock-vault returns JSON error object when view builder throws", async () => {
+  vi.resetModules();
+  vi.doMock("./stock-vault-view.js", async (importOriginal) => {
+    const orig = await importOriginal();
+    return {
+      ...orig,
+      buildStockVaultItemsForUserSync: () => {
+        throw new Error("simulated vault store failure");
+      },
+    };
+  });
+  try {
+    const { port, close } = await startTestServer();
+    try {
+      const r = await getJson(port, "/api/stock-vault?lite=1");
+      assert.ok(r.status >= 400 && r.status < 600, `stock-vault status=${r.status}`);
+      assert.ok(r.json != null && typeof r.json === "object", "stock-vault must return JSON");
+      assert.ok(typeof r.json?.error === "string" && r.json.error.length > 0);
+      assert.equal(r.json?.code, "STOCK_VAULT_ERROR");
+    } finally {
+      await close();
+    }
+  } finally {
+    vi.doUnmock("./stock-vault-view.js");
+    vi.resetModules();
+  }
+});
+
+test("config returns JSON error object when status builder throws", async () => {
+  vi.resetModules();
+  vi.doMock("./dart.js", async (importOriginal) => {
+    const orig = await importOriginal();
+    return {
+      ...orig,
+      isDartEnabled: () => {
+        throw new Error("simulated config failure");
+      },
+    };
+  });
+  try {
+    const { port, close } = await startTestServer();
+    try {
+      const r = await getJson(port, "/api/config");
+      assert.ok(r.status >= 400 && r.status < 600, `config status=${r.status}`);
+      assert.ok(r.json != null && typeof r.json === "object", "config must return JSON");
+      assert.ok(typeof r.json?.error === "string" && r.json.error.length > 0);
+      assert.equal(r.json?.code, "CONFIG_ERROR");
+    } finally {
+      await close();
+    }
+  } finally {
+    vi.doUnmock("./dart.js");
+    vi.resetModules();
+  }
+});
+
+test("macro-events includes degraded flag when loader throws", async () => {
+  vi.resetModules();
+  vi.doMock("./macro-events.js", async (importOriginal) => {
+    const orig = await importOriginal();
+    return {
+      ...orig,
+      getMacroEventsCachedAsync: async () => {
+        throw new Error("simulated macro loader failure");
+      },
+    };
+  });
+  try {
+    const { port, close } = await startTestServer();
+    try {
+      const r = await getJson(port, "/api/macro-events");
+      assert.equal(r.status, 200);
+      assert.ok(r.json != null && typeof r.json === "object");
+      assert.ok(Array.isArray(r.json?.events));
+      assert.equal(r.json?.degraded, true);
+    } finally {
+      await close();
+    }
+  } finally {
+    vi.doUnmock("./macro-events.js");
+    vi.resetModules();
+  }
+});
+
 afterEach(() => {
   vi.resetModules();
   vi.doUnmock("./screener.js");
+  vi.doUnmock("./stock-vault-view.js");
+  vi.doUnmock("./dart.js");
+  vi.doUnmock("./macro-events.js");
 });
