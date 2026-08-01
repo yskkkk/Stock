@@ -624,6 +624,20 @@ export default function AccountManageTab({
     return weighted / weightSum;
   }, [netSummary, holdingRows]);
 
+  const holdingsPnlKrw = useMemo(() => {
+    if (netSummary?.profitLossKrw != null && Number.isFinite(netSummary.profitLossKrw)) {
+      return Math.round(netSummary.profitLossKrw);
+    }
+    let sum = 0;
+    let any = false;
+    for (const r of holdingRows) {
+      if (r.unrealizedPnlKrw == null || !Number.isFinite(r.unrealizedPnlKrw)) continue;
+      sum += r.unrealizedPnlKrw;
+      any = true;
+    }
+    return any ? Math.round(sum) : null;
+  }, [netSummary, holdingRows]);
+
   const onRefresh = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
@@ -929,23 +943,74 @@ export default function AccountManageTab({
     holdingsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [pulseStyleCol]);
 
-  const hoverSlice = hoverBubble
-    ? (styleSlices.find((s) => s.key === hoverBubble.key) ??
+  const hoverSlice = useMemo(() => {
+    if (!hoverBubble) return null;
+    if (hoverBubble.key === "__holdings__") {
+      return {
+        key: "__holdings__",
+        label: ko.app.accountManageHoldings,
+        valueKrw: holdingsTotalKrw ?? 0,
+        symbols: holdingRows.map((r) => r.symbol),
+        count: holdingRows.length,
+      };
+    }
+    return (
+      styleSlices.find((s) => s.key === hoverBubble.key) ??
       slices.find((s) => s.key === hoverBubble.key) ??
-      null)
-    : null;
+      null
+    );
+  }, [
+    hoverBubble,
+    styleSlices,
+    slices,
+    holdingsTotalKrw,
+    holdingRows,
+  ]);
+
   const hoverSeg = hoverBubble
-    ? (styleSegments.find((s) => s.sector === hoverBubble.key) ??
-      segments.find((s) => s.sector === hoverBubble.key) ??
-      null)
+    ? hoverBubble.key === "__holdings__"
+      ? {
+          sector: "__holdings__",
+          sectorKo: ko.app.accountManageHoldings,
+          color: "var(--accent, #14b8a6)",
+          pct:
+            holdingsReturnPct != null && Number.isFinite(holdingsReturnPct)
+              ? holdingsReturnPct
+              : 100,
+          a0: 0,
+          a1: 0,
+          count: holdingRows.length,
+        }
+      : (styleSegments.find((s) => s.sector === hoverBubble.key) ??
+        segments.find((s) => s.sector === hoverBubble.key) ??
+        null)
     : null;
+
   const hoverRows = useMemo(() => {
     if (!hoverSlice || hoverSlice.key === "__cash__") return [];
+    if (hoverSlice.key === "__holdings__") {
+      return [...holdingRows].sort((a, b) => b.valueKrw - a.valueKrw);
+    }
     const set = new Set(hoverSlice.symbols.map((s) => s.toUpperCase()));
     return holdingRows
       .filter((r) => set.has(r.symbol.toUpperCase()))
       .sort((a, b) => b.valueKrw - a.valueKrw);
   }, [hoverSlice, holdingRows]);
+
+  const hoverPnlKrw = useMemo(() => {
+    if (!hoverSlice || hoverSlice.key === "__cash__") return null;
+    if (hoverSlice.key === "__holdings__") return holdingsPnlKrw;
+    let sum = 0;
+    let any = false;
+    for (const r of hoverRows) {
+      if (r.unrealizedPnlKrw == null || !Number.isFinite(r.unrealizedPnlKrw)) {
+        continue;
+      }
+      sum += r.unrealizedPnlKrw;
+      any = true;
+    }
+    return any ? Math.round(sum) : null;
+  }, [hoverSlice, hoverRows, holdingsPnlKrw]);
 
   const bubbleRowReturnPct = useCallback((r: AccountHoldingRow): number | null => {
     if (r.returnPercent != null && Number.isFinite(r.returnPercent)) {
@@ -1121,40 +1186,29 @@ export default function AccountManageTab({
       data-vu={contentReady ? "account-manage-ready" : "account-manage-shell"}
     >
       <header className="account-manage-tab__head">
-        <div className="account-manage-tab__head-copy">
-          <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
-          <p className="account-manage-tab__sub">
-            {ko.app.accountManageSubtitle}
-            {user.email ? ` ${user.email}` : ""}
-          </p>
-        </div>
-        <div className="account-manage-tab__head-bar">
-          <div className="account-manage-tab__head-actions">
-            <button
-              type="button"
-              className={[
-                "btn btn--secondary account-manage-tab__refresh",
-                refreshing ? "account-manage-tab__refresh--busy" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onClick={() => void onRefresh()}
-              disabled={loading || refreshing}
-              aria-busy={refreshing || undefined}
-            >
-              {refreshing ? (
-                <>
-                  <span
-                    className="btn-inline-spinner"
-                    aria-hidden
-                  />
-                  {ko.app.accountManageRefreshing}
-                </>
-              ) : (
-                ko.app.accountManageRefresh
-              )}
-            </button>
-          </div>
+        <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
+        <div className="account-manage-tab__head-actions">
+          <button
+            type="button"
+            className={[
+              "btn btn--secondary account-manage-tab__refresh",
+              refreshing ? "account-manage-tab__refresh--busy" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            onClick={() => void onRefresh()}
+            disabled={loading || refreshing}
+            aria-busy={refreshing || undefined}
+          >
+            {refreshing ? (
+              <>
+                <span className="btn-inline-spinner" aria-hidden />
+                {ko.app.accountManageRefreshing}
+              </>
+            ) : (
+              ko.app.accountManageRefresh
+            )}
+          </button>
         </div>
       </header>
 
@@ -1176,43 +1230,96 @@ export default function AccountManageTab({
             aria-label={ko.app.accountManageSummaryAria}
             aria-busy={summaryPending || undefined}
           >
-            <div className="account-manage-tab__summary-toolbar">
-              <span
-                className="account-manage-tab__freshness"
-                role="status"
-                aria-live="polite"
-                aria-busy={fetchActivity || undefined}
-              >
-                {fetchActivity && slowFetch ? (
+            <div className="account-manage-tab__summary-frame">
+              <div className="account-manage-tab__summary-controls">
+                <div className="account-manage-tab__summary-controls-left">
                   <span
-                    className="account-manage-tab__refresh-spinner account-manage-tab__refresh-spinner--freshness"
-                    aria-hidden
-                  />
-                ) : null}
-                <span
-                  className="account-manage-tab__freshness-text"
-                  data-freshness-tick={freshnessTick}
-                >
-                  {ko.app.accountManageUpdated}
-                  {fetchActivity && slowFetch
-                    ? ` · ${ko.app.accountManageRefreshing}`
-                    : updatedAtMs
-                      ? ` · ${formatUpdatedAt(updatedAtMs)}`
-                      : fetchActivity
-                        ? "…"
-                        : ""}
-                </span>
-                {updatedAtMs ? (
-                  <time
-                    className="account-manage-tab__freshness-time"
-                    dateTime={new Date(updatedAtMs).toISOString()}
+                    className="account-manage-tab__freshness"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy={fetchActivity || undefined}
                   >
-                    {formatTimeMsKst(updatedAtMs)}
-                  </time>
-                ) : null}
-              </span>
-              {provider === "toss" ? (
-                <>
+                    {fetchActivity && slowFetch ? (
+                      <span
+                        className="account-manage-tab__refresh-spinner account-manage-tab__refresh-spinner--freshness"
+                        aria-hidden
+                      />
+                    ) : null}
+                    <span
+                      className="account-manage-tab__freshness-text"
+                      data-freshness-tick={freshnessTick}
+                    >
+                      {ko.app.accountManageUpdated}
+                      {fetchActivity && slowFetch
+                        ? ` · ${ko.app.accountManageRefreshing}`
+                        : updatedAtMs
+                          ? ` · ${formatUpdatedAt(updatedAtMs)}`
+                          : fetchActivity
+                            ? "…"
+                            : ""}
+                    </span>
+                    {updatedAtMs ? (
+                      <time
+                        className="account-manage-tab__freshness-time"
+                        dateTime={new Date(updatedAtMs).toISOString()}
+                      >
+                        {formatTimeMsKst(updatedAtMs)}
+                      </time>
+                    ) : null}
+                  </span>
+                  <div className="account-manage-tab__summary-controls-tools">
+                    <div
+                      className="account-manage-tab__currency-toggle"
+                      role="group"
+                      aria-label={ko.app.accountManageCurrencyAria}
+                    >
+                      <button
+                        type="button"
+                        className={
+                          displayCurrency === "KRW"
+                            ? "account-manage-tab__currency-btn is-active"
+                            : "account-manage-tab__currency-btn"
+                        }
+                        aria-pressed={displayCurrency === "KRW"}
+                        onClick={() => setDisplayCurrency("KRW")}
+                      >
+                        {ko.app.accountManageCurrencyKrw}
+                      </button>
+                      <button
+                        type="button"
+                        className={
+                          displayCurrency === "USD"
+                            ? "account-manage-tab__currency-btn is-active"
+                            : "account-manage-tab__currency-btn"
+                        }
+                        aria-pressed={displayCurrency === "USD"}
+                        disabled={!(usdKrwRate != null && usdKrwRate > 0)}
+                        title={
+                          usdKrwRate != null && usdKrwRate > 0
+                            ? ko.app.accountManageCurrencyUsdRate.replace(
+                                "{rate}",
+                                Math.round(usdKrwRate).toLocaleString("ko-KR"),
+                              )
+                            : undefined
+                        }
+                        onClick={() => setDisplayCurrency("USD")}
+                      >
+                        {ko.app.accountManageCurrencyUsd}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary"
+                      onClick={toggleBalanceHidden}
+                      aria-pressed={balanceHidden}
+                    >
+                      {balanceHidden
+                        ? ko.app.accountManageMoneyShow
+                        : ko.app.accountManageMoneyHide}
+                    </button>
+                  </div>
+                </div>
+                {provider === "toss" ? (
                   <div
                     className="account-manage-tab__rebalance-hours"
                     role="group"
@@ -1287,64 +1394,17 @@ export default function AccountManageTab({
                       );
                     })}
                   </div>
-                  <div
-                    className="account-manage-tab__toolbar-rebalance"
-                    role="group"
-                    aria-label={ko.app.accountManageRebalanceTitle}
-                  >
-                    {renderRebalanceActionButtons("toolbar")}
-                  </div>
-                </>
-              ) : null}
-              <div
-                className="account-manage-tab__currency-toggle"
-                role="group"
-                aria-label={ko.app.accountManageCurrencyAria}
-              >
-                <button
-                  type="button"
-                  className={
-                    displayCurrency === "KRW"
-                      ? "account-manage-tab__currency-btn is-active"
-                      : "account-manage-tab__currency-btn"
-                  }
-                  aria-pressed={displayCurrency === "KRW"}
-                  onClick={() => setDisplayCurrency("KRW")}
-                >
-                  {ko.app.accountManageCurrencyKrw}
-                </button>
-                <button
-                  type="button"
-                  className={
-                    displayCurrency === "USD"
-                      ? "account-manage-tab__currency-btn is-active"
-                      : "account-manage-tab__currency-btn"
-                  }
-                  aria-pressed={displayCurrency === "USD"}
-                  disabled={!(usdKrwRate != null && usdKrwRate > 0)}
-                  title={
-                    usdKrwRate != null && usdKrwRate > 0
-                      ? ko.app.accountManageCurrencyUsdRate.replace(
-                          "{rate}",
-                          Math.round(usdKrwRate).toLocaleString("ko-KR"),
-                        )
-                      : undefined
-                  }
-                  onClick={() => setDisplayCurrency("USD")}
-                >
-                  {ko.app.accountManageCurrencyUsd}
-                </button>
+                ) : null}
               </div>
-              <button
-                type="button"
-                className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary"
-                onClick={toggleBalanceHidden}
-                aria-pressed={balanceHidden}
-              >
-                {balanceHidden
-                  ? ko.app.accountManageMoneyShow
-                  : ko.app.accountManageMoneyHide}
-              </button>
+              {provider === "toss" ? (
+                <div
+                  className="account-manage-tab__toolbar-rebalance"
+                  role="group"
+                  aria-label={ko.app.accountManageRebalanceTitle}
+                >
+                  {renderRebalanceActionButtons("toolbar")}
+                </div>
+              ) : null}
             </div>
             {err && hasAccountData ? (
               <p className="account-manage-tab__stale-hint" role="status">
@@ -1362,7 +1422,22 @@ export default function AccountManageTab({
                 <span className="account-manage-tab__stat-label">
                   {ko.app.accountManageTotal}
                 </span>
-                <span className="account-manage-tab__stat-value">
+                <span
+                  className={[
+                    "account-manage-tab__stat-value",
+                    !summaryPending &&
+                    holdingsPnlKrw != null &&
+                    holdingsPnlKrw > 0
+                      ? "is-up"
+                      : !summaryPending &&
+                          holdingsPnlKrw != null &&
+                          holdingsPnlKrw < 0
+                        ? "is-down"
+                        : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
                   <span
                     className="account-manage-tab__money"
                     aria-hidden={balanceHidden || undefined}
@@ -1371,9 +1446,28 @@ export default function AccountManageTab({
                       ? "…"
                       : money((holdingsTotalKrw ?? 0) + cashKrw)}
                   </span>
+                  {!summaryPending && holdingsPnlKrw != null ? (
+                    <span
+                      className="account-manage-tab__stat-pnl"
+                      aria-hidden={balanceHidden || undefined}
+                    >
+                      {signedMoney(holdingsPnlKrw)}
+                    </span>
+                  ) : null}
                 </span>
               </div>
-              <div className="account-manage-tab__stat">
+              <div
+                className="account-manage-tab__stat account-manage-tab__stat--holdings"
+                onMouseEnter={(e) => {
+                  if (summaryPending || holdingRows.length === 0) return;
+                  showHoverBubble("__holdings__", e.clientX, e.clientY);
+                }}
+                onMouseMove={(e) => {
+                  if (summaryPending || holdingRows.length === 0) return;
+                  showHoverBubble("__holdings__", e.clientX, e.clientY);
+                }}
+                onMouseLeave={hideHoverBubble}
+              >
                 <span className="account-manage-tab__stat-label">
                   {ko.app.accountManageHoldings}
                 </span>
@@ -1388,7 +1482,15 @@ export default function AccountManageTab({
                           holdingsReturnPct != null &&
                           holdingsReturnPct < 0
                         ? "is-down"
-                        : "",
+                        : !summaryPending &&
+                            holdingsPnlKrw != null &&
+                            holdingsPnlKrw > 0
+                          ? "is-up"
+                          : !summaryPending &&
+                              holdingsPnlKrw != null &&
+                              holdingsPnlKrw < 0
+                            ? "is-down"
+                            : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -1399,10 +1501,22 @@ export default function AccountManageTab({
                   >
                     {summaryPending ? "…" : money(holdingsTotalKrw)}
                   </span>
-                  {!summaryPending && holdingsReturnPct != null ? (
-                    <span className="account-manage-tab__stat-pct">
-                      {" "}
-                      ({formatPercent(holdingsReturnPct)})
+                  {!summaryPending &&
+                  (holdingsReturnPct != null || holdingsPnlKrw != null) ? (
+                    <span
+                      className="account-manage-tab__stat-pnl-line"
+                      aria-hidden={balanceHidden || undefined}
+                    >
+                      {holdingsReturnPct != null ? (
+                        <span className="account-manage-tab__stat-pct">
+                          ({formatPercent(holdingsReturnPct)})
+                        </span>
+                      ) : null}
+                      {holdingsPnlKrw != null ? (
+                        <span className="account-manage-tab__stat-pnl">
+                          {signedMoney(holdingsPnlKrw)}
+                        </span>
+                      ) : null}
                     </span>
                   ) : null}
                 </span>
@@ -2382,7 +2496,8 @@ export default function AccountManageTab({
                 <strong>
                   {hoverSeg.sector === "__growth__" ||
                   hoverSeg.sector === "__value__" ||
-                  hoverSeg.sector === "__cash__"
+                  hoverSeg.sector === "__cash__" ||
+                  hoverSeg.sector === "__holdings__"
                     ? styleSegmentLabel(hoverSeg)
                     : hoverSlice.label}
                 </strong>
@@ -2394,11 +2509,25 @@ export default function AccountManageTab({
                   aria-hidden={balanceHidden || undefined}
                 >
                   {money(hoverSlice.valueKrw)}
+                  {hoverPnlKrw != null ? (
+                    <span className="account-manage-tab__bubble-sym-pct">
+                      {" "}
+                      {signedMoney(hoverPnlKrw)}
+                    </span>
+                  ) : null}
                 </span>
               </div>
               <div className="account-manage-tab__bubble-row">
-                <span>{ko.app.accountManageColWeight}</span>
-                <span>{formatAllocPct(hoverSeg.pct)}</span>
+                <span>
+                  {hoverBubble.key === "__holdings__"
+                    ? ko.app.liveTradePfReturn
+                    : ko.app.accountManageColWeight}
+                </span>
+                <span>
+                  {hoverBubble.key === "__holdings__" && holdingsReturnPct != null
+                    ? formatPercent(holdingsReturnPct)
+                    : formatAllocPct(hoverSeg.pct)}
+                </span>
               </div>
               {hoverSlice.key === "__cash__" ? (
                 <div className="account-manage-tab__bubble-syms">
@@ -2448,6 +2577,7 @@ export default function AccountManageTab({
                   <ul className="account-manage-tab__bubble-syms-list">
                     {hoverRows.map((r) => {
                       const pct = bubbleRowReturnPct(r);
+                      const pnl = r.unrealizedPnlKrw;
                       return (
                         <li key={r.symbol}>
                           <span className="account-manage-tab__bubble-sym-name">
@@ -2462,6 +2592,12 @@ export default function AccountManageTab({
                               <span className="account-manage-tab__bubble-sym-pct">
                                 {" "}
                                 ({formatPercent(pct)})
+                              </span>
+                            ) : null}
+                            {pnl != null ? (
+                              <span className="account-manage-tab__bubble-sym-pnl">
+                                {" "}
+                                {signedMoney(pnl)}
                               </span>
                             ) : null}
                           </span>

@@ -17,9 +17,10 @@
 
 .account-manage-tab__head {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.55rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .account-manage-tab__head-copy {
@@ -42,11 +43,7 @@
 }
 
 .account-manage-tab__sub {
-  margin: 0.35rem 0 0;
-  font-size: 0.8rem;
-  color: var(--muted);
-  line-height: 1.4;
-  max-width: 40rem;
+  display: none;
 }
 
 .account-manage-tab__refresh {
@@ -80,8 +77,43 @@
 .account-manage-tab__summary-wrap {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
   width: 100%;
+}
+
+.account-manage-tab__summary-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: color-mix(in srgb, var(--surface) 45%, var(--card));
+  box-sizing: border-box;
+}
+
+.account-manage-tab__summary-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  gap: 0.55rem 0.75rem;
+  align-items: stretch;
+  width: 100%;
+}
+
+.account-manage-tab__summary-controls-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.account-manage-tab__summary-controls-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .account-manage-tab__summary-toolbar {
@@ -420,25 +452,39 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 }
 
 .account-manage-tab__rebalance-hours {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.3rem;
-  flex: 0 1 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
   order: 0;
 }
 
 .account-manage-tab__toolbar-rebalance {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: 0.35rem;
-  flex: 0 1 auto;
+  display: block;
+  width: 100%;
 }
 
-.account-manage-tab__toolbar-rebalance .account-manage-tab__rebalance-actions {
-  flex: 0 1 auto;
+.account-manage-tab__toolbar-rebalance .account-manage-tab__rebalance-actions,
+.account-manage-tab__toolbar-rebalance .account-manage-tab__rebalance-actions--compact {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  width: 100%;
+  align-items: stretch;
+}
+
+.account-manage-tab__toolbar-rebalance .account-manage-tab__rebalance-zone--compact {
+  width: 100%;
+  min-width: 0;
+}
+
+.account-manage-tab__toolbar-rebalance .account-manage-tab__rebalance-zone--compact .account-manage-tab__hide-btn {
+  width: 100%;
+  min-height: 3.1rem;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .account-manage-tab__summary-toolbar--rebalance {
@@ -739,7 +785,51 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   font-variant-numeric: tabular-nums;
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  align-items: flex-start;
+  gap: 0.12rem;
+}
+
+.account-manage-tab__stat-pnl-line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.28rem;
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.account-manage-tab__stat-pct {
+  font-variant-numeric: tabular-nums;
+}
+
+.account-manage-tab__stat-pnl {
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+
+.account-manage-tab__stat--holdings {
+  cursor: help;
+}
+
+.account-manage-tab__bubble-sym-pnl {
+  font-weight: 650;
+}
+
+@media (max-width: 720px) {
+  .account-manage-tab__summary-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .account-manage-tab__rebalance-hours {
+    grid-template-columns: 1fr;
+  }
+
+  .account-manage-tab__toolbar-rebalance .account-manage-tab__rebalance-actions,
+  .account-manage-tab__toolbar-rebalance
+    .account-manage-tab__rebalance-actions--compact {
+    grid-template-columns: 1fr;
+  }
 }
 
 .account-manage-tab__stat-sub {
