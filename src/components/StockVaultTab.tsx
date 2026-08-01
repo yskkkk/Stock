@@ -1017,8 +1017,7 @@ export default function StockVaultTab({
     !loading &&
     !error &&
     filtered.length === 0 &&
-    !needsScanCondition &&
-    activeFilterLabels.length > 0;
+    (activeFilterLabels.length > 0 || showEmptyIntersection);
 
   const showEntryHintInEmpty =
     !loading &&
@@ -1798,7 +1797,7 @@ export default function StockVaultTab({
           </p>
         ) : filtered.length === 0 ? (
           showFilterEmptyState ? (
-            <div className="stock-vault-tab__empty-filter">
+            <div className="stock-vault-tab__empty-filter" role="status">
               <p className="stock-vault-tab__muted">
                 {ko.stockVault.emptyFilteredReason(activeFilterLabels.join(" · "))}
               </p>
@@ -1821,9 +1820,7 @@ export default function StockVaultTab({
                 ? ko.stockVault.historyEmpty
                 : needsScanCondition
                   ? ko.stockVault.selectScanCondition
-                  : showEmptyIntersection
-                    ? ko.stockVault.emptyIntersection
-                    : ko.stockVault.empty}
+                  : ko.stockVault.empty}
             </p>
           )
         ) : !listPaintReady ? (
