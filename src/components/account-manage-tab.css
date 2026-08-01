@@ -880,12 +880,25 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 
 .account-manage-tab__wheel,
 .account-manage-tab__style-panel,
-.account-manage-tab__holdings,
 .account-manage-tab__raw {
   padding: 0.85rem 1rem 1rem;
   min-width: 0;
   height: 100%;
   box-sizing: border-box;
+}
+
+.account-manage-tab__holdings {
+  grid-area: holdings;
+  padding: 0.85rem 1rem 1rem;
+  min-width: 0;
+  height: auto;
+  align-self: start;
+  box-sizing: border-box;
+  scroll-margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
 }
 
 .account-manage-tab__wheel {
@@ -908,10 +921,6 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 .account-manage-tab__style-panel--passive {
   opacity: 0.62;
   transition: opacity 0.15s ease;
-}
-
-.account-manage-tab__holdings {
-  grid-area: holdings;
 }
 
 .account-manage-tab__grid--no-style {
@@ -1316,10 +1325,6 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 
 .account-manage-tab__style-assign-link:hover {
   background: color-mix(in srgb, var(--accent-dim) 45%, var(--card));
-}
-
-.account-manage-tab__holdings {
-  scroll-margin-top: 0.75rem;
 }
 
 .account-manage-tab__style-list {
@@ -1916,8 +1921,10 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 }
 
 .account-manage-tab__table-wrap {
-  overflow: auto;
-  max-height: 28rem;
+  overflow-x: auto;
+  overflow-y: auto;
+  /* 내용이 짧으면 스크롤 없음, 종목이 매우 많을 때만 캡 */
+  max-height: min(70vh, 56rem);
   max-width: 100%;
   min-width: 0;
   -webkit-overflow-scrolling: touch;
