@@ -64,7 +64,7 @@ function formatRebalanceSpendLine(line: RebalanceSpendLine): string {
     .replace("{spend}", line.spend);
 }
 
-/** 켜진 시장별 cashToSpend — 확인 대화상자 등 한 줄 텍스트용 */
+/** 켜진 시장별 cashToSpend — 확인 대화상자 등 여러 줄 텍스트용 */
 export function buildRebalanceSpendSummary(
   plans: TossRebalanceBuyPlan[],
   enabledMarkets: Array<"kr" | "us">,
@@ -72,6 +72,16 @@ export function buildRebalanceSpendSummary(
   return buildRebalanceSpendLines(plans, enabledMarkets)
     .map(formatRebalanceSpendLine)
     .join("\n");
+}
+
+/** 켜진 시장별 cashToSpend — 버튼 부제·좁은 UI 한 줄용 */
+export function buildRebalanceSpendSummaryInline(
+  plans: TossRebalanceBuyPlan[],
+  enabledMarkets: Array<"kr" | "us">,
+): string {
+  return buildRebalanceSpendLines(plans, enabledMarkets)
+    .map(formatRebalanceSpendLine)
+    .join(" · ");
 }
 
 /** @deprecated buildRebalanceSpendSummary 사용 — 하위 호환 alias */

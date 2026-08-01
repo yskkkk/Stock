@@ -41,7 +41,7 @@ import {
   buildRebalanceNowConfirmMessage,
   buildRebalanceNowRunSubLabel,
   buildRebalanceRunSummaryLead,
-  summarizeRebalancePlanTotals,
+  buildRebalanceSpendSummaryInline,
   withRebalanceAmountNote,
 } from "../lib/rebalancePlanSummary";
 import { anySelectedMarketRegularOpen, isMarketRegularOpenClient } from "../lib/marketRegularHours";
@@ -680,7 +680,7 @@ export default function AccountManageTab({
   }, [buyingNow, reloadToss, loadRebalancePreview]);
 
   const buyNowToolbarAllowed = anySelectedMarketRegularOpen(["kr", "us"]);
-  const buyNowToolbarSummary = summarizeRebalancePlanTotals(
+  const buyNowToolbarSummaryInline = buildRebalanceSpendSummaryInline(
     rebalancePreviewPlans,
     rebalancePreviewMarkets,
   );
@@ -840,8 +840,8 @@ export default function AccountManageTab({
           </span>
           {!buyingNow ? (
             <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--real">
-              {buildRebalanceNowRunSubLabel(buyNowToolbarSummary, {
-                repeatSummary: false,
+              {buildRebalanceNowRunSubLabel(buyNowToolbarSummaryInline, {
+                repeatSummary: compact && Boolean(buyNowToolbarSummaryInline),
               })}
             </span>
           ) : null}
