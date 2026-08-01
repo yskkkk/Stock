@@ -227,8 +227,12 @@ export const ko = {
     accountManageRebalanceMarkets: "대상 시장 (스케줄 켜짐/꺼짐 · 통화)",
     accountManageRebalanceMarketOn: "스케줄 켜짐",
     accountManageRebalanceMarketOff: "스케줄 꺼짐",
+    accountManageRebalanceMarketOnShort: "켜짐",
+    accountManageRebalanceMarketOffShort: "꺼짐",
     accountManageRebalanceMarketRegularOpen: "시장 정규장",
     accountManageRebalanceMarketRegularClosed: "시장 장마감",
+    accountManageRebalanceMarketRegularOpenShort: "정규장",
+    accountManageRebalanceMarketRegularClosedShort: "장마감",
     accountManageRebalanceMarketHoursAria: "시장별 정규장 여부",
     accountManageRebalanceMarketHint:
       "국내는 원화 현금만, 미국은 달러 현금만 사용합니다. 서로 섞지 않습니다.",

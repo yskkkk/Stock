@@ -67,6 +67,18 @@ function marketHoursLabel(market: "kr" | "us"): string {
     : ko.app.accountManageRebalanceMarketRegularClosed;
 }
 
+function marketHoursShortLabel(market: "kr" | "us"): string {
+  return isMarketRegularOpenClient(market)
+    ? ko.app.accountManageRebalanceMarketRegularOpenShort
+    : ko.app.accountManageRebalanceMarketRegularClosedShort;
+}
+
+function marketScheduleShortLabel(on: boolean): string {
+  return on
+    ? ko.app.accountManageRebalanceMarketOnShort
+    : ko.app.accountManageRebalanceMarketOffShort;
+}
+
 function planEmptyHint(plan: TossRebalanceBuyPlan): string {
   const cashLabel = cashLabelFor(plan.currency);
   const holdings = plan.holdingsCount ?? 0;
@@ -308,17 +320,37 @@ export default function AccountRebalanceScheduleModal({
         onClick={() => toggleMarket(m)}
       >
         <span className="account-rebalance-modal__chip-top">
-          <span
-            className={[
-              "account-rebalance-modal__badge",
-              m === "us" ? "is-usd" : "is-krw",
-            ].join(" ")}
-          >
-            {currencyBadgeLabel(m)}
+          <span className="account-rebalance-modal__chip-identity">
+            <span
+              className={[
+                "account-rebalance-modal__badge",
+                m === "us" ? "is-usd" : "is-krw",
+              ].join(" ")}
+            >
+              {currencyBadgeLabel(m)}
+            </span>
+            <span className="account-rebalance-modal__chip-name">{name}</span>
+            <span className="account-rebalance-modal__chip-cur">
+              {currencyShortLabel(m)}
+            </span>
           </span>
-          <span className="account-rebalance-modal__chip-name">{name}</span>
-          <span className="account-rebalance-modal__chip-cur">
-            {currencyShortLabel(m)}
+          <span className="account-rebalance-modal__chip-badges">
+            <span
+              className={[
+                "account-rebalance-modal__chip-state",
+                on ? "is-on" : "is-off",
+              ].join(" ")}
+            >
+              {marketScheduleShortLabel(on)}
+            </span>
+            <span
+              className={[
+                "account-rebalance-modal__chip-hours",
+                hoursOpen ? "is-open" : "is-closed",
+              ].join(" ")}
+            >
+              {marketHoursShortLabel(m)}
+            </span>
           </span>
         </span>
         <span className="account-rebalance-modal__chip-meta">
@@ -591,6 +623,24 @@ export default function AccountRebalanceScheduleModal({
                         <span className="account-rebalance-modal__chip-cur">
                           {currencyShortLabel(m)}
                         </span>
+                        <span className="account-rebalance-modal__plan-head-badges">
+                          <span
+                            className={[
+                              "account-rebalance-modal__chip-state",
+                              on ? "is-on" : "is-off",
+                            ].join(" ")}
+                          >
+                            {marketScheduleShortLabel(on)}
+                          </span>
+                          <span
+                            className={[
+                              "account-rebalance-modal__chip-hours",
+                              hoursOpen ? "is-open" : "is-closed",
+                            ].join(" ")}
+                          >
+                            {marketHoursShortLabel(m)}
+                          </span>
+                        </span>
                       </div>
                       <div className="account-rebalance-modal__plan-head-meta">
                         <span className="account-rebalance-modal__chip-meta-row">
@@ -650,14 +700,22 @@ export default function AccountRebalanceScheduleModal({
                         {planEmptyHint(plan)}
                       </p>
                     ) : (
-                      <ul>
+                      <ul className="account-rebalance-modal__plan-orders">
                         {plan.orders.map((o) => (
                           <li key={`${plan.market}-${o.symbol}`}>
                             <span>
                               {o.symbol}
                               <em>{o.name}</em>
                             </span>
-                            <span>
+                            <span className="account-rebalance-modal__plan-order-amt">
+                              <span
+                                className={[
+                                  "account-rebalance-modal__badge account-rebalance-modal__plan-order-cur",
+                                  plan.currency === "USD" ? "is-usd" : "is-krw",
+                                ].join(" ")}
+                              >
+                                {currencyBadgeLabel(plan.market)}
+                              </span>
                               {formatPlanMoney(o.amount, plan.currency)}{" "}
                               ({formatPercent(o.weightPct).replace("+", "")})
                             </span>
