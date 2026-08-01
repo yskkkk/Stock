@@ -79,6 +79,8 @@ const BRAND_KO = [
 
 /** @type {{ data: object; at: number } | null} */
 let cached = null;
+/** @type {Promise<object> | null} */
+let inflightPayload = null;
 /** @type {Map<string, string> | null} */
 let pinionKoByTicker = null;
 
@@ -372,30 +374,6 @@ function buildNameKo(englishName, symbol, naver) {
 }
 
 /**
- * @param {string} symbol
- */
-async function fetchYahooEtfDescription(symbol) {
-  const sym = String(symbol ?? "").trim().toUpperCase();
-  if (!sym) return null;
-  try {
-    const data = await yahooGet(
-      `/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=assetProfile,fundProfile`,
-    );
-    const row = data?.quoteSummary?.result?.[0];
-    const summary = String(row?.assetProfile?.longBusinessSummary ?? "").trim();
-    if (summary) return summary;
-    const family = String(row?.fundProfile?.family ?? "").trim();
-    const category = String(row?.fundProfile?.categoryName ?? "").trim();
-    if (family || category) {
-      return [family, category].filter(Boolean).join(" · ");
-    }
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
-/**
  * @param {string} englishName
  * @param {string} symbol
  */
@@ -428,8 +406,19 @@ function fallbackDescriptionKo(englishName, symbol) {
   if (/growth|value|momentum|factor/i.test(text)) {
     return "특정 팩터(성장·가치·모멘텀 등)를 반영하는 주식형 ETF입니다.";
   }
-  const label = String(englishName || symbol).trim() || symbol;
-  return `${label}(${symbol})에 투자하는 미국 상장 ETF입니다. 세부 구성·전략은 발행사 자료를 참고하세요.`;
+  let label = String(englishName || symbol).trim() || symbol;
+  if (!hasHangul(label)) {
+    for (const [re, koBrand] of BRAND_KO) {
+      if (re.test(label)) {
+        label = label.replace(re, koBrand);
+        break;
+      }
+    }
+  }
+  if (hasHangul(label)) {
+    return `${label}(${symbol})에 투자하는 미국 상장 ETF입니다. 세부 구성·전략은 발행사 자료를 참고하세요.`;
+  }
+  return `${symbol}에 투자하는 미국 상장 ETF입니다. 세부 구성·전략은 발행사 자료를 참고하세요.`;
 }
 
 /**
@@ -474,24 +463,18 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
   }
   const needNaver = [...enrichSet].filter((r) => !r.categoryKo);
   const limit = Math.max(1, Math.min(concurrency, 12));
-  /** @type {object[]} */
-  const needYahooDesc = [];
 
   for (let i = 0; i < needNaver.length; i += limit) {
     const chunk = needNaver.slice(i, i + limit);
     await Promise.all(
       chunk.map(async (row) => {
         const naver = await fetchNaverEtfMeta(row.symbol);
-        if (!naver) {
-          needYahooDesc.push(row);
-          return;
-        }
+        if (!naver) return;
         if (!row.nameKo || !hasHangul(row.nameKo)) {
           const built = buildNameKo(row.name || "", row.symbol, naver);
           if (built && hasHangul(built)) row.nameKo = built;
         }
-        if (naver.tip) row.description = naver.tip;
-        else needYahooDesc.push(row);
+        if (naver.tip && hasHangul(naver.tip)) row.description = naver.tip;
 
         const cat = [naver.large, naver.middle].filter(Boolean).join(" · ");
         if (cat) row.categoryKo = cat;
@@ -499,28 +482,12 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
     );
   }
 
-  const yahooSeen = new Set();
-  const yahooTargets = needYahooDesc
-    .filter((r) => {
-      if (yahooSeen.has(r.symbol)) return false;
-      yahooSeen.add(r.symbol);
-      return true;
-    })
-    .slice(0, 200);
-
-  for (let i = 0; i < yahooTargets.length; i += 4) {
-    const chunk = yahooTargets.slice(i, i + 4);
-    await Promise.all(
-      chunk.map(async (row) => {
-        const desc = await fetchYahooEtfDescription(row.symbol);
-        if (desc) row.description = desc;
-      }),
-    );
-  }
-
   for (const row of etfs) {
-    if (!row.description) {
-      row.description = fallbackDescriptionKo(row.name || "", row.symbol);
+    if (!row.description || !hasHangul(row.description)) {
+      row.description = fallbackDescriptionKo(
+        row.nameKo || row.name || "",
+        row.symbol,
+      );
     }
     if (!row.nameKo || !hasHangul(row.nameKo)) {
       const built = buildNameKo(row.name || "", row.symbol, null);
@@ -544,13 +511,27 @@ export async function fetchNasdaqEtfsPayload(opts = {}) {
   if (!force && cached && now - cached.at < CACHE_MS) {
     return cached.data;
   }
+  if (!force && inflightPayload) return inflightPayload;
 
+  inflightPayload = (async () => {
   await getYahooSession();
   /** @type {Map<string, object>} */
   const bySym = new Map();
 
-  for (const ex of US_ETF_EXCHANGES) {
-    const part = await fetchExchangeEtfUniverse("us", ex, PER_EXCHANGE_MAX);
+  // 거래소별 스크리너 병렬 — 순차 대비 첫 응답 크게 단축
+  const exchangeParts = await Promise.all(
+    US_ETF_EXCHANGES.map((ex) =>
+      fetchExchangeEtfUniverse("us", ex, PER_EXCHANGE_MAX).catch((e) => {
+        console.warn(
+          "[nasdaq-etf] exchange",
+          ex,
+          e instanceof Error ? e.message : e,
+        );
+        return [];
+      }),
+    ),
+  );
+  for (const part of exchangeParts) {
     for (const row of part) {
       if (!bySym.has(row.symbol)) bySym.set(row.symbol, row);
     }
@@ -593,6 +574,11 @@ export async function fetchNasdaqEtfsPayload(opts = {}) {
   };
   cached = { data, at: Date.now() };
   return data;
+  })().finally(() => {
+    inflightPayload = null;
+  });
+
+  return inflightPayload;
 }
 
 const HOLDINGS_CACHE_MS = 60 * 60 * 1000;
@@ -787,14 +773,14 @@ export async function fetchNasdaqEtfHoldingsPayload(symbol) {
   }
 
   /** @type {string | null} */
-  let description = String(row?.assetProfile?.longBusinessSummary ?? "").trim() || null;
+  let description = null;
   try {
     const naver = await fetchNaverEtfMeta(sym);
-    if (naver?.tip) description = naver.tip;
+    if (naver?.tip && hasHangul(naver.tip)) description = naver.tip;
   } catch {
     /* ignore */
   }
-  if (!description) {
+  if (!description || !hasHangul(description)) {
     description = fallbackDescriptionKo(etfName, sym);
   }
 

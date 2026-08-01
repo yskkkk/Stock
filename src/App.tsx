@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from "react";
 import { useChartDrawMagnet } from "./hooks/useChartDrawMagnet";
 import {
   clearStockOpsInstructionDraft,
@@ -19,12 +19,6 @@ import {
 import BullishReasonModal from "./components/BullishReasonModal";
 import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
-import Sp500SectorTab from "./components/Sp500SectorTab";
-import AccountManageTab from "./components/AccountManageTab";
-import NasdaqEtfTab from "./components/NasdaqEtfTab";
-import RedditMentionsTab, {
-  prefetchRedditMentions,
-} from "./components/RedditMentionsTab";
 import { Sp500SectorProvider } from "./contexts/Sp500SectorContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import AppThemeCorner from "./components/AppThemeCorner";
@@ -54,30 +48,49 @@ import PickToolbar from "./components/PickToolbar";
 import SignalFilter from "./components/SignalFilter";
 import type { ChartDrawMode, ChartDrawToolbarApi } from "./chartDrawTypes";
 import ChartDrawToolbarButtons from "./components/ChartDrawToolbarButtons";
-import CryptoTab from "./components/CryptoTab";
 import OpsGlobalQueueStrip from "./components/OpsGlobalQueueStrip";
-import OpsManagementTab from "./components/OpsManagementTab";
-import LiveTradingTab, {
-  type LiveTradeAdminViewState,
-} from "./components/LiveTradingTab";
+import type { LiveTradeAdminViewState } from "./components/LiveTradingTab";
 import AppLiveTradeSideDock from "./components/AppLiveTradeSideDock";
 import AppRightDockRailPanels from "./components/AppRightDockRailPanels";
 import {
   useLiveTradeAuth,
   LIVE_TRADE_AUTH_CHANGE,
 } from "./components/LiveTradeAuthAndCredentials";
-import RecommendationsTab from "./components/RecommendationsTab";
-import TradeHistoryTab from "./components/TradeHistoryTab";
-import BoxRangeTab from "./components/BoxRangeTab";
-import FinancialsTab from "./components/FinancialsTab";
-import StockVaultTab from "./components/StockVaultTab";
-import InvestorFlowTab from "./components/InvestorFlowTab";
+import { prefetchRedditMentions } from "./components/RedditMentionsTab";
 import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
 import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
 import { OPEN_FINANCIALS_TAB_EVENT, type OpenFinancialsTabDetail } from "./lib/openFinancialsTab";
 import StockSearchTab from "./components/StockSearchTab";
 import StockChart from "./components/StockChart";
 import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
+
+const Sp500SectorTab = lazy(() => import("./components/Sp500SectorTab"));
+const AccountManageTab = lazy(() => import("./components/AccountManageTab"));
+const NasdaqEtfTab = lazy(() => import("./components/NasdaqEtfTab"));
+const RedditMentionsTab = lazy(() => import("./components/RedditMentionsTab"));
+const CryptoTab = lazy(() => import("./components/CryptoTab"));
+const OpsManagementTab = lazy(() => import("./components/OpsManagementTab"));
+const LiveTradingTab = lazy(() => import("./components/LiveTradingTab"));
+const RecommendationsTab = lazy(() => import("./components/RecommendationsTab"));
+const TradeHistoryTab = lazy(() => import("./components/TradeHistoryTab"));
+const BoxRangeTab = lazy(() => import("./components/BoxRangeTab"));
+const FinancialsTab = lazy(() => import("./components/FinancialsTab"));
+const StockVaultTab = lazy(() => import("./components/StockVaultTab"));
+const InvestorFlowTab = lazy(() => import("./components/InvestorFlowTab"));
+
+function TabSuspense({ children }: { children: ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="app-tab-suspense" role="status" aria-live="polite">
+          불러오는 중…
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  );
+}
 import { CHART_TIMEFRAMES } from "./constants/timeframes";
 import type { SignalId } from "./constants/signals";
 import { useUiFeature } from "./contexts/UiFeatureToggleContext";
@@ -1822,56 +1835,82 @@ export default function App() {
       )}
 
       {appTab === "crypto" ? (
-        <CryptoTab
-          colorMode={colorMode}
-          focusSymbol={cryptoFocusSymbol}
-          onFocusSymbolConsumed={handleCryptoFocusConsumed}
-        />
-      ) : appTab === "recommendations" ? (
-        <RecommendationsTab onOpenPick={handleSelect} />
-      ) : appTab === "tradeHistory" ? (
-        <TradeHistoryTab onOpenHoldingChart={handleLiveTradeChart} />
-      ) : appTab === "boxRange" ? (
-        <BoxRangeTab />
-      ) : appTab === "financials" ? (
-        <FinancialsTab
-          focusPick={financialsFocusPick}
-          onFocusPickConsumed={handleFinancialsFocusConsumed}
-          scrollToSection={financialsScrollTo}
-          onScrollToSectionConsumed={handleFinancialsScrollConsumed}
-        />
-      ) : appTab === "stockVault" ? (
-        <StockVaultTabGate onVaultChange={syncVaultFromResponse} />
-      ) : appTab === "investorFlow" ? (
-        <InvestorFlowTab />
-      ) : appTab === "sp500Sector" ? (
-        <Sp500SectorTab />
-      ) : appTab === "nasdaqEtf" ? (
-        <NasdaqEtfTab onOpenSymbol={handleOpenNasdaqEtfSymbol} />
-      ) : appTab === "redditMentions" ? (
-        <RedditMentionsTab onOpenSymbol={handleOpenNasdaqEtfSymbol} />
-      ) : appTab === "accountManage" ? (
-        <AccountManageTab onOpenHoldingChart={handleTossHoldingChart} />
-      ) : appTab === "liveTrading" ? (
-        <div className="live-trade-tab-root">
-          <LiveTradingTab
-            hideCardDock={showLiveTradeDockPortals}
-            onOpenRecommendations={() => setAppTab("recommendations")}
-            onOpenHoldingChart={handleLiveTradeChart}
-            adminView={liveTradeAdminView}
-            onClearAdminView={() => setLiveTradeAdminView(null)}
-            adminIpBypass={adminIpConsole}
+        <TabSuspense>
+          <CryptoTab
+            colorMode={colorMode}
+            focusSymbol={cryptoFocusSymbol}
+            onFocusSymbolConsumed={handleCryptoFocusConsumed}
           />
-        </div>
+        </TabSuspense>
+      ) : appTab === "recommendations" ? (
+        <TabSuspense>
+          <RecommendationsTab onOpenPick={handleSelect} />
+        </TabSuspense>
+      ) : appTab === "tradeHistory" ? (
+        <TabSuspense>
+          <TradeHistoryTab onOpenHoldingChart={handleLiveTradeChart} />
+        </TabSuspense>
+      ) : appTab === "boxRange" ? (
+        <TabSuspense>
+          <BoxRangeTab />
+        </TabSuspense>
+      ) : appTab === "financials" ? (
+        <TabSuspense>
+          <FinancialsTab
+            focusPick={financialsFocusPick}
+            onFocusPickConsumed={handleFinancialsFocusConsumed}
+            scrollToSection={financialsScrollTo}
+            onScrollToSectionConsumed={handleFinancialsScrollConsumed}
+          />
+        </TabSuspense>
+      ) : appTab === "stockVault" ? (
+        <TabSuspense>
+          <StockVaultTabGate onVaultChange={syncVaultFromResponse} />
+        </TabSuspense>
+      ) : appTab === "investorFlow" ? (
+        <TabSuspense>
+          <InvestorFlowTab />
+        </TabSuspense>
+      ) : appTab === "sp500Sector" ? (
+        <TabSuspense>
+          <Sp500SectorTab />
+        </TabSuspense>
+      ) : appTab === "nasdaqEtf" ? (
+        <TabSuspense>
+          <NasdaqEtfTab onOpenSymbol={handleOpenNasdaqEtfSymbol} />
+        </TabSuspense>
+      ) : appTab === "redditMentions" ? (
+        <TabSuspense>
+          <RedditMentionsTab onOpenSymbol={handleOpenNasdaqEtfSymbol} />
+        </TabSuspense>
+      ) : appTab === "accountManage" ? (
+        <TabSuspense>
+          <AccountManageTab onOpenHoldingChart={handleTossHoldingChart} />
+        </TabSuspense>
+      ) : appTab === "liveTrading" ? (
+        <TabSuspense>
+          <div className="live-trade-tab-root">
+            <LiveTradingTab
+              hideCardDock={showLiveTradeDockPortals}
+              onOpenRecommendations={() => setAppTab("recommendations")}
+              onOpenHoldingChart={handleLiveTradeChart}
+              adminView={liveTradeAdminView}
+              onClearAdminView={() => setLiveTradeAdminView(null)}
+              adminIpBypass={adminIpConsole}
+            />
+          </div>
+        </TabSuspense>
       ) : appTab === "ops" ? (
-        <div className="workspace ops-workspace">
-          <section
-            className="ops-management-wrap card ops-management-main"
-            aria-label={ko.app.opsPanelTitle}
-          >
-            <OpsManagementTab available={opsCursorAgentAvailable} />
-          </section>
-        </div>
+        <TabSuspense>
+          <div className="workspace ops-workspace">
+            <section
+              className="ops-management-wrap card ops-management-main"
+              aria-label={ko.app.opsPanelTitle}
+            >
+              <OpsManagementTab available={opsCursorAgentAvailable} />
+            </section>
+          </div>
+        </TabSuspense>
       ) : (
         <div
           className={[
@@ -2495,14 +2534,16 @@ export default function App() {
               tradeHistoryMainActive={committedTab === "tradeHistory"}
               portalSource={
                 showLiveTradeDockPortals ? (
-                  <LiveTradingTab
-                    portalSourceOnly
-                    onOpenRecommendations={() => setAppTab("recommendations")}
-                    onOpenHoldingChart={handleLiveTradeChart}
-                    adminView={liveTradeAdminView}
-                    onClearAdminView={() => setLiveTradeAdminView(null)}
-                    adminIpBypass={adminIpConsole}
-                  />
+                  <Suspense fallback={null}>
+                    <LiveTradingTab
+                      portalSourceOnly
+                      onOpenRecommendations={() => setAppTab("recommendations")}
+                      onOpenHoldingChart={handleLiveTradeChart}
+                      adminView={liveTradeAdminView}
+                      onClearAdminView={() => setLiveTradeAdminView(null)}
+                      adminIpBypass={adminIpConsole}
+                    />
+                  </Suspense>
                 ) : null
               }
             />

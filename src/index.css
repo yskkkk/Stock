@@ -310,12 +310,14 @@
   width: 0;
   height: 0;
 }
-.macro-bar__status {
-  margin: 0;
-  padding: 0.5rem 0;
-  font-size: 0.8rem;
+.app-tab-suspense {
+  margin: 1.25rem auto;
+  padding: 1.5rem 1rem;
+  text-align: center;
   color: var(--muted);
+  font-size: 0.9rem;
 }
+
 .macro-card {
   --macro-near: 0;
   --macro-card-fill: var(--surface);
@@ -324,17 +326,22 @@
   width: min(148px, 42vw);
   padding: 0.38rem 0.6rem 0.34rem;
   scroll-snap-align: start;
-  background: var(--macro-card-fill);
+  /* 임박도: 어두운 회색 대신 밝은 앰버 워시 (가독성 유지) */
+  background: color-mix(
+    in srgb,
+    var(--warn) calc(var(--macro-near) * 20%),
+    var(--macro-card-fill)
+  );
   border: 1px solid color-mix(
     in srgb,
-    var(--warn) calc(var(--macro-near) * 72%),
+    var(--warn) calc(12% + var(--macro-near) * 68%),
     var(--card-border)
   );
   border-radius: var(--radius-sm);
-  box-shadow: inset 3px 0 0 0
+  box-shadow: inset 4px 0 0 0
     color-mix(
       in srgb,
-      var(--warn) calc(var(--macro-near) * 88%),
+      var(--warn) calc(28% + var(--macro-near) * 72%),
       transparent
     );
   transition:

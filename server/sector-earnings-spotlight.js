@@ -28,6 +28,8 @@ import { yahooGet } from "./yahoo.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "data", "sector-earnings-spotlight.json");
 const DISK_CACHE_PATH = path.join(__dirname, ".data", "sector-earnings-cache.json");
+/** 한글 종목명 우선 적용 후 디스크 캐시 무효화 */
+const DISK_CACHE_SCHEMA = 2;
 
 const CACHE_MS = Number(process.env.SECTOR_EARNINGS_CACHE_MS) > 60_000
   ? Math.min(6 * 60 * 60_000, Math.floor(Number(process.env.SECTOR_EARNINGS_CACHE_MS)))
@@ -62,6 +64,7 @@ function readDiskCache() {
   try {
     if (!fs.existsSync(DISK_CACHE_PATH)) return null;
     const raw = JSON.parse(fs.readFileSync(DISK_CACHE_PATH, "utf8"));
+    if (Number(raw?.schema) !== DISK_CACHE_SCHEMA) return null;
     const items = Array.isArray(raw?.items) ? raw.items : [];
     if (!items.length) return null;
     const at = Number(raw?.at) || 0;
@@ -82,7 +85,7 @@ function writeDiskCache(items) {
     const tmp = `${DISK_CACHE_PATH}.tmp`;
     fs.writeFileSync(
       tmp,
-      `${JSON.stringify({ at: Date.now(), items })}\n`,
+      `${JSON.stringify({ schema: DISK_CACHE_SCHEMA, at: Date.now(), items })}\n`,
       "utf8",
     );
     fs.renameSync(tmp, DISK_CACHE_PATH);
@@ -254,10 +257,12 @@ function parseNextEarningsFromQuoteSummary(data, symbol, listingTz) {
   const r0 = quoteSummaryFirstResult(data);
   if (!r0) return null;
   const price = r0.price && typeof r0.price === "object" ? /** @type {Record<string, unknown>} */ (r0.price) : null;
-  const name =
-    (price && typeof price.longName === "string" && price.longName.trim()) ||
-    (price && typeof price.shortName === "string" && price.shortName.trim()) ||
-    resolveDisplayName(symbol);
+  const yahooLong =
+    price && typeof price.longName === "string" ? price.longName.trim() : "";
+  const yahooShort =
+    price && typeof price.shortName === "string" ? price.shortName.trim() : "";
+  // 영문 Yahoo longName보다 names-ko 한글 표기 우선
+  const name = resolveDisplayName(symbol, yahooLong, yahooShort);
 
   const cal = r0.calendarEvents && typeof r0.calendarEvents === "object"
     ? /** @type {Record<string, unknown>} */ (r0.calendarEvents)

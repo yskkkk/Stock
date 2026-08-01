@@ -9,7 +9,11 @@ import {
   type SetStateAction,
 } from "react";
 import { fetchMacroEvents, fetchSectorEarnings } from "../api";
-import { peekMacroPrefetch, prefetchMacroBundle } from "../lib/tabPrefetch";
+import {
+  peekMacroPrefetch,
+  prefetchMacroBundle,
+  prefetchSectorEarnings,
+} from "../lib/tabPrefetch";
 import { ko } from "../i18n/ko";
 import {
   formatMacroCountdown,
@@ -337,7 +341,7 @@ function SectorEarningsCard({
 
 const SECRET_ADMIN_TAPS = 10;
 const SECRET_ADMIN_GAP_MS = 2800;
-const MACRO_SESSION_CACHE_KEY = "stock-macro-bar-v3";
+const MACRO_SESSION_CACHE_KEY = "stock-macro-bar-v4";
 
 function readSessionMacroCache(): {
   events: MacroEvent[];
@@ -457,13 +461,13 @@ export default function MacroEventsBar({
         });
     };
 
-    // 부트 프리페치와 동일 인플라이트 공유 — 페이지와 동시에 시작
+    // 부트 프리페치와 동일 인플라이트 공유 — 지표·실적 분리 (실적 지연 ≠ 지표 대기)
     void prefetchMacroBundle()
       .then((bundle) => {
         if (cancelled) return;
         applyMacro(bundle.events);
-        applySector(bundle.sectorEarnings);
-        persist(bundle.events, bundle.sectorEarnings);
+        if (bundle.sectorEarnings?.length) applySector(bundle.sectorEarnings);
+        persist(bundle.events, bundle.sectorEarnings ?? []);
         const needsForecastPoll =
           bundle.events.length > 0 &&
           bundle.events.every((e) => !e.forecast?.trim());
@@ -474,22 +478,19 @@ export default function MacroEventsBar({
         }
       })
       .catch(() => {
-        if (!cancelled) {
-          pollUntilForecasts();
-          void fetchSectorEarnings()
-            .then((data) => {
-              const sec = Array.isArray(data.sectorEarnings)
-                ? data.sectorEarnings
-                : [];
-              applySector(sec);
-              setEvents((ev) => {
-                persist(ev, sec);
-                return ev;
-              });
-            })
-            .catch(() => {});
-        }
+        if (!cancelled) pollUntilForecasts();
       });
+
+    void prefetchSectorEarnings()
+      .then((list) => {
+        if (cancelled || !list.length) return;
+        applySector(list);
+        setEvents((ev) => {
+          persist(ev, list);
+          return ev;
+        });
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;
@@ -613,26 +614,25 @@ export default function MacroEventsBar({
             {!loading && barItems.length === 0 && (
               <p className="macro-bar__status">{ko.macro.empty}</p>
             )}
-            {!loading &&
-              barItems.map((item) => {
-                const nearness = macroCardNearness(item.at - now);
-                return item.kind === "macro" ? (
-                  <MacroEventCard
-                    key={item.event.id}
-                    event={item.event}
-                    now={now}
-                    onOpen={setInfoEvent}
-                    nearness={nearness}
-                  />
-                ) : (
-                  <SectorEarningsCard
-                    key={item.row.id}
-                    row={item.row}
-                    now={now}
-                    nearness={nearness}
-                  />
-                );
-              })}
+            {barItems.map((item) => {
+              const nearness = macroCardNearness(item.at - now);
+              return item.kind === "macro" ? (
+                <MacroEventCard
+                  key={item.event.id}
+                  event={item.event}
+                  now={now}
+                  onOpen={setInfoEvent}
+                  nearness={nearness}
+                />
+              ) : (
+                <SectorEarningsCard
+                  key={item.row.id}
+                  row={item.row}
+                  now={now}
+                  nearness={nearness}
+                />
+              );
+            })}
           </div>
         </div>
 

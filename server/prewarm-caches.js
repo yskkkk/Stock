@@ -23,10 +23,10 @@ function probeTelegramOnce() {
 
 /** API 첫 요청 지연 줄이기 — 주요 탭 데이터 백그라운드 선로드 */
 export function prewarmAppCaches() {
-  // 실적 레일이 Yahoo 큐를 지수보다 먼저 쓰도록 선행
-  prewarmSectorEarningsCache();
+  // 셸 첫 페인트: 지수·지표·실적 즉시(2.5s 지연은 클라와 레이스)
+  prewarmMarketIndicesCache();
   prewarmMacroEventsCache();
-  setTimeout(() => prewarmMarketIndicesCache(), 2500);
+  prewarmSectorEarningsCache();
   probeTelegramOnce();
   void buildRecommendationsTrackerPayload({ includeQuotes: false }).catch((e) => {
     console.warn("[prewarm] recommendations-tracker:", e instanceof Error ? e.message : e);

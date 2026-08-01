@@ -49,6 +49,15 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: ["es2020", "safari14"],
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/lightweight-charts")) return "charts";
+          if (id.includes("node_modules/react-dom")) return "react-vendor";
+          if (id.includes("node_modules/react/")) return "react-vendor";
+        },
+      },
+    },
   },
   resolve: {
     dedupe: ["react", "react-dom"],

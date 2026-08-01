@@ -204,16 +204,20 @@ html[data-theme="light"] .top-bar__macro::after {
 
 html[data-theme="light"] .macro-card {
   --macro-card-fill: #fff;
-  background: var(--macro-card-fill);
+  background: color-mix(
+    in srgb,
+    #fbbf24 calc(var(--macro-near) * 22%),
+    var(--macro-card-fill)
+  );
   border: 1px solid color-mix(
     in srgb,
-    #d97706 calc(var(--macro-near) * 55%),
+    #d97706 calc(10% + var(--macro-near) * 55%),
     var(--card-border)
   );
-  box-shadow: inset 3px 0 0 0
+  box-shadow: inset 4px 0 0 0
     color-mix(
       in srgb,
-      #d97706 calc(var(--macro-near) * 80%),
+      #d97706 calc(30% + var(--macro-near) * 70%),
       transparent
     );
 }

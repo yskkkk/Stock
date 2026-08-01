@@ -204,39 +204,33 @@ function notifyRecTracker(data: RecommendationsTrackerResponse) {
 
 export async function prefetchMacroBundle(): Promise<MacroPrefetchBundle> {
   return dedupe("macro", async () => {
-    const settled = await Promise.allSettled([
-      fetchMacroEvents(),
-      fetchSectorEarnings(),
-    ]);
+    // 지표만 기다림 — 실적 Yahoo 지연이 지표 카드를 막지 않음
+    const macroSettled = await Promise.allSettled([fetchMacroEvents()]);
     const macro =
-      settled[0].status === "fulfilled"
-        ? settled[0].value
+      macroSettled[0].status === "fulfilled"
+        ? macroSettled[0].value
         : { events: [] as MacroEvent[] };
-    const sector =
-      settled[1].status === "fulfilled"
-        ? settled[1].value
-        : { sectorEarnings: [] as SectorEarningsSpotlightItem[] };
     const events = macro.events ?? [];
-    let sectorEarnings = Array.isArray(sector.sectorEarnings)
-      ? sector.sectorEarnings
-      : [];
     const prevMacro = getCached<MacroPrefetchBundle>("macro");
     const prevSector = getCached<SectorEarningsSpotlightItem[]>("sectorEarnings");
-    if (!sectorEarnings.length) {
-      sectorEarnings =
-        prevSector?.length
-          ? prevSector
-          : prevMacro?.sectorEarnings?.length
-            ? prevMacro.sectorEarnings
-            : [];
-    } else {
-      setCached("sectorEarnings", sectorEarnings);
-    }
+    const sectorEarnings =
+      prevSector?.length
+        ? prevSector
+        : prevMacro?.sectorEarnings?.length
+          ? prevMacro.sectorEarnings
+          : [];
     const mergedEvents = events.length ? events : prevMacro?.events ?? [];
-    if (mergedEvents.length || sectorEarnings.length) {
-      writeMacroSessionCache(mergedEvents, sectorEarnings);
+    const merged: MacroPrefetchBundle = {
+      events: mergedEvents,
+      sectorEarnings,
+    };
+    if (merged.events.length || merged.sectorEarnings.length) {
+      setCached("macro", merged);
+      writeMacroSessionCache(merged.events, merged.sectorEarnings);
     }
-    return { events: mergedEvents, sectorEarnings };
+    // 실적은 별도 프리페치/백그라운드 — 여기서 await 하지 않음
+    void prefetchSectorEarnings().catch(() => {});
+    return merged;
   });
 }
 
