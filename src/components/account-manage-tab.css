@@ -1334,8 +1334,8 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 
 .account-manage-tab__style-list-btn {
   display: grid;
-  grid-template-columns: 0.65rem minmax(0, 1fr) auto auto;
-  gap: 0.35rem;
+  grid-template-columns: 0.65rem minmax(0, 1fr) 4.75rem 8.75rem;
+  column-gap: 0.55rem;
   align-items: center;
   width: 100%;
   min-height: 2.35rem;
@@ -1551,6 +1551,17 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
     max-height: 10rem;
   }
 
+  .account-manage-tab__legend-btn,
+  .account-manage-tab__style-list-btn {
+    grid-template-columns: 0.65rem minmax(0, 1fr) 4.2rem 7.25rem;
+    column-gap: 0.4rem;
+  }
+
+  .account-manage-tab__slice-row {
+    grid-template-columns: 0.65rem minmax(0, 1fr) 2.6rem 4.2rem 7.25rem;
+    column-gap: 0.4rem;
+  }
+
   .account-manage-tab__style-strip-main {
     align-items: center;
   }
@@ -1679,8 +1690,9 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 
 .account-manage-tab__legend-btn {
   display: grid;
-  grid-template-columns: 0.65rem minmax(0, 1fr) auto auto;
-  gap: 0.35rem;
+  grid-template-columns: 0.65rem minmax(0, 1fr) 4.75rem 8.75rem;
+  column-gap: 0.55rem;
+  row-gap: 0.15rem;
   align-items: center;
   width: 100%;
   border: none;
@@ -1709,12 +1721,21 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .account-manage-tab__legend-pct,
 .account-manage-tab__legend-val {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
+  text-align: right;
+  justify-self: stretch;
+  white-space: nowrap;
+}
+
+.account-manage-tab__legend-val {
+  color: var(--text);
+  font-weight: 650;
 }
 
 .account-manage-tab__hint,
@@ -1859,8 +1880,9 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 
 .account-manage-tab__slice-row {
   display: grid;
-  grid-template-columns: 0.65rem minmax(0, 1.4fr) auto auto auto;
-  gap: 0.4rem;
+  grid-template-columns: 0.65rem minmax(0, 1fr) 3rem 4.75rem 8.75rem;
+  column-gap: 0.55rem;
+  row-gap: 0.15rem;
   align-items: center;
   font-size: 0.76rem;
   cursor: pointer;
@@ -1870,6 +1892,27 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 
 .account-manage-tab__slice-row:hover {
   background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.account-manage-tab__slice-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-manage-tab__slice-meta {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.account-manage-tab__slice-row > :nth-child(4),
+.account-manage-tab__slice-row > :nth-child(5) {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .account-manage-tab__table-wrap {
