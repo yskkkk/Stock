@@ -17,9 +17,22 @@
 
 .account-manage-tab__head {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
+.account-manage-tab__head-copy {
+  min-width: 0;
+}
+
+.account-manage-tab__head-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.45rem 0.75rem;
+  width: 100%;
 }
 
 .account-manage-tab__title {
@@ -61,6 +74,7 @@
   align-items: center;
   gap: 0.45rem;
   flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .account-manage-tab__summary-wrap {
@@ -73,9 +87,53 @@
 .account-manage-tab__summary-toolbar {
   display: flex;
   justify-content: flex-start;
-  align-items: center;
+  align-items: stretch;
   gap: 0.4rem 0.5rem;
   flex-wrap: wrap;
+}
+
+.account-manage-tab__summary-toolbar > * {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+}
+
+.account-manage-tab__summary-toolbar .account-manage-tab__rebalance-hours,
+.account-manage-tab__summary-toolbar .account-manage-tab__toolbar-rebalance {
+  align-items: stretch;
+}
+
+.account-manage-tab__summary-toolbar .account-manage-tab__rebalance-hour-chip {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  gap: 0.28rem 0.45rem;
+  min-height: 2.45rem;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.account-manage-tab__summary-toolbar .account-manage-tab__rebalance-hour-meta {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem 0.45rem;
+  width: auto;
+}
+
+.account-manage-tab__summary-toolbar .account-manage-tab__currency-toggle,
+.account-manage-tab__summary-toolbar .account-manage-tab__hide-btn--summary,
+.account-manage-tab__summary-toolbar .account-manage-tab__hide-btn--schedule,
+.account-manage-tab__summary-toolbar .account-manage-tab__hide-btn--real-order {
+  min-height: 2.45rem;
+  box-sizing: border-box;
+}
+
+.account-manage-tab__summary-toolbar .account-manage-tab__currency-btn {
+  min-height: 2.45rem;
+  display: inline-flex;
+  align-items: center;
 }
 
 .account-manage-tab__toolbar-grow {
@@ -535,13 +593,13 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.45rem;
   width: 100%;
-  max-width: 52rem;
+  max-width: none;
+  align-items: stretch;
 }
 
 @media (max-width: 900px) {
   .account-manage-tab__summary-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    max-width: none;
   }
 }
 
@@ -592,7 +650,11 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   padding: 0.55rem 0.7rem;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 0.2rem;
+  min-height: 4.25rem;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .account-manage-tab__stat--muted .account-manage-tab__stat-value {
@@ -610,15 +672,10 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 }
 
 .account-manage-tab__cash-group {
-  grid-column: span 2;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-  width: 100%;
+  display: contents;
 }
 
 .account-manage-tab__cash-group-hint {
-  grid-column: 1 / -1;
   margin: 0;
   font-size: 0.68rem;
   font-weight: 600;
@@ -627,7 +684,7 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 }
 
 .account-manage-tab__stat--cash {
-  min-height: 3.1rem;
+  min-height: 4.25rem;
 }
 
 .account-manage-tab__stat--cash-krw {
@@ -701,9 +758,9 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 
 .account-manage-tab__grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.75rem;
-  align-items: start;
+  align-items: stretch;
   width: 100%;
 }
 
@@ -711,6 +768,9 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 .account-manage-tab__holdings,
 .account-manage-tab__raw {
   padding: 0.85rem 1rem 1rem;
+  min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .account-manage-tab__wheel {
@@ -1717,17 +1777,13 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 }
 
 @media (max-width: 480px) {
-  .account-manage-tab__cash-group {
-    grid-template-columns: 1fr;
-  }
-
   .account-manage-tab__cash-group-hint {
     font-size: 0.72rem;
     line-height: 1.45;
   }
 
   .account-manage-tab__stat--cash {
-    min-height: 3.35rem;
+    min-height: 4.25rem;
     padding: 0.62rem 0.75rem;
   }
 

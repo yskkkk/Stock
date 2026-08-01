@@ -1097,8 +1097,10 @@ export default function AccountManageTab({
         data-vu="account-manage-guest"
       >
         <header className="account-manage-tab__head">
-          <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
-          <p className="account-manage-tab__sub">{ko.app.accountManageLoginHint}</p>
+          <div className="account-manage-tab__head-copy">
+            <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
+            <p className="account-manage-tab__sub">{ko.app.accountManageLoginHint}</p>
+          </div>
         </header>
         <LiveTradeAuthPanel
           user={null}
@@ -1144,63 +1146,64 @@ export default function AccountManageTab({
       data-vu={contentReady ? "account-manage-ready" : "account-manage-shell"}
     >
       <header className="account-manage-tab__head">
-        <div>
+        <div className="account-manage-tab__head-copy">
           <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
           <p className="account-manage-tab__sub">
             {ko.app.accountManageSubtitle}
             {user.email ? ` ${user.email}` : ""}
           </p>
         </div>
-        <div className="account-manage-tab__head-actions">
-          <button
-            type="button"
-            className="bithumb-balance-hide-btn account-manage-tab__hide-btn"
-            onClick={toggleBalanceHidden}
-            aria-pressed={balanceHidden}
-            title={
-              balanceHidden
+        <div className="account-manage-tab__head-bar">
+          <div className="account-manage-tab__exchange">
+            <LiveTradeExchangePicker
+              selected={provider}
+              onSelect={setProvider}
+              compact
+            />
+          </div>
+          <div className="account-manage-tab__head-actions">
+            <button
+              type="button"
+              className="bithumb-balance-hide-btn account-manage-tab__hide-btn"
+              onClick={toggleBalanceHidden}
+              aria-pressed={balanceHidden}
+              title={
+                balanceHidden
+                  ? ko.app.accountManageMoneyShow
+                  : ko.app.accountManageMoneyHide
+              }
+            >
+              {balanceHidden
                 ? ko.app.accountManageMoneyShow
-                : ko.app.accountManageMoneyHide
-            }
-          >
-            {balanceHidden
-              ? ko.app.accountManageMoneyShow
-              : ko.app.accountManageMoneyHide}
-          </button>
-          <button
-            type="button"
-            className={[
-              "btn btn--secondary account-manage-tab__refresh",
-              refreshing ? "account-manage-tab__refresh--busy" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            onClick={() => void onRefresh()}
-            disabled={loading || refreshing}
-            aria-busy={refreshing || undefined}
-          >
-            {refreshing ? (
-              <>
-                <span
-                  className="btn-inline-spinner"
-                  aria-hidden
-                />
-                {ko.app.accountManageRefreshing}
-              </>
-            ) : (
-              ko.app.accountManageRefresh
-            )}
-          </button>
+                : ko.app.accountManageMoneyHide}
+            </button>
+            <button
+              type="button"
+              className={[
+                "btn btn--secondary account-manage-tab__refresh",
+                refreshing ? "account-manage-tab__refresh--busy" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() => void onRefresh()}
+              disabled={loading || refreshing}
+              aria-busy={refreshing || undefined}
+            >
+              {refreshing ? (
+                <>
+                  <span
+                    className="btn-inline-spinner"
+                    aria-hidden
+                  />
+                  {ko.app.accountManageRefreshing}
+                </>
+              ) : (
+                ko.app.accountManageRefresh
+              )}
+            </button>
+          </div>
         </div>
       </header>
-
-      <div className="account-manage-tab__exchange">
-        <LiveTradeExchangePicker
-          selected={provider}
-          onSelect={setProvider}
-          compact
-        />
-      </div>
 
       {!canShowAccount ? (
         statusPending || loading ? (
@@ -1395,6 +1398,11 @@ export default function AccountManageTab({
                 {err}
               </p>
             ) : null}
+          {provider === "toss" ? (
+            <p className="account-manage-tab__cash-group-hint">
+              {ko.app.accountManageCashSplitHint}
+            </p>
+          ) : null}
           <div className="account-manage-tab__summary-row">
             <div className="account-manage-tab__summary account-manage-tab__summary--primary">
               <div className="account-manage-tab__stat">
@@ -1452,9 +1460,6 @@ export default function AccountManageTab({
                   role="group"
                   aria-label={`${ko.app.accountManageCashKrw}, ${ko.app.accountManageCashUsd}`}
                 >
-                  <p className="account-manage-tab__cash-group-hint">
-                    {ko.app.accountManageCashSplitHint}
-                  </p>
                   <div
                     className="account-manage-tab__stat account-manage-tab__stat--cash account-manage-tab__stat--cash-krw"
                     role="group"
