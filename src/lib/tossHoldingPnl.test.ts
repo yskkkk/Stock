@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { TossTestHolding } from "../api";
 import {
   computeTossAccountCombinedPnl,
+  computeTossHoldingsDisplayPnl,
   tossHoldingNetReturnPercent,
   tossHoldingNetUnrealizedPnl,
   tossHoldingsNetProfitLossKrw,
@@ -96,6 +97,26 @@ describe("tossHoldingPnl", () => {
     const buyFx = new Map([["AAPL", 1420]]);
     const pnl = tossHoldingsNetProfitLossKrw([usHolding], 1440, 0, buyFx);
     expect(pnl).toBe(20_000);
+  });
+
+  it("USD display mode uses native dollar cost without FX", () => {
+    const usHolding: TossTestHolding = {
+      symbol: "AAPL",
+      name: "Apple",
+      market: "us",
+      currency: "USD",
+      quantity: 10,
+      avgBuyPrice: 100,
+      purchaseAmount: 1000,
+      currentPrice: 110,
+      marketValue: 1100,
+    };
+    const buyFx = new Map([["AAPL", 1420]]);
+    const usd = computeTossHoldingsDisplayPnl([usHolding], 1440, 0, buyFx, "USD");
+    expect(usd.pnl).toBe(100);
+    const krw = computeTossHoldingsDisplayPnl([usHolding], 1440, 0, buyFx, "KRW");
+    // netMv 1100*1440 - cost 1000*1420 = 1,584,000 - 1,420,000 = 164,000
+    expect(krw.pnl).toBe(164_000);
   });
 });
 

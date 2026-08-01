@@ -17,11 +17,39 @@ function feeForHolding(h: TossTestHolding, fee: TossFeeRateInput): number {
 }
 
 export function tossHoldingCostBasis(h: TossTestHolding): number | null {
-  const avg = h.avgBuyPrice;
   const qty = h.quantity;
-  if (avg == null || !(avg > 0) || !(qty > 0)) return null;
+  if (!(qty > 0)) return null;
+  const purchase = h.purchaseAmount;
+  if (purchase != null && Number.isFinite(purchase) && purchase > 0) {
+    return purchase;
+  }
+  const avg = h.avgBuyPrice;
+  if (avg == null || !(avg > 0)) return null;
   const cost = avg * qty;
   return Number.isFinite(cost) ? cost : null;
+}
+
+/** US avg buy in KRW = USD avg * purchase FX (Toss has no KRW avg for US stocks). */
+export function tossHoldingAvgBuyPriceKrw(
+  h: TossTestHolding,
+  avgPurchaseFx: number | null,
+  currentUsdKrw: number | null,
+): number | null {
+  const isUsd = h.currency === "USD" || h.market === "us";
+  if (!isUsd) {
+    return h.avgBuyPrice != null && h.avgBuyPrice > 0 ? h.avgBuyPrice : null;
+  }
+  const avgUsd = h.avgBuyPrice;
+  if (!(avgUsd != null && avgUsd > 0)) return null;
+  const fx =
+    avgPurchaseFx != null && Number.isFinite(avgPurchaseFx) && avgPurchaseFx > 0
+      ? avgPurchaseFx
+      : currentUsdKrw != null && currentUsdKrw > 0
+        ? currentUsdKrw
+        : null;
+  if (fx == null) return null;
+  const krw = avgUsd * fx;
+  return Number.isFinite(krw) ? krw : null;
 }
 
 export function tossHoldingGrossMarketValue(h: TossTestHolding): number | null {
@@ -39,7 +67,7 @@ export function tossHoldingGrossMarketValue(h: TossTestHolding): number | null {
   return null;
 }
 
-/** 매도 수수료(왕복의 절반) 반영 순평가액 */
+/** Net market value after half round-trip (sell-side) fee. */
 export function tossHoldingNetMarketValue(
   h: TossTestHolding,
   roundTripFeeRate: number = DEFAULT_ROUND_TRIP_FEE_RATE,
@@ -72,8 +100,8 @@ export function tossHoldingNetReturnPercent(
 }
 
 /**
- * USD 보유 → 원화 평가손익.
- * 매입 환율이 있으면 매입원금×매입환율 vs 순평가×현재환율(환차 포함).
+ * USD holding PnL in KRW.
+ * With purchase FX: netMv*spotFx - cost*buyFx (includes FX gain/loss).
  */
 export function tossHoldingNetUnrealizedPnlKrw(
   h: TossTestHolding,
@@ -97,7 +125,7 @@ export function tossHoldingNetUnrealizedPnlKrw(
   return Number.isFinite(pnl) ? Math.round(pnl) : null;
 }
 
-/** 보유 합산 총수익률(%) — 매도 수수료 반영 순평가, USD는 매입·현재 환율 */
+/** Portfolio net return % in KRW (USD uses purchase vs spot FX). */
 export function tossHoldingsNetReturnPct(
   holdings: TossTestHolding[],
   usdKrwRate: number | null,
@@ -157,10 +185,12 @@ export type TossSummarySlice = {
   profitLossUsd?: number | null;
   marketValueKrw?: number | null;
   marketValueUsd?: number | null;
+  purchaseAmountKrw?: number | null;
+  purchaseAmountUsd?: number | null;
   totalReturnPct?: number | null;
 };
 
-/** 보유 종목 순평가액 합계(원) — USD는 환율 환산, summary 폴백 */
+/** Total net market value in KRW. */
 export function tossHoldingsTotalNetMarketValueKrw(
   holdings: TossTestHolding[],
   summary: TossSummarySlice | null | undefined,
@@ -207,7 +237,7 @@ export function tossHoldingsTotalNetMarketValueKrw(
   return Math.round(mvK!);
 }
 
-/** 계좌 전체 평가손익(원)·수익률 — KRW+USD 환산 합산(매입환율 반영) */
+/** Combined account PnL in KRW (purchase FX for USD). */
 export function computeTossAccountCombinedPnl(
   holdings: TossTestHolding[],
   summary: TossSummarySlice | null | undefined,
@@ -289,5 +319,113 @@ export function computeTossAccountCombinedPnl(
       (summary?.totalReturnPct != null && Number.isFinite(summary.totalReturnPct)
         ? summary.totalReturnPct
         : null),
+  };
+}
+
+/** Per-holding PnL in display currency (USD mode excludes FX). */
+export function tossHoldingNetUnrealizedPnlDisplay(
+  h: TossTestHolding,
+  displayCurrency: "KRW" | "USD",
+  currentUsdKrw: number | null,
+  roundTripFeeRate: number = DEFAULT_ROUND_TRIP_FEE_RATE,
+  avgPurchaseFx: number | null = null,
+): number | null {
+  const isUsd = h.currency === "USD" || h.market === "us";
+  if (displayCurrency === "KRW") {
+    return tossHoldingNetUnrealizedPnlKrw(h, currentUsdKrw, roundTripFeeRate, avgPurchaseFx);
+  }
+  if (isUsd) {
+    return tossHoldingNetUnrealizedPnl(h, roundTripFeeRate);
+  }
+  if (!(currentUsdKrw != null && currentUsdKrw > 0)) return null;
+  const pnlKrw = tossHoldingNetUnrealizedPnl(h, roundTripFeeRate);
+  if (pnlKrw == null) return null;
+  const pnlUsd = pnlKrw / currentUsdKrw;
+  return Number.isFinite(pnlUsd) ? pnlUsd : null;
+}
+
+export function tossHoldingNetReturnPercentDisplay(
+  h: TossTestHolding,
+  displayCurrency: "KRW" | "USD",
+  currentUsdKrw: number | null,
+  roundTripFeeRate: number = DEFAULT_ROUND_TRIP_FEE_RATE,
+  avgPurchaseFx: number | null = null,
+): number | null {
+  const isUsd = h.currency === "USD" || h.market === "us";
+  if (displayCurrency === "USD" || !isUsd) {
+    return tossHoldingNetReturnPercent(h, roundTripFeeRate);
+  }
+  if (!(currentUsdKrw != null && currentUsdKrw > 0)) return null;
+  const costUsd = tossHoldingCostBasis(h);
+  const mvUsd = tossHoldingGrossMarketValue(h);
+  if (costUsd == null || mvUsd == null) return null;
+  const buyFx =
+    avgPurchaseFx != null && Number.isFinite(avgPurchaseFx) && avgPurchaseFx > 0
+      ? avgPurchaseFx
+      : currentUsdKrw;
+  const costKrw = costUsd * buyFx;
+  const mvKrw = mvUsd * currentUsdKrw;
+  if (!(costKrw > 0)) return null;
+  return holdingNetReturnPctFromCost(costKrw, mvKrw, roundTripFeeRate);
+}
+
+/**
+ * Holdings PnL/return for KRW vs USD toggle.
+ * KRW: purchaseFx * USD cost vs spotFx * market (FX included).
+ * USD: Toss USD avg/purchaseAmount (no FX).
+ */
+export function computeTossHoldingsDisplayPnl(
+  holdings: TossTestHolding[],
+  usdKrwRate: number | null,
+  feeInput: TossFeeRateInput = DEFAULT_ROUND_TRIP_FEE_RATE,
+  purchaseFxBySymbol: Map<string, number> | null | undefined,
+  displayCurrency: "KRW" | "USD",
+): { pnl: number | null; returnPct: number | null } {
+  if (displayCurrency === "KRW") {
+    return {
+      pnl: tossHoldingsNetProfitLossKrw(
+        holdings,
+        usdKrwRate,
+        feeInput,
+        purchaseFxBySymbol,
+      ),
+      returnPct: tossHoldingsNetReturnPct(
+        holdings,
+        usdKrwRate,
+        feeInput,
+        purchaseFxBySymbol,
+      ),
+    };
+  }
+
+  let costUsd = 0;
+  let netMvUsd = 0;
+  let hasAny = false;
+
+  for (const h of holdings) {
+    const fee = feeForHolding(h, feeInput);
+    const cost = tossHoldingCostBasis(h);
+    const netMv = tossHoldingNetMarketValue(h, fee);
+    if (cost == null || netMv == null) continue;
+    const isUsd = h.currency === "USD" || h.market === "us";
+    if (isUsd) {
+      costUsd += cost;
+      netMvUsd += netMv;
+      hasAny = true;
+    } else if (usdKrwRate != null && usdKrwRate > 0) {
+      costUsd += cost / usdKrwRate;
+      netMvUsd += netMv / usdKrwRate;
+      hasAny = true;
+    }
+  }
+
+  if (!hasAny || !(costUsd > 0)) {
+    return { pnl: null, returnPct: null };
+  }
+  const pnl = netMvUsd - costUsd;
+  const returnPct = (pnl / costUsd) * 100;
+  return {
+    pnl: Number.isFinite(pnl) ? pnl : null,
+    returnPct: Number.isFinite(returnPct) ? returnPct : null,
   };
 }

@@ -33,6 +33,7 @@ import {
 } from "../lib/tossHoldingFeeRates";
 import {
   computeTossAccountCombinedPnl,
+  computeTossHoldingsDisplayPnl,
   tossHoldingsTotalNetMarketValueKrw,
 } from "../lib/tossHoldingPnl";
 import { formatPercent, formatPrice, formatSignedMoney, formatTimeMsKst, formatUpdatedAt } from "../lib/format";
@@ -426,6 +427,7 @@ export default function AccountManageTab({
         feeRates,
         enrichMap,
         purchaseFxBySymbol,
+        displayCurrency,
       );
     }
     if (provider === "bithumb" && bithumbSnapshot) {
@@ -476,6 +478,7 @@ export default function AccountManageTab({
     feeRates,
     enrichMap,
     purchaseFxBySymbol,
+    displayCurrency,
   ]);
 
   const cashNativeKrw = useMemo(() => {
@@ -608,6 +611,16 @@ export default function AccountManageTab({
   }, [provider, activeToss, usdKrwRate, feeRates, holdingRows]);
 
   const holdingsReturnPct = useMemo(() => {
+    if (provider === "toss" && activeToss) {
+      const d = computeTossHoldingsDisplayPnl(
+        activeToss.holdings,
+        usdKrwRate,
+        feeRates,
+        purchaseFxBySymbol,
+        displayCurrency,
+      );
+      if (d.returnPct != null && Number.isFinite(d.returnPct)) return d.returnPct;
+    }
     if (netSummary?.totalReturnPct != null && Number.isFinite(netSummary.totalReturnPct)) {
       return netSummary.totalReturnPct;
     }
@@ -622,11 +635,36 @@ export default function AccountManageTab({
     }
     if (weightSum <= 0) return null;
     return weighted / weightSum;
-  }, [netSummary, holdingRows]);
+  }, [
+    provider,
+    activeToss,
+    usdKrwRate,
+    feeRates,
+    purchaseFxBySymbol,
+    displayCurrency,
+    netSummary,
+    holdingRows,
+  ]);
 
-  const holdingsPnlKrw = useMemo(() => {
+  /** 표시 통화 단위 손익(원 모드=원, $ 모드=$) — signedMoney 환산 금지 */
+  const holdingsPnlDisplay = useMemo(() => {
+    if (provider === "toss" && activeToss) {
+      const d = computeTossHoldingsDisplayPnl(
+        activeToss.holdings,
+        usdKrwRate,
+        feeRates,
+        purchaseFxBySymbol,
+        displayCurrency,
+      );
+      if (d.pnl != null && Number.isFinite(d.pnl)) {
+        return displayCurrency === "KRW" ? Math.round(d.pnl) : d.pnl;
+      }
+    }
     if (netSummary?.profitLossKrw != null && Number.isFinite(netSummary.profitLossKrw)) {
-      return Math.round(netSummary.profitLossKrw);
+      if (displayCurrency === "KRW") return Math.round(netSummary.profitLossKrw);
+      if (usdKrwRate != null && usdKrwRate > 0) {
+        return netSummary.profitLossKrw / usdKrwRate;
+      }
     }
     let sum = 0;
     let any = false;
@@ -635,8 +673,25 @@ export default function AccountManageTab({
       sum += r.unrealizedPnlKrw;
       any = true;
     }
-    return any ? Math.round(sum) : null;
-  }, [netSummary, holdingRows]);
+    return any ? (displayCurrency === "KRW" ? Math.round(sum) : sum) : null;
+  }, [
+    provider,
+    activeToss,
+    usdKrwRate,
+    feeRates,
+    purchaseFxBySymbol,
+    displayCurrency,
+    netSummary,
+    holdingRows,
+  ]);
+
+  const signedPnl = useCallback(
+    (n: number | null | undefined) => {
+      if (n == null || !Number.isFinite(n)) return "?";
+      return formatSignedMoney(n, displayCurrency);
+    },
+    [displayCurrency],
+  );
 
   const onRefresh = useCallback(async () => {
     if (refreshing) return;
@@ -999,7 +1054,7 @@ export default function AccountManageTab({
 
   const hoverPnlKrw = useMemo(() => {
     if (!hoverSlice || hoverSlice.key === "__cash__") return null;
-    if (hoverSlice.key === "__holdings__") return holdingsPnlKrw;
+    if (hoverSlice.key === "__holdings__") return holdingsPnlDisplay;
     let sum = 0;
     let any = false;
     for (const r of hoverRows) {
@@ -1010,7 +1065,7 @@ export default function AccountManageTab({
       any = true;
     }
     return any ? Math.round(sum) : null;
-  }, [hoverSlice, hoverRows, holdingsPnlKrw]);
+  }, [hoverSlice, hoverRows, holdingsPnlDisplay]);
 
   const bubbleRowReturnPct = useCallback((r: AccountHoldingRow): number | null => {
     if (r.returnPercent != null && Number.isFinite(r.returnPercent)) {
@@ -1441,12 +1496,12 @@ export default function AccountManageTab({
                   className={[
                     "account-manage-tab__stat-value",
                     !summaryPending &&
-                    holdingsPnlKrw != null &&
-                    holdingsPnlKrw > 0
+                    holdingsPnlDisplay != null &&
+                    holdingsPnlDisplay > 0
                       ? "is-up"
                       : !summaryPending &&
-                          holdingsPnlKrw != null &&
-                          holdingsPnlKrw < 0
+                          holdingsPnlDisplay != null &&
+                          holdingsPnlDisplay < 0
                         ? "is-down"
                         : "",
                   ]
@@ -1461,12 +1516,12 @@ export default function AccountManageTab({
                       ? "…"
                       : money((holdingsTotalKrw ?? 0) + cashKrw)}
                   </span>
-                  {!summaryPending && holdingsPnlKrw != null ? (
+                  {!summaryPending && holdingsPnlDisplay != null ? (
                     <span
                       className="account-manage-tab__stat-pnl"
                       aria-hidden={balanceHidden || undefined}
                     >
-                      {signedMoney(holdingsPnlKrw)}
+                      {signedPnl(holdingsPnlDisplay)}
                     </span>
                   ) : null}
                 </span>
@@ -1498,12 +1553,12 @@ export default function AccountManageTab({
                           holdingsReturnPct < 0
                         ? "is-down"
                         : !summaryPending &&
-                            holdingsPnlKrw != null &&
-                            holdingsPnlKrw > 0
+                            holdingsPnlDisplay != null &&
+                            holdingsPnlDisplay > 0
                           ? "is-up"
                           : !summaryPending &&
-                              holdingsPnlKrw != null &&
-                              holdingsPnlKrw < 0
+                              holdingsPnlDisplay != null &&
+                              holdingsPnlDisplay < 0
                             ? "is-down"
                             : "",
                   ]
@@ -1517,7 +1572,7 @@ export default function AccountManageTab({
                     {summaryPending ? "…" : money(holdingsTotalKrw)}
                   </span>
                   {!summaryPending &&
-                  (holdingsReturnPct != null || holdingsPnlKrw != null) ? (
+                  (holdingsReturnPct != null || holdingsPnlDisplay != null) ? (
                     <span
                       className="account-manage-tab__stat-pnl-line"
                       aria-hidden={balanceHidden || undefined}
@@ -1527,9 +1582,9 @@ export default function AccountManageTab({
                           ({formatPercent(holdingsReturnPct)})
                         </span>
                       ) : null}
-                      {holdingsPnlKrw != null ? (
+                      {holdingsPnlDisplay != null ? (
                         <span className="account-manage-tab__stat-pnl">
-                          {signedMoney(holdingsPnlKrw)}
+                          {signedPnl(holdingsPnlDisplay)}
                         </span>
                       ) : null}
                     </span>
@@ -2481,7 +2536,7 @@ export default function AccountManageTab({
                                       className="account-manage-tab__money"
                                       aria-hidden={balanceHidden || undefined}
                                     >
-                                      {signedMoney(row.unrealizedPnlKrw)}
+                                      {signedPnl(row.unrealizedPnlKrw)}
                                     </span>
                                   ) : null}
                                   {row.returnPercent != null ? (
@@ -2540,7 +2595,7 @@ export default function AccountManageTab({
                   {hoverPnlKrw != null ? (
                     <span className="account-manage-tab__bubble-sym-pct">
                       {" "}
-                      {signedMoney(hoverPnlKrw)}
+                      {signedPnl(hoverPnlKrw)}
                     </span>
                   ) : null}
                 </span>
@@ -2625,7 +2680,7 @@ export default function AccountManageTab({
                             {pnl != null ? (
                               <span className="account-manage-tab__bubble-sym-pnl">
                                 {" "}
-                                {signedMoney(pnl)}
+                                {signedPnl(pnl)}
                               </span>
                             ) : null}
                           </span>

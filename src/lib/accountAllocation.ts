@@ -17,7 +17,12 @@ import {
   tossRoundTripForHolding,
   type TossFeeRatesByMarket,
 } from "./tossHoldingFeeRates";
-import { tossHoldingNetMarketValue, tossHoldingNetUnrealizedPnlKrw } from "./tossHoldingPnl";
+import {
+  tossHoldingNetMarketValue,
+  tossHoldingNetReturnPercentDisplay,
+  tossHoldingNetUnrealizedPnlDisplay,
+  tossHoldingNetUnrealizedPnlKrw,
+} from "./tossHoldingPnl";
 import { DEFAULT_ROUND_TRIP_FEE_RATE } from "./netReturn";
 import { resolveSymbolDisplayName } from "./symbolDisplayName";
 
@@ -248,7 +253,7 @@ export function accountSlicesToDonut(slices: AccountAllocSlice[]): {
   return { segments, total, rows };
 }
 
-/** Toss 보유 → AccountHoldingRow (원화 평가, 매입환율 반영) */
+/** Toss 보유 → AccountHoldingRow (원화 평가, 표시통화 손익) */
 export function tossHoldingsToAccountRows(
   holdings: TossTestHolding[],
   usdKrwRate: number | null,
@@ -263,6 +268,7 @@ export function tossHoldingsToAccountRows(
     }
   >,
   purchaseFxBySymbol?: Map<string, number> | null,
+  displayCurrency: "KRW" | "USD" = "KRW",
 ): AccountHoldingRow[] {
   const rate =
     usdKrwRate != null && Number.isFinite(usdKrwRate) && usdKrwRate > 0
@@ -282,13 +288,28 @@ export function tossHoldingsToAccountRows(
     let valueKrw = net;
     const buyFx =
       purchaseFxBySymbol?.get(String(h.symbol ?? "").toUpperCase()) ?? null;
-    let unrealizedPnlKrw = tossHoldingNetUnrealizedPnlKrw(h, rate, fee, buyFx);
     if (market === "us") {
       if (!rate) continue;
       valueKrw = Math.round(net * rate);
-    } else if (unrealizedPnlKrw != null) {
-      unrealizedPnlKrw = Math.round(unrealizedPnlKrw);
     }
+    const unrealizedPnlDisplay = tossHoldingNetUnrealizedPnlDisplay(
+      h,
+      displayCurrency,
+      rate,
+      fee,
+      buyFx,
+    );
+    const returnPctDisplay = tossHoldingNetReturnPercentDisplay(
+      h,
+      displayCurrency,
+      rate,
+      fee,
+      buyFx,
+    );
+    // KRW 합산용(파이차트) — 환차 포함 원화 손익
+    const unrealizedPnlKrw =
+      tossHoldingNetUnrealizedPnlKrw(h, rate, fee, buyFx) ??
+      (displayCurrency === "KRW" ? unrealizedPnlDisplay : null);
     const meta = enrich.get(String(h.symbol ?? "").toUpperCase()) ?? {};
     const industry = meta.industry ?? null;
     const subIndustry = (meta.subIndustry || industry || null) as string | null;
@@ -301,10 +322,20 @@ export function tossHoldingsToAccountRows(
       quantity: h.quantity,
       valueKrw,
       returnPercent:
-        h.returnPercent != null && Number.isFinite(h.returnPercent)
-          ? h.returnPercent
-          : null,
-      unrealizedPnlKrw,
+        returnPctDisplay != null && Number.isFinite(returnPctDisplay)
+          ? returnPctDisplay
+          : h.returnPercent != null && Number.isFinite(h.returnPercent)
+            ? h.returnPercent
+            : null,
+      /** 표시 통화 단위 손익(원화 모드=원, 달러 모드=$) */
+      unrealizedPnlKrw:
+        unrealizedPnlDisplay != null && Number.isFinite(unrealizedPnlDisplay)
+          ? displayCurrency === "KRW"
+            ? Math.round(unrealizedPnlDisplay)
+            : unrealizedPnlDisplay
+          : unrealizedPnlKrw != null
+            ? Math.round(unrealizedPnlKrw)
+            : null,
       industry,
       subIndustry,
       sectorEn: meta.sectorEn ?? null,

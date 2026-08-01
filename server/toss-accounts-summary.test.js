@@ -18,8 +18,8 @@ test("summarizeTossAccountsForDisplay maps holdings and cash", () => {
           quantity: "10",
           lastPrice: "72000",
           averagePurchasePrice: "65000",
-          marketValue: { amount: "720000" },
-          profitLoss: { rate: "0.1077" },
+          marketValue: { amount: "720000", purchaseAmount: "650000" },
+          profitLoss: { amount: "70000", rate: "0.1077" },
           dailyProfitLoss: { rate: "0.01" },
         },
       ],
@@ -31,5 +31,7 @@ test("summarizeTossAccountsForDisplay maps holdings and cash", () => {
   assert.equal(snap.holdings.length, 1);
   assert.equal(snap.holdings[0]?.symbol, "005930.KS");
   assert.equal(snap.holdings[0]?.market, "kr");
+  assert.equal(snap.holdings[0]?.purchaseAmount, 650_000);
+  assert.equal(snap.holdings[0]?.profitLossAmount, 70_000);
   assert.ok(Math.abs((snap.holdings[0]?.returnPercent ?? 0) - 10.77) < 0.01);
 });

@@ -784,9 +784,10 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.12rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.28rem 0.45rem;
 }
 
 .account-manage-tab__stat-pnl-line {

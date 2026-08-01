@@ -1125,9 +1125,14 @@ export interface TossTestHolding {
   market: "kr" | "us";
   currency: "KRW" | "USD";
   quantity: number;
+  /** 매수 평균가(거래 통화). 미국=달러 평단 */
   avgBuyPrice: number | null;
   currentPrice?: number | null;
   marketValue?: number | null;
+  /** 토스 매입금액(거래 통화) */
+  purchaseAmount?: number | null;
+  /** 토스 손익금액(거래 통화) */
+  profitLossAmount?: number | null;
   returnPercent?: number | null;
   dailyChangePercent?: number | null;
 }
@@ -1139,7 +1144,9 @@ export interface TossTestSnapshot {
     profitLossUsd?: number | null;
     marketValueKrw?: number | null;
     marketValueUsd?: number | null;
-    /** 보유 매입 대비 총수익률(%) */
+    purchaseAmountKrw?: number | null;
+    purchaseAmountUsd?: number | null;
+    /** 보유 매입 대비 총수익률(%) — 토스 overview(현재 환율 원화 환산) */
     totalReturnPct?: number | null;
   };
   holdings: TossTestHolding[];

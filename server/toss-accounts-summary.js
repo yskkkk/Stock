@@ -43,6 +43,8 @@ export function summarizeTossAccountsForDisplay(raw) {
     const avgBuyPrice = parseTossDecimal(item?.averagePurchasePrice);
     const currentPrice = parseTossDecimal(item?.lastPrice);
     const marketValue = parseTossDecimal(item?.marketValue?.amount);
+    const purchaseAmount = parseTossDecimal(item?.marketValue?.purchaseAmount);
+    const profitLossAmount = parseTossDecimal(item?.profitLoss?.amount);
 
     holdings.push({
       symbol: market === "kr" && /^\d{6}$/.test(symbol) ? `${symbol}.KS` : symbol,
@@ -57,6 +59,10 @@ export function summarizeTossAccountsForDisplay(raw) {
       avgBuyPrice: avgBuyPrice > 0 ? avgBuyPrice : null,
       currentPrice: currentPrice > 0 ? currentPrice : null,
       marketValue: marketValue > 0 ? marketValue : null,
+      /** 토스 매입금액(거래 통화). 평단×수량보다 우선 */
+      purchaseAmount: purchaseAmount > 0 ? purchaseAmount : null,
+      /** 토스 손익금액(거래 통화, 수수료 전) */
+      profitLossAmount: Number.isFinite(profitLossAmount) ? profitLossAmount : null,
       returnPercent: tossRateToPercent(item?.profitLoss?.rate),
       dailyChangePercent: tossRateToPercent(item?.dailyProfitLoss?.rate),
     });
@@ -72,13 +78,18 @@ export function summarizeTossAccountsForDisplay(raw) {
   const plUsd = parseTossDecimal(ov?.profitLoss?.amount?.usd);
   const mvKrw = parseTossDecimal(ov?.marketValue?.amount?.krw);
   const mvUsd = parseTossDecimal(ov?.marketValue?.amount?.usd);
+  const purchaseKrw = parseTossDecimal(ov?.totalPurchaseAmount?.krw);
+  const purchaseUsd = parseTossDecimal(ov?.totalPurchaseAmount?.usd);
+  const totalReturnPct = tossRateToPercent(ov?.profitLoss?.rate);
 
   const summary = {
     profitLossKrw: Number.isFinite(plKrw) ? plKrw : null,
     profitLossUsd: Number.isFinite(plUsd) ? plUsd : null,
     marketValueKrw: mvKrw > 0 ? mvKrw : null,
     marketValueUsd: mvUsd > 0 ? mvUsd : null,
-    totalReturnPct: null,
+    purchaseAmountKrw: purchaseKrw > 0 ? purchaseKrw : null,
+    purchaseAmountUsd: purchaseUsd > 0 ? purchaseUsd : null,
+    totalReturnPct,
   };
 
   return {
@@ -102,6 +113,8 @@ export function summarizeTossAccountsForDisplay(raw) {
  *   avgBuyPrice: number | null;
  *   currentPrice?: number | null;
  *   marketValue?: number | null;
+ *   purchaseAmount?: number | null;
+ *   profitLossAmount?: number | null;
  *   returnPercent?: number | null;
  *   dailyChangePercent?: number | null;
  * }} TossAccountHoldingSummary
