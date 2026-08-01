@@ -176,6 +176,10 @@ export const ko = {
       "종목별로 「성장/가치」를 지정하면 포트폴리오가 바뀌어도 유지됩니다. 「자동」은 정책 규칙으로 돌아갑니다.",
     accountManageStyleFilterActive: "성향 · {label}",
     accountManageWeightFilterActive: "비중 · {label}",
+    accountManageStyleFilterPassive:
+      "성향 필터가 적용 중입니다. 아래 목록에서 「전체 보기」로 해제할 수 있습니다.",
+    accountManageWeightFilterPassive:
+      "비중 필터가 적용 중입니다. 아래 목록에서 「전체 보기」로 해제할 수 있습니다.",
     accountManageStyleStripHint:
       "칩·막대·도넛을 누르면 해당 성향만 목록에 표시 · 「성향」열에서 자동/지정 구분",
     accountManageStyleAssignLink: "종목별 성향 지정 ↓",
