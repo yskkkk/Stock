@@ -87,13 +87,13 @@
 .account-manage-tab__summary-toolbar {
   display: flex;
   justify-content: flex-start;
-  align-items: stretch;
+  align-items: center;
   gap: 0.4rem 0.5rem;
   flex-wrap: wrap;
 }
 
 .account-manage-tab__summary-toolbar > * {
-  align-self: stretch;
+  align-self: center;
   display: inline-flex;
   align-items: center;
 }
@@ -215,23 +215,31 @@
 
 .account-manage-tab__currency-toggle {
   display: inline-flex;
+  align-items: stretch;
+  height: 2.45rem;
   border: 1px solid rgba(148, 163, 184, 0.32);
   border-radius: 999px;
   overflow: hidden;
   background: color-mix(in srgb, var(--surface) 70%, var(--card));
+  box-sizing: border-box;
+  flex: 0 0 auto;
 }
 
 .account-manage-tab__currency-btn {
   margin: 0;
-  padding: 0.32rem 0.72rem;
+  padding: 0 0.72rem;
   border: 0;
   background: transparent;
   color: var(--muted);
   font: inherit;
   font-size: 0.78rem;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1;
   cursor: pointer;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .account-manage-tab__currency-btn + .account-manage-tab__currency-btn {
@@ -262,7 +270,12 @@ html[data-theme="light"] .account-manage-tab__currency-btn.is-active {
 
 .account-manage-tab__hide-btn--summary {
   font-size: 0.78rem;
-  padding: 0.32rem 0.75rem;
+  padding: 0 0.75rem;
+  height: 2.45rem;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
 }
 
 .account-manage-tab__hide-btn--schedule {
@@ -766,12 +779,16 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 .account-manage-tab__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "wheel holdings"
+    "style holdings";
   gap: 0.75rem;
   align-items: stretch;
   width: 100%;
 }
 
 .account-manage-tab__wheel,
+.account-manage-tab__style-panel,
 .account-manage-tab__holdings,
 .account-manage-tab__raw {
   padding: 0.85rem 1rem 1rem;
@@ -781,8 +798,33 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 }
 
 .account-manage-tab__wheel {
+  grid-area: wheel;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
+  min-height: 26rem;
+}
+
+.account-manage-tab__style-panel {
+  grid-area: style;
+  position: relative;
+  overflow: hidden;
+  min-height: 26rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.account-manage-tab__style-panel--passive {
+  opacity: 0.62;
+  transition: opacity 0.15s ease;
+}
+
+.account-manage-tab__holdings {
+  grid-area: holdings;
+}
+
+.account-manage-tab__grid--no-style {
+  grid-template-areas: "wheel holdings";
 }
 
 .account-manage-tab__wheel-head {
@@ -818,6 +860,15 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 @media (max-width: 900px) {
   .account-manage-tab__grid {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "wheel"
+      "style"
+      "holdings";
+  }
+
+  .account-manage-tab__wheel,
+  .account-manage-tab__style-panel {
+    min-height: 22rem;
   }
 
   .account-manage-tab__toolbar-rebalance {
@@ -941,6 +992,33 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   font-weight: 700;
 }
 
+.account-manage-tab__holdings-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.65rem;
+  margin-bottom: 0.55rem;
+}
+
+.account-manage-tab__holdings-head .account-manage-tab__holdings-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.account-manage-tab__filter-bar--holdings {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  margin-top: 0;
+  min-width: min(100%, 14rem);
+}
+
+.account-manage-tab__chart-panel--passive,
+.account-manage-tab__slice-list--passive {
+  opacity: 0.62;
+  transition: opacity 0.15s ease;
+}
+
 .account-manage-tab__wheel-sub {
   margin: 0.2rem 0 0;
   font-size: 0.72rem;
@@ -948,19 +1026,9 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 }
 
 .account-manage-tab__style-block,
-.account-manage-tab__style-list {
-  display: none;
-}
-
+.account-manage-tab__style-list,
 .account-manage-tab__style-strip {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin: 0.75rem 0 0;
-  padding: 0.65rem 0.7rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--accent-border, #14b8a6) 45%, var(--card-border));
-  background: color-mix(in srgb, var(--accent-dim) 14%, var(--card));
+  display: none;
 }
 
 .account-manage-tab__style-strip-main {
@@ -1210,6 +1278,24 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   margin-top: 0;
 }
 
+@media (max-width: 900px) {
+  .account-manage-tab__holdings-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .account-manage-tab__filter-bar--holdings {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .account-manage-tab__filter-bar--holdings .account-manage-tab__clear {
+    min-height: 2.75rem;
+    padding: 0.35rem 0.72rem;
+    touch-action: manipulation;
+  }
+}
+
 .account-manage-tab__style-head {
   margin-bottom: 0.45rem;
 }
@@ -1426,7 +1512,11 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 
 .account-manage-tab__seg {
   cursor: pointer;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.12s ease, filter 0.12s ease;
+}
+
+.account-manage-tab__seg--lifted {
+  filter: brightness(1.06);
 }
 
 .account-manage-tab__seg--dim {

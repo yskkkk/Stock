@@ -71,11 +71,38 @@ export function tossHoldingNetReturnPercent(
   return holdingNetReturnPctFromCost(cost, mv, roundTripFeeRate);
 }
 
-/** 보유 합산 총수익률(%) — 매도 수수료 반영 순평가, USD는 환율 환산 */
+/**
+ * USD 보유 → 원화 평가손익.
+ * 매입 환율이 있으면 매입원금×매입환율 vs 순평가×현재환율(환차 포함).
+ */
+export function tossHoldingNetUnrealizedPnlKrw(
+  h: TossTestHolding,
+  currentUsdKrw: number | null,
+  roundTripFeeRate: number = DEFAULT_ROUND_TRIP_FEE_RATE,
+  avgPurchaseFx: number | null = null,
+): number | null {
+  const isUsd = h.currency === "USD" || h.market === "us";
+  if (!isUsd) {
+    return tossHoldingNetUnrealizedPnl(h, roundTripFeeRate);
+  }
+  if (!(currentUsdKrw != null && currentUsdKrw > 0)) return null;
+  const costUsd = tossHoldingCostBasis(h);
+  const netMvUsd = tossHoldingNetMarketValue(h, roundTripFeeRate);
+  if (costUsd == null || netMvUsd == null) return null;
+  const buyFx =
+    avgPurchaseFx != null && Number.isFinite(avgPurchaseFx) && avgPurchaseFx > 0
+      ? avgPurchaseFx
+      : currentUsdKrw;
+  const pnl = netMvUsd * currentUsdKrw - costUsd * buyFx;
+  return Number.isFinite(pnl) ? Math.round(pnl) : null;
+}
+
+/** 보유 합산 총수익률(%) — 매도 수수료 반영 순평가, USD는 매입·현재 환율 */
 export function tossHoldingsNetReturnPct(
   holdings: TossTestHolding[],
   usdKrwRate: number | null,
   feeInput: TossFeeRateInput = DEFAULT_ROUND_TRIP_FEE_RATE,
+  purchaseFxBySymbol?: Map<string, number> | null,
 ): number | null {
   let costKrw = 0;
   let netMktKrw = 0;
@@ -85,9 +112,12 @@ export function tossHoldingsNetReturnPct(
     const netMv = tossHoldingNetMarketValue(h, feeForHolding(h, feeInput));
     if (cost == null || netMv == null) continue;
 
-    if (h.currency === "USD") {
+    if (h.currency === "USD" || h.market === "us") {
       if (!(usdKrwRate != null && usdKrwRate > 0)) continue;
-      costKrw += cost * usdKrwRate;
+      const buyFx =
+        purchaseFxBySymbol?.get(String(h.symbol ?? "").toUpperCase()) ??
+        usdKrwRate;
+      costKrw += cost * buyFx;
       netMktKrw += netMv * usdKrwRate;
     } else {
       costKrw += cost;
@@ -104,32 +134,22 @@ export function tossHoldingsNetProfitLossKrw(
   holdings: TossTestHolding[],
   usdKrwRate: number | null,
   feeInput: TossFeeRateInput = DEFAULT_ROUND_TRIP_FEE_RATE,
+  purchaseFxBySymbol?: Map<string, number> | null,
 ): number | null {
   let plKrw = 0;
-  let hasKrw = false;
-  let hasUsd = false;
-  let plUsd = 0;
+  let hasAny = false;
 
   for (const h of holdings) {
-    const pnl = tossHoldingNetUnrealizedPnl(h, feeForHolding(h, feeInput));
+    const fee = feeForHolding(h, feeInput);
+    const buyFx =
+      purchaseFxBySymbol?.get(String(h.symbol ?? "").toUpperCase()) ?? null;
+    const pnl = tossHoldingNetUnrealizedPnlKrw(h, usdKrwRate, fee, buyFx);
     if (pnl == null) continue;
-    if (h.currency === "USD") {
-      plUsd += pnl;
-      hasUsd = true;
-    } else {
-      plKrw += pnl;
-      hasKrw = true;
-    }
+    plKrw += pnl;
+    hasAny = true;
   }
 
-  if (!hasKrw && !hasUsd) return null;
-  if (hasUsd) {
-    if (!(usdKrwRate != null && usdKrwRate > 0)) {
-      return hasKrw ? plKrw : null;
-    }
-    return plKrw + plUsd * usdKrwRate;
-  }
-  return plKrw;
+  return hasAny ? plKrw : null;
 }
 
 export type TossSummarySlice = {
@@ -187,20 +207,31 @@ export function tossHoldingsTotalNetMarketValueKrw(
   return Math.round(mvK!);
 }
 
-/** 계좌 전체 평가손익(원)·수익률 — KRW+USD 환산 합산 */
+/** 계좌 전체 평가손익(원)·수익률 — KRW+USD 환산 합산(매입환율 반영) */
 export function computeTossAccountCombinedPnl(
   holdings: TossTestHolding[],
   summary: TossSummarySlice | null | undefined,
   usdKrwRate: number | null,
   feeInput: TossFeeRateInput = DEFAULT_ROUND_TRIP_FEE_RATE,
+  purchaseFxBySymbol?: Map<string, number> | null,
 ): { profitLossKrw: number | null; totalReturnPct: number | null } {
   const fromHoldings = {
-    profitLossKrw: tossHoldingsNetProfitLossKrw(holdings, usdKrwRate, feeInput),
-    totalReturnPct: tossHoldingsNetReturnPct(holdings, usdKrwRate, feeInput),
+    profitLossKrw: tossHoldingsNetProfitLossKrw(
+      holdings,
+      usdKrwRate,
+      feeInput,
+      purchaseFxBySymbol,
+    ),
+    totalReturnPct: tossHoldingsNetReturnPct(
+      holdings,
+      usdKrwRate,
+      feeInput,
+      purchaseFxBySymbol,
+    ),
   };
 
   const hasUsd =
-    holdings.some((h) => h.currency === "USD") ||
+    holdings.some((h) => h.currency === "USD" || h.market === "us") ||
     (summary?.profitLossUsd != null && summary.profitLossUsd !== 0) ||
     (summary?.marketValueUsd != null && summary.marketValueUsd > 0);
 

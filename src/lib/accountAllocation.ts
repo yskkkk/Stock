@@ -17,7 +17,7 @@ import {
   tossRoundTripForHolding,
   type TossFeeRatesByMarket,
 } from "./tossHoldingFeeRates";
-import { tossHoldingNetMarketValue, tossHoldingNetUnrealizedPnl } from "./tossHoldingPnl";
+import { tossHoldingNetMarketValue, tossHoldingNetUnrealizedPnlKrw } from "./tossHoldingPnl";
 import { DEFAULT_ROUND_TRIP_FEE_RATE } from "./netReturn";
 import { resolveSymbolDisplayName } from "./symbolDisplayName";
 
@@ -248,7 +248,7 @@ export function accountSlicesToDonut(slices: AccountAllocSlice[]): {
   return { segments, total, rows };
 }
 
-/** Toss 보유 → AccountHoldingRow (원화 평가) */
+/** Toss 보유 → AccountHoldingRow (원화 평가, 매입환율 반영) */
 export function tossHoldingsToAccountRows(
   holdings: TossTestHolding[],
   usdKrwRate: number | null,
@@ -262,6 +262,7 @@ export function tossHoldingsToAccountRows(
       sectorKo?: string | null;
     }
   >,
+  purchaseFxBySymbol?: Map<string, number> | null,
 ): AccountHoldingRow[] {
   const rate =
     usdKrwRate != null && Number.isFinite(usdKrwRate) && usdKrwRate > 0
@@ -279,15 +280,12 @@ export function tossHoldingsToAccountRows(
     if (net == null || !(net > 0)) continue;
     const market = h.market === "us" ? "us" : "kr";
     let valueKrw = net;
-    const pnlNative = tossHoldingNetUnrealizedPnl(h, fee);
-    let unrealizedPnlKrw: number | null =
-      pnlNative != null && Number.isFinite(pnlNative) ? pnlNative : null;
+    const buyFx =
+      purchaseFxBySymbol?.get(String(h.symbol ?? "").toUpperCase()) ?? null;
+    let unrealizedPnlKrw = tossHoldingNetUnrealizedPnlKrw(h, rate, fee, buyFx);
     if (market === "us") {
       if (!rate) continue;
       valueKrw = Math.round(net * rate);
-      if (unrealizedPnlKrw != null) {
-        unrealizedPnlKrw = Math.round(unrealizedPnlKrw * rate);
-      }
     } else if (unrealizedPnlKrw != null) {
       unrealizedPnlKrw = Math.round(unrealizedPnlKrw);
     }

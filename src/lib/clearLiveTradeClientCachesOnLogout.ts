@@ -6,11 +6,13 @@ import { logoutAuth } from "../api";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { notifyLiveTradeAuthChange } from "./liveTradeAuthEvents";
 import { clearTossSnapshotCache } from "./tossSnapshotClientCache";
+import { clearTossPurchaseFxLedger } from "./tossPurchaseFxLedger";
 import { invalidateLiveTradingPrefetch } from "./tabPrefetch";
 import { writeLiveTradingHeaderSnapshot } from "./liveTradingHeaderSnapshot";
 
 export function clearLiveTradeClientCachesOnLogout(): void {
   clearTossSnapshotCache();
+  clearTossPurchaseFxLedger();
   invalidateLiveTradingPrefetch();
   try {
     writeLiveTradingHeaderSnapshot({

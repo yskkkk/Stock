@@ -4,6 +4,7 @@ import {
   computeTossAccountCombinedPnl,
   tossHoldingNetReturnPercent,
   tossHoldingNetUnrealizedPnl,
+  tossHoldingsNetProfitLossKrw,
   tossHoldingsNetReturnPct,
   tossHoldingsTotalNetMarketValueKrw,
 } from "./tossHoldingPnl";
@@ -79,6 +80,22 @@ describe("tossHoldingPnl", () => {
     );
     expect(combined.profitLossKrw).toBe(100_000 + 300 * 1300);
     expect(combined.totalReturnPct).not.toBeNull();
+  });
+
+  it("includes FX gain when purchase FX differs from current FX", () => {
+    const usHolding: TossTestHolding = {
+      symbol: "AAPL",
+      name: "Apple",
+      market: "us",
+      currency: "USD",
+      quantity: 10,
+      avgBuyPrice: 100,
+      currentPrice: 100,
+      marketValue: 1000,
+    };
+    const buyFx = new Map([["AAPL", 1420]]);
+    const pnl = tossHoldingsNetProfitLossKrw([usHolding], 1440, 0, buyFx);
+    expect(pnl).toBe(20_000);
   });
 });
 

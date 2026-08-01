@@ -25,7 +25,6 @@ import {
 } from "../../shared/account-holding-style-policy.js";
 import {
   donutArcPath,
-  donutArcPathPopOut,
   fmtSectorPct,
 } from "../lib/sp500SectorChart";
 import {
@@ -40,6 +39,7 @@ import { formatPercent, formatPrice, formatSignedMoney, formatTimeMsKst, formatU
 import {
   buildRebalanceNowConfirmMessage,
   buildRebalanceNowRunSubLabel,
+  buildRebalancePreviewSubLabel,
   buildRebalanceRunSummaryLead,
   buildRebalanceSpendSummaryInline,
   withRebalanceAmountNote,
@@ -62,7 +62,6 @@ import { useTossSnapshotLiveQuotes } from "../hooks/useTossSnapshotLiveQuotes";
 import LiveTradeAuthPanel, {
   useLiveTradeAuth,
 } from "./LiveTradeAuthAndCredentials";
-import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
 import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
@@ -70,6 +69,7 @@ import AccountRebalanceScheduleModal from "./AccountRebalanceScheduleModal";
 import RebalanceSpendSummaryList from "./RebalanceSpendSummaryList";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
+import { syncTossPurchaseFxLedger } from "../lib/tossPurchaseFxLedger";
 import "./account-manage-tab.css";
 import "./account-rebalance-schedule-modal.css";
 
@@ -140,6 +140,11 @@ export default function AccountManageTab({
   const [provider, setProvider] = useState<LiveTradeTradesExchange>(() =>
     tossReady ? "toss" : bithumbReady ? "bithumb" : "toss",
   );
+
+  useEffect(() => {
+    if (tossReady) setProvider("toss");
+    else if (bithumbReady) setProvider("bithumb");
+  }, [tossReady, bithumbReady]);
   const [panelTab, setPanelTab] = useState<PanelTab>("chart");
   const [allocMode, setAllocMode] = useState<AccountAllocMode>("symbol");
   const [focusKey, setFocusKey] = useState<string | null>(null);
@@ -402,6 +407,17 @@ export default function AccountManageTab({
     };
   }, [user, provider, activeToss?.holdings]);
 
+  const purchaseFxBySymbol = useMemo(() => {
+    if (provider !== "toss" || !activeToss?.holdings?.length) {
+      return new Map<string, number>();
+    }
+    return syncTossPurchaseFxLedger(
+      user?.id,
+      activeToss.holdings,
+      usdKrwRate,
+    );
+  }, [provider, activeToss?.holdings, user?.id, usdKrwRate]);
+
   const holdingRows: AccountHoldingRow[] = useMemo(() => {
     if (provider === "toss" && activeToss) {
       return tossHoldingsToAccountRows(
@@ -409,6 +425,7 @@ export default function AccountManageTab({
         usdKrwRate,
         feeRates,
         enrichMap,
+        purchaseFxBySymbol,
       );
     }
     if (provider === "bithumb" && bithumbSnapshot) {
@@ -451,7 +468,15 @@ export default function AccountManageTab({
       });
     }
     return [];
-  }, [provider, activeToss, bithumbSnapshot, usdKrwRate, feeRates, enrichMap]);
+  }, [
+    provider,
+    activeToss,
+    bithumbSnapshot,
+    usdKrwRate,
+    feeRates,
+    enrichMap,
+    purchaseFxBySymbol,
+  ]);
 
   const cashNativeKrw = useMemo(() => {
     if (provider === "toss" && activeToss) {
@@ -566,8 +591,9 @@ export default function AccountManageTab({
       activeToss.summary,
       usdKrwRate,
       feeRates,
+      purchaseFxBySymbol,
     );
-  }, [provider, activeToss, usdKrwRate, feeRates]);
+  }, [provider, activeToss, usdKrwRate, feeRates, purchaseFxBySymbol]);
 
   const holdingsTotalKrw = useMemo(() => {
     if (provider === "toss" && activeToss) {
@@ -746,7 +772,9 @@ export default function AccountManageTab({
             {ko.app.accountManageRebalanceOpen}
           </span>
           <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--safe">
-            {ko.app.accountManageRebalanceSimBadge}
+            {buildRebalancePreviewSubLabel(buyNowToolbarSummaryInline, {
+              repeatSummary: compact && Boolean(buyNowToolbarSummaryInline),
+            })}
           </span>
         </button>
       </div>
@@ -874,6 +902,12 @@ export default function AccountManageTab({
     setStyleHoveredKey(null);
   }, []);
 
+  const clearChartFilters = useCallback(() => {
+    setFocusKey(null);
+    setStyleFocusKey(null);
+    hideHoverBubble();
+  }, [hideHoverBubble]);
+
   const pulseStyleCol = useCallback(() => {
     setStyleColHighlight(true);
     window.setTimeout(() => setStyleColHighlight(false), 2400);
@@ -929,6 +963,63 @@ export default function AccountManageTab({
     [provider, cashNativeKrw, cashNativeUsd],
   );
 
+  const activeChartFilter = useMemo(() => {
+    if (styleFocusKey) {
+      const seg = styleSegments.find((s) => s.sector === styleFocusKey);
+      return {
+        kind: "style" as const,
+        label: seg ? styleSegmentLabel(seg) : styleFocusKey,
+      };
+    }
+    if (focusKey) {
+      const seg = segments.find((s) => s.sector === focusKey);
+      return {
+        kind: "weight" as const,
+        label: seg?.sectorKo ?? focusKey,
+      };
+    }
+    return null;
+  }, [
+    styleFocusKey,
+    focusKey,
+    styleSegments,
+    segments,
+    styleSegmentLabel,
+  ]);
+
+  const renderChartFilterBar = (extraClass?: string) =>
+    activeChartFilter ? (
+      <div
+        className={[
+          "account-manage-tab__filter-bar",
+          extraClass ?? "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        role="status"
+        aria-live="polite"
+      >
+        <span className="account-manage-tab__filter-label">
+          {activeChartFilter.kind === "style"
+            ? ko.app.accountManageStyleFilterActive.replace(
+                "{label}",
+                activeChartFilter.label,
+              )
+            : ko.app.accountManageWeightFilterActive.replace(
+                "{label}",
+                activeChartFilter.label,
+              )}
+        </span>
+        <button
+          type="button"
+          className="account-manage-tab__clear"
+          onClick={clearChartFilters}
+        >
+          {ko.app.accountManageClearFilter}
+        </button>
+      </div>
+    ) : null;
+
   const snapshotSyncing = provider === "toss" ? tossSyncing : bithumbSyncing;
   const fetchActivity = refreshing || snapshotSyncing;
 
@@ -940,144 +1031,6 @@ export default function AccountManageTab({
     const id = window.setTimeout(() => setSlowFetch(true), 2500);
     return () => window.clearTimeout(id);
   }, [fetchActivity]);
-
-  const renderStyleStrip = () =>
-    styleSegments.length > 0 ? (
-      <div
-        className="account-manage-tab__style-strip"
-        role="group"
-        aria-label={ko.app.accountManageStyleChartTitle}
-        data-vu="account-style-strip"
-      >
-        <div className="account-manage-tab__style-strip-main">
-          <svg
-            className="account-manage-tab__style-mini-svg"
-            viewBox="0 0 200 200"
-            role="img"
-            aria-label={ko.app.accountManageStyleChartTitle}
-          >
-            {styleSegments.map((seg) => {
-              const dimmed = styleFocusKey && styleFocusKey !== seg.sector;
-              return (
-                <path
-                  key={`style-mini-${seg.sector}`}
-                  className={[
-                    "account-manage-tab__seg",
-                    dimmed ? "account-manage-tab__seg--dim" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  d={donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)}
-                  fill={seg.color}
-                  onClick={() => onStyleChipClick(seg.sector)}
-                />
-              );
-            })}
-            <circle cx={cx} cy={cy} r={r0 - 2} className="account-manage-tab__hole" />
-            <text
-              x={cx}
-              y={cy - 2}
-              textAnchor="middle"
-              className="account-manage-tab__style-mini-center"
-            >
-              {styleFocusKey
-                ? formatAllocPct(
-                    styleSegments.find((s) => s.sector === styleFocusKey)?.pct ?? 0,
-                  )
-                : ko.app.accountManageGroupStyle}
-            </text>
-          </svg>
-          <div className="account-manage-tab__style-strip-body">
-            <h4 className="account-manage-tab__style-strip-title">
-              {ko.app.accountManageStyleChartTitle}
-            </h4>
-            <p className="account-manage-tab__style-strip-sub">
-              {ko.app.accountManageStyleChartSub}
-            </p>
-            <p className="account-manage-tab__style-strip-note">
-              {ko.app.accountManageStyleNewDefaultHint}
-            </p>
-            <div
-              className="account-manage-tab__style-bar"
-              role="img"
-              aria-label={ko.app.accountManageStyleChartTitle}
-            >
-              {styleSegments.map((seg) => (
-                <button
-                  key={`style-bar-${seg.sector}`}
-                  type="button"
-                  className={[
-                    "account-manage-tab__style-bar-seg",
-                    styleFocusKey === seg.sector ? "active" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  style={{ flexGrow: Math.max(seg.pct, 0.5), background: seg.color }}
-                  aria-label={`${styleSegmentLabel(seg)} ${formatAllocPct(seg.pct)}`}
-                  title={`${styleSegmentLabel(seg)} ${formatAllocPct(seg.pct)}`}
-                  onClick={() => onStyleChipClick(seg.sector)}
-                />
-              ))}
-            </div>
-            <div className="account-manage-tab__style-chips">
-              {styleSegments.map((seg) => {
-                const active = styleFocusKey === seg.sector;
-                const mix = styleSourceCounts[seg.sector];
-                return (
-                  <button
-                    key={`style-chip-${seg.sector}`}
-                    type="button"
-                    className={[
-                      "account-manage-tab__style-chip",
-                      active ? "active" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    aria-pressed={active}
-                    aria-label={`${styleSegmentLabel(seg)} ${formatAllocPct(seg.pct)}`}
-                    onClick={() => onStyleChipClick(seg.sector)}
-                  >
-                    <span
-                      className="account-manage-tab__swatch"
-                      style={{ background: seg.color }}
-                      aria-hidden
-                    />
-                    <span className="account-manage-tab__style-chip-label">
-                      <span className="account-manage-tab__style-chip-name">
-                        {styleSegmentLabel(seg)}
-                      </span>
-                      {mix && (mix.auto > 0 || mix.specified > 0) ? (
-                        <span className="account-manage-tab__style-chip-mix">
-                          {ko.app.accountManageStyleLegendMix
-                            .replace("{auto}", String(mix.auto))
-                            .replace("{specified}", String(mix.specified))}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="account-manage-tab__style-chip-pct">
-                      {formatAllocPct(seg.pct)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-        <div className="account-manage-tab__style-strip-footer">
-          <p className="account-manage-tab__style-strip-hint">
-            {ko.app.accountManageStyleStripHint}
-          </p>
-          <button
-            type="button"
-            className="account-manage-tab__style-assign-link"
-            data-vu="account-style-assign-link"
-            onClick={scrollToStyleAssign}
-          >
-            {ko.app.accountManageStyleAssignLink}
-          </button>
-        </div>
-      </div>
-    ) : null;
 
   if (!authChecked) {
     return (
@@ -1156,29 +1109,7 @@ export default function AccountManageTab({
           </p>
         </div>
         <div className="account-manage-tab__head-bar">
-          <div className="account-manage-tab__exchange">
-            <LiveTradeExchangePicker
-              selected={provider}
-              onSelect={setProvider}
-              compact
-            />
-          </div>
           <div className="account-manage-tab__head-actions">
-            <button
-              type="button"
-              className="bithumb-balance-hide-btn account-manage-tab__hide-btn"
-              onClick={toggleBalanceHidden}
-              aria-pressed={balanceHidden}
-              title={
-                balanceHidden
-                  ? ko.app.accountManageMoneyShow
-                  : ko.app.accountManageMoneyHide
-              }
-            >
-              {balanceHidden
-                ? ko.app.accountManageMoneyShow
-                : ko.app.accountManageMoneyHide}
-            </button>
             <button
               type="button"
               className={[
@@ -1640,7 +1571,16 @@ export default function AccountManageTab({
             </p>
           ) : (
             <>
-          <div className="account-manage-tab__grid">
+          <div
+            className={[
+              "account-manage-tab__grid",
+              styleSegments.length === 0
+                ? "account-manage-tab__grid--no-style"
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
             <aside
               ref={wheelRef}
               className="account-manage-tab__wheel card"
@@ -1738,7 +1678,16 @@ export default function AccountManageTab({
               {segments.length === 0 ? (
                 <p className="account-manage-tab__empty">{ko.app.accountManageEmpty}</p>
               ) : panelTab === "chart" ? (
-                <div className="account-manage-tab__chart-panel">
+                <div
+                  className={[
+                    "account-manage-tab__chart-panel",
+                    styleFocusKey && !focusKey
+                      ? "account-manage-tab__chart-panel--passive"
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
                   <svg
                     className="account-manage-tab__svg"
                     viewBox="0 0 200 200"
@@ -1765,11 +1714,7 @@ export default function AccountManageTab({
                             ]
                               .filter(Boolean)
                               .join(" ")}
-                            d={
-                              lifted
-                                ? donutArcPathPopOut(cx, cy, r0, r1, seg.a0, seg.a1)
-                                : donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)
-                            }
+                            d={donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)}
                             fill={seg.color}
                             onClick={() => {
                               setStyleFocusKey(null);
@@ -1865,7 +1810,16 @@ export default function AccountManageTab({
                   </ul>
                 </div>
               ) : (
-                <ul className="account-manage-tab__slice-list">
+                <ul
+                  className={[
+                    "account-manage-tab__slice-list",
+                    styleFocusKey && !focusKey
+                      ? "account-manage-tab__slice-list--passive"
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
                   {segments.map((seg) => {
                     const slice = slices.find((s) => s.key === seg.sector);
                     return (
@@ -1915,236 +1869,6 @@ export default function AccountManageTab({
                   })}
                 </ul>
               )}
-
-              {renderStyleStrip()}
-
-              {panelTab === "chart" && styleSegments.length > 0 ? (
-                <div
-                  className="account-manage-tab__style-block"
-                  data-vu="account-style-block"
-                >
-                  <div className="account-manage-tab__style-head">
-                    <h4 className="account-manage-tab__style-title">
-                      {ko.app.accountManageStyleChartTitle}
-                    </h4>
-                    <p className="account-manage-tab__wheel-sub account-manage-tab__style-sub">
-                      {ko.app.accountManageStyleChartSub}
-                    </p>
-                    {stylePolicyLines.length > 0 ? (
-                      <details className="account-manage-tab__style-policy">
-                        <summary>
-                          {ko.app.accountManageStylePolicyTitle}
-                        </summary>
-                        <ol>
-                          {stylePolicyLines.map((line) => (
-                            <li key={line}>{line}</li>
-                          ))}
-                        </ol>
-                        <p>{ko.app.accountManageStylePolicyHint}</p>
-                      </details>
-                    ) : null}
-                  </div>
-                  <div className="account-manage-tab__chart-panel">
-                    <svg
-                      className="account-manage-tab__svg"
-                      viewBox="0 0 200 200"
-                      role="img"
-                      aria-label={ko.app.accountManageStyleChartTitle}
-                    >
-                      {[...styleSegments]
-                        .sort((a, b) => {
-                          const aLift =
-                            styleHoveredKey === a.sector ||
-                            styleFocusKey === a.sector
-                              ? 1
-                              : 0;
-                          const bLift =
-                            styleHoveredKey === b.sector ||
-                            styleFocusKey === b.sector
-                              ? 1
-                              : 0;
-                          return aLift - bLift;
-                        })
-                        .map((seg) => {
-                          const lifted =
-                            styleHoveredKey === seg.sector ||
-                            styleFocusKey === seg.sector;
-                          const dimmed =
-                            styleFocusKey && styleFocusKey !== seg.sector;
-                          return (
-                            <path
-                              key={`style-${seg.sector}`}
-                              className={[
-                                "account-manage-tab__seg",
-                                lifted ? "account-manage-tab__seg--lifted" : "",
-                                dimmed ? "account-manage-tab__seg--dim" : "",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                              d={
-                                lifted
-                                  ? donutArcPathPopOut(
-                                      cx,
-                                      cy,
-                                      r0,
-                                      r1,
-                                      seg.a0,
-                                      seg.a1,
-                                    )
-                                  : donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)
-                              }
-                              fill={seg.color}
-                              onClick={() => onStyleChipClick(seg.sector)}
-                              onMouseEnter={(e) => {
-                                setStyleHoveredKey(seg.sector);
-                                setHoveredKey(null);
-                                showHoverBubble(
-                                  seg.sector,
-                                  e.clientX,
-                                  e.clientY,
-                                );
-                              }}
-                              onMouseMove={(e) => {
-                                showHoverBubble(
-                                  seg.sector,
-                                  e.clientX,
-                                  e.clientY,
-                                );
-                              }}
-                              onMouseLeave={hideHoverBubble}
-                            />
-                          );
-                        })}
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        r={r0 - 2}
-                        className="account-manage-tab__hole"
-                      />
-                      <text
-                        x={cx}
-                        y={cy - 4}
-                        textAnchor="middle"
-                        className="account-manage-tab__center-label"
-                      >
-                        {styleFocusKey
-                          ? styleSegmentLabel(
-                              styleSegments.find((s) => s.sector === styleFocusKey) ?? {
-                                sector: styleFocusKey,
-                                sectorKo: "",
-                              },
-                            )
-                          : ko.app.accountManageGroupStyle}
-                      </text>
-                      <text
-                        x={cx}
-                        y={cy + 14}
-                        textAnchor="middle"
-                        className="account-manage-tab__center-pct"
-                      >
-                        {styleFocusKey
-                          ? formatAllocPct(
-                              styleSegments.find((s) => s.sector === styleFocusKey)
-                                ?.pct ?? 0,
-                            )
-                          : formatAllocPct(100)}
-                      </text>
-                    </svg>
-                    <ul className="account-manage-tab__legend">
-                      {styleSegments.map((seg) => {
-                        const slice = styleSlices.find(
-                          (s) => s.key === seg.sector,
-                        );
-                        return (
-                          <li key={`style-leg-${seg.sector}`}>
-                            <button
-                              type="button"
-                              className={[
-                                "account-manage-tab__legend-btn",
-                                styleFocusKey === seg.sector ? "active" : "",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                              onClick={() => onStyleChipClick(seg.sector)}
-                              onMouseEnter={(e) => {
-                                setStyleHoveredKey(seg.sector);
-                                setHoveredKey(null);
-                                showHoverBubble(
-                                  seg.sector,
-                                  e.clientX,
-                                  e.clientY,
-                                );
-                              }}
-                              onMouseMove={(e) => {
-                                showHoverBubble(
-                                  seg.sector,
-                                  e.clientX,
-                                  e.clientY,
-                                );
-                              }}
-                              onMouseLeave={hideHoverBubble}
-                            >
-                              <span
-                                className="account-manage-tab__swatch"
-                                style={{ background: seg.color }}
-                              />
-                              <span className="account-manage-tab__legend-name">
-                                {styleSegmentLabel(seg)}
-                              </span>
-                              <span className="account-manage-tab__legend-pct">
-                                {formatAllocPct(seg.pct)}
-                              </span>
-                              <span
-                                className="account-manage-tab__legend-val account-manage-tab__money"
-                                aria-hidden={balanceHidden || undefined}
-                              >
-                                {money(slice?.valueKrw)}
-                              </span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                </div>
-              ) : panelTab === "list" && styleSegments.length > 0 ? (
-                <ul className="account-manage-tab__style-list">
-                  {styleSegments.map((seg) => {
-                    const slice = styleSlices.find((s) => s.key === seg.sector);
-                    return (
-                      <li key={`style-list-${seg.sector}`}>
-                        <button
-                          type="button"
-                          className={[
-                            "account-manage-tab__style-list-btn",
-                            styleFocusKey === seg.sector ? "active" : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                          onClick={() => onStyleChipClick(seg.sector)}
-                        >
-                          <span
-                            className="account-manage-tab__swatch"
-                            style={{ background: seg.color }}
-                          />
-                          <span className="account-manage-tab__legend-name">
-                            {styleSegmentLabel(seg)}
-                          </span>
-                          <span className="account-manage-tab__legend-pct">
-                            {formatAllocPct(seg.pct)}
-                          </span>
-                          <span
-                            className="account-manage-tab__legend-val account-manage-tab__money"
-                            aria-hidden={balanceHidden || undefined}
-                          >
-                            {money(slice?.valueKrw)}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
 
               {hoverBubble && hoverSlice && hoverSeg ? (
                 <div
@@ -2222,32 +1946,8 @@ export default function AccountManageTab({
                 </div>
               ) : null}
 
-              {focusKey || styleFocusKey ? (
-                <div className="account-manage-tab__filter-bar">
-                  <span className="account-manage-tab__filter-label">
-                    {styleFocusKey
-                      ? ko.app.accountManageStyleFilterActive.replace(
-                          "{label}",
-                          styleSegments.find((s) => s.sector === styleFocusKey)
-                            ?.sectorKo ?? "",
-                        )
-                      : ko.app.accountManageWeightFilterActive.replace(
-                          "{label}",
-                          segments.find((s) => s.sector === focusKey)?.sectorKo ??
-                            "",
-                        )}
-                  </span>
-                  <button
-                    type="button"
-                    className="account-manage-tab__clear"
-                    onClick={() => {
-                      setFocusKey(null);
-                      setStyleFocusKey(null);
-                    }}
-                  >
-                    {ko.app.accountManageClearFilter}
-                  </button>
-                </div>
+              {activeChartFilter ? (
+                renderChartFilterBar()
               ) : (
                 <p className="account-manage-tab__hint">
                   {ko.app.accountManagePickHint} {ko.app.accountManageHoverHint}
@@ -2255,20 +1955,201 @@ export default function AccountManageTab({
               )}
             </aside>
 
+            {styleSegments.length > 0 ? (
+              <aside
+                className={[
+                  "account-manage-tab__style-panel",
+                  "card",
+                  focusKey && !styleFocusKey
+                    ? "account-manage-tab__style-panel--passive"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                aria-label={ko.app.accountManageStyleChartTitle}
+                data-vu="account-style-panel"
+              >
+                <div className="account-manage-tab__wheel-head">
+                  <div>
+                    <h3 className="account-manage-tab__wheel-title">
+                      {ko.app.accountManageStyleChartTitle}
+                    </h3>
+                    <p className="account-manage-tab__wheel-sub account-manage-tab__style-sub">
+                      {ko.app.accountManageStyleChartSub}
+                    </p>
+                    <p className="account-manage-tab__wheel-sub">
+                      {ko.app.accountManageStyleNewDefaultHint}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="account-manage-tab__style-assign-link"
+                    data-vu="account-style-assign-link"
+                    onClick={scrollToStyleAssign}
+                  >
+                    {ko.app.accountManageStyleAssignLink}
+                  </button>
+                </div>
+                {stylePolicyLines.length > 0 ? (
+                  <details className="account-manage-tab__style-policy">
+                    <summary>{ko.app.accountManageStylePolicyTitle}</summary>
+                    <ol>
+                      {stylePolicyLines.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ol>
+                    <p>{ko.app.accountManageStylePolicyHint}</p>
+                  </details>
+                ) : null}
+                <div className="account-manage-tab__chart-panel">
+                  <svg
+                    className="account-manage-tab__svg"
+                    viewBox="0 0 200 200"
+                    role="img"
+                    aria-label={ko.app.accountManageStyleChartTitle}
+                  >
+                    {[...styleSegments]
+                      .sort((a, b) => {
+                        const aLift =
+                          styleHoveredKey === a.sector ||
+                          styleFocusKey === a.sector
+                            ? 1
+                            : 0;
+                        const bLift =
+                          styleHoveredKey === b.sector ||
+                          styleFocusKey === b.sector
+                            ? 1
+                            : 0;
+                        return aLift - bLift;
+                      })
+                      .map((seg) => {
+                        const lifted =
+                          styleHoveredKey === seg.sector ||
+                          styleFocusKey === seg.sector;
+                        const dimmed =
+                          styleFocusKey && styleFocusKey !== seg.sector;
+                        return (
+                          <path
+                            key={`style-${seg.sector}`}
+                            className={[
+                              "account-manage-tab__seg",
+                              lifted ? "account-manage-tab__seg--lifted" : "",
+                              dimmed ? "account-manage-tab__seg--dim" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            d={donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)}
+                            fill={seg.color}
+                            onClick={() => onStyleChipClick(seg.sector)}
+                            onMouseEnter={() => {
+                              setStyleHoveredKey(seg.sector);
+                              setHoveredKey(null);
+                            }}
+                            onMouseLeave={() => setStyleHoveredKey(null)}
+                          />
+                        );
+                      })}
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={r0 - 2}
+                      className="account-manage-tab__hole"
+                    />
+                    <text
+                      x={cx}
+                      y={cy - 4}
+                      textAnchor="middle"
+                      className="account-manage-tab__center-label"
+                    >
+                      {styleFocusKey
+                        ? styleSegmentLabel(
+                            styleSegments.find((s) => s.sector === styleFocusKey) ?? {
+                              sector: styleFocusKey,
+                              sectorKo: "",
+                            },
+                          )
+                        : ko.app.accountManageGroupStyle}
+                    </text>
+                    <text
+                      x={cx}
+                      y={cy + 14}
+                      textAnchor="middle"
+                      className="account-manage-tab__center-pct"
+                    >
+                      {styleFocusKey
+                        ? formatAllocPct(
+                            styleSegments.find((s) => s.sector === styleFocusKey)
+                              ?.pct ?? 0,
+                          )
+                        : formatAllocPct(100)}
+                    </text>
+                  </svg>
+                  <ul className="account-manage-tab__legend">
+                    {styleSegments.map((seg) => {
+                      const slice = styleSlices.find((s) => s.key === seg.sector);
+                      const mix = styleSourceCounts[seg.sector];
+                      return (
+                        <li key={`style-leg-${seg.sector}`}>
+                          <button
+                            type="button"
+                            className={[
+                              "account-manage-tab__legend-btn",
+                              styleFocusKey === seg.sector ? "active" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            onClick={() => onStyleChipClick(seg.sector)}
+                            onMouseEnter={() => {
+                              setStyleHoveredKey(seg.sector);
+                              setHoveredKey(null);
+                            }}
+                            onMouseLeave={() => setStyleHoveredKey(null)}
+                          >
+                            <span
+                              className="account-manage-tab__swatch"
+                              style={{ background: seg.color }}
+                            />
+                            <span className="account-manage-tab__legend-name">
+                              {styleSegmentLabel(seg)}
+                              {mix && (mix.auto > 0 || mix.specified > 0) ? (
+                                <span className="account-manage-tab__style-chip-mix">
+                                  {" "}
+                                  {ko.app.accountManageStyleLegendMix
+                                    .replace("{auto}", String(mix.auto))
+                                    .replace("{specified}", String(mix.specified))}
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="account-manage-tab__legend-pct">
+                              {formatAllocPct(seg.pct)}
+                            </span>
+                            <span
+                              className="account-manage-tab__legend-val account-manage-tab__money"
+                              aria-hidden={balanceHidden || undefined}
+                            >
+                              {money(slice?.valueKrw)}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+                {styleFocusKey ? renderChartFilterBar() : null}
+              </aside>
+            ) : null}
+
             <section
               ref={holdingsRef}
               className="account-manage-tab__holdings card"
               id="account-holdings-table"
             >
-              <h3 className="account-manage-tab__holdings-title">
-                {styleFocusKey
-                  ? styleSegments.find((s) => s.sector === styleFocusKey)
-                      ?.sectorKo ?? ko.app.accountManageTabList
-                  : focusKey
-                    ? segments.find((s) => s.sector === focusKey)?.sectorKo ??
-                      ko.app.accountManageTabList
-                    : ko.app.accountManageTabList}
-              </h3>
+              <div className="account-manage-tab__holdings-head">
+                <h3 className="account-manage-tab__holdings-title">
+                  {ko.app.accountManageTabList}
+                </h3>
+                {renderChartFilterBar("account-manage-tab__filter-bar--holdings")}
+              </div>
               {filteredRows.length === 0 ? (
                 <p className="account-manage-tab__empty">
                   {focusKey === "__cash__" || styleFocusKey === "__cash__" ? (
