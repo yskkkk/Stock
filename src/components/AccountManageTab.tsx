@@ -1072,8 +1072,13 @@ export default function AccountManageTab({
     styleSegmentLabel,
   ]);
 
-  const renderChartFilterBar = (extraClass?: string) =>
-    activeChartFilter ? (
+  const renderChartFilterBar = (
+    extraClass?: string,
+    kind?: "weight" | "style",
+  ) => {
+    if (!activeChartFilter) return null;
+    if (kind && activeChartFilter.kind !== kind) return null;
+    return (
       <div
         className={[
           "account-manage-tab__filter-bar",
@@ -1083,8 +1088,16 @@ export default function AccountManageTab({
           .join(" ")}
         role="status"
         aria-live="polite"
+        data-filter-kind={activeChartFilter.kind}
       >
-        <span className="account-manage-tab__filter-label">
+        <span
+          className={[
+            "account-manage-tab__filter-label",
+            activeChartFilter.kind === "style"
+              ? "account-manage-tab__filter-label--style"
+              : "account-manage-tab__filter-label--weight",
+          ].join(" ")}
+        >
           {activeChartFilter.kind === "style"
             ? ko.app.accountManageStyleFilterActive.replace(
                 "{label}",
@@ -1099,11 +1112,13 @@ export default function AccountManageTab({
           type="button"
           className="account-manage-tab__clear"
           onClick={clearChartFilters}
+          aria-label={ko.app.accountManageClearFilter}
         >
           {ko.app.accountManageClearFilter}
         </button>
       </div>
-    ) : null;
+    );
+  };
 
   const snapshotSyncing = provider === "toss" ? tossSyncing : bithumbSyncing;
   const fetchActivity = refreshing || snapshotSyncing;
@@ -1855,6 +1870,7 @@ export default function AccountManageTab({
                               setFocusKey((prev) =>
                                 prev === seg.sector ? null : seg.sector,
                               );
+                              hideHoverBubble();
                             }}
                             onMouseEnter={(e) => {
                               setHoveredKey(seg.sector);
@@ -1910,6 +1926,7 @@ export default function AccountManageTab({
                               setFocusKey((prev) =>
                                 prev === seg.sector ? null : seg.sector,
                               );
+                              hideHoverBubble();
                             }}
                             onMouseEnter={(e) => {
                               setHoveredKey(seg.sector);
@@ -1974,6 +1991,7 @@ export default function AccountManageTab({
                           setFocusKey((prev) =>
                             prev === seg.sector ? null : seg.sector,
                           );
+                          hideHoverBubble();
                         }}
                       >
                         <span
@@ -2004,8 +2022,12 @@ export default function AccountManageTab({
                 </ul>
               )}
 
-              {activeChartFilter ? (
-                renderChartFilterBar()
+              {focusKey ? (
+                renderChartFilterBar(undefined, "weight")
+              ) : styleFocusKey ? (
+                <p className="account-manage-tab__hint account-manage-tab__hint--passive">
+                  {ko.app.accountManageStyleFilterPassive}
+                </p>
               ) : (
                 <p className="account-manage-tab__hint">
                   {ko.app.accountManagePickHint} {ko.app.accountManageHoverHint}
@@ -2217,7 +2239,13 @@ export default function AccountManageTab({
                     })}
                   </ul>
                 </div>
-                {styleFocusKey ? renderChartFilterBar() : null}
+                {styleFocusKey ? (
+                  renderChartFilterBar(undefined, "style")
+                ) : focusKey ? (
+                  <p className="account-manage-tab__hint account-manage-tab__hint--passive">
+                    {ko.app.accountManageWeightFilterPassive}
+                  </p>
+                ) : null}
               </aside>
             ) : null}
 
