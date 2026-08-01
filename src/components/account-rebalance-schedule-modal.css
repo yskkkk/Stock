@@ -537,6 +537,10 @@ html:not([data-theme="light"]) .account-rebalance-modal__sim-badge {
   font-size: 0.72rem;
 }
 
+.account-rebalance-modal__preview-spend-lines {
+  margin: 0 0 0.55rem;
+}
+
 .account-rebalance-modal__plan {
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm, 0.5rem);

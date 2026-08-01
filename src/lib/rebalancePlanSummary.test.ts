@@ -5,6 +5,7 @@ import {
   buildRebalanceRunSummaryLead,
   buildRebalanceSpendLines,
   buildRebalanceSpendSummary,
+  buildRebalanceSpendSummaryInline,
   formatRebalanceMoney,
   withRebalanceAmountNote,
 } from "./rebalancePlanSummary";
@@ -118,6 +119,31 @@ describe("rebalancePlanSummary", () => {
     expect(
       withRebalanceAmountNote("실주문 · {amountNote}"),
     ).toContain("수수료·세금 미포함");
+  });
+
+  it("summarizes cashToSpend inline for compact buttons", () => {
+    const inline = buildRebalanceSpendSummaryInline(
+      [
+        {
+          market: "kr",
+          currency: "KRW",
+          cashAvailable: 100_000,
+          cashToSpend: 50_000,
+          orders: [],
+        },
+        {
+          market: "us",
+          currency: "USD",
+          cashAvailable: 100,
+          cashToSpend: 50,
+          orders: [],
+        },
+      ],
+      ["kr", "us"],
+    );
+    expect(inline).toBe(
+      "원화 현금 이번 사용 50,000원 · 달러 현금 이번 사용 50.00$",
+    );
   });
 
   it("builds run sub with summary when toolbar has no separate line", () => {

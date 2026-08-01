@@ -594,6 +594,13 @@ export default function AccountRebalanceScheduleModal({
               <p className="account-rebalance-modal__hint account-rebalance-modal__preview-hint">
                 {withRebalanceAmountNote(ko.app.accountManageRebalancePreviewHint)}
               </p>
+              {hasBuyNowSpendLines ? (
+                <RebalanceSpendSummaryList
+                  plans={plans}
+                  enabledMarkets={markets}
+                  className="account-rebalance-modal__spend-lines account-rebalance-modal__preview-spend-lines"
+                />
+              ) : null}
               {(["kr", "us"] as const).map((m) => {
                 const on = markets.includes(m);
                 const plan = planByMarket.get(m);
