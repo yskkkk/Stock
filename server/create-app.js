@@ -345,6 +345,22 @@ export function createApp() {
   }
 
   app.use(express.json());
+  app.use((err, _req, res, next) => {
+    if (
+      err instanceof SyntaxError &&
+      /** @type {{ status?: number; body?: unknown }} */ (err).status === 400 &&
+      "body" in err
+    ) {
+      if (!res.headersSent) {
+        res.status(400).json({
+          error: "요청 JSON 형식이 올바르지 않습니다.",
+          code: "JSON_BODY_INVALID",
+        });
+      }
+      return;
+    }
+    next(err);
+  });
   app.use(virtualUserRequestMiddleware);
   app.use(expressAccessLogger);
   registerAccessControl(app);
@@ -397,7 +413,7 @@ export function createApp() {
         }
         res.json(enrichPicksStateWithHistory(merged));
       } catch (err) {
-        respondRouteError(res, err);
+        respondRouteError(res, err, { code: "PICKS_ERROR" });
       }
     }),
   );
@@ -1484,6 +1500,7 @@ export function createApp() {
           events: [],
           updatedAt: Date.now(),
           forecastsEnriched: false,
+          degraded: true,
         });
       }
     }),
@@ -2475,16 +2492,7 @@ export function createApp() {
           buildStockVaultItemsForUserSync(user?.id);
         res.json({ authenticated, favoriteSymbols, favoriteMeta });
       } catch (err) {
-        if (err instanceof StoreCorruptError) {
-          res.status(503).json({
-            error: err.message,
-            code: err.code,
-            filePath: err.filePath,
-          });
-          return;
-        }
-        const message = err instanceof Error ? err.message : "요청 실패";
-        res.status(502).json({ error: message });
+        respondRouteError(res, err, { code: "STOCK_VAULT_FAVORITES_ERROR" });
       }
     }),
   );
@@ -2549,16 +2557,7 @@ export function createApp() {
           industryFinancials: pickVaultMapBySymbols(industryFinancialsAll, symbols),
         });
       } catch (err) {
-        if (err instanceof StoreCorruptError) {
-          res.status(503).json({
-            error: err.message,
-            code: err.code,
-            filePath: err.filePath,
-          });
-          return;
-        }
-        const message = err instanceof Error ? err.message : "요청 실패";
-        res.status(502).json({ error: message });
+        respondRouteError(res, err, { code: "STOCK_VAULT_ERROR" });
       }
     }),
   );
@@ -2711,16 +2710,7 @@ export function createApp() {
           updatedAtMs: Date.now(),
         });
       } catch (err) {
-        if (err instanceof StoreCorruptError) {
-          res.status(503).json({
-            error: err.message,
-            code: err.code,
-            filePath: err.filePath,
-          });
-          return;
-        }
-        const message = err instanceof Error ? err.message : "요청 실패";
-        res.status(502).json({ error: message });
+        respondRouteError(res, err, { code: "STOCK_VAULT_CHART_INSIGHTS_ERROR" });
       }
     }),
   );
