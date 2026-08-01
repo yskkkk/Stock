@@ -881,17 +881,18 @@ export default function AccountManageTab({
 
   const showHoverBubble = useCallback(
     (key: string, clientX: number, clientY: number) => {
-      const root = wheelRef.current;
-      if (!root) {
-        setHoverBubble({ key, x: clientX, y: clientY });
-        return;
-      }
-      const rect = root.getBoundingClientRect();
-      setHoverBubble({
-        key,
-        x: clientX - rect.left,
-        y: clientY - rect.top,
-      });
+      const pad = 14;
+      const approxW = 220;
+      const approxH = 280;
+      const x = Math.min(
+        Math.max(8, clientX + pad),
+        (typeof window !== "undefined" ? window.innerWidth : 800) - approxW,
+      );
+      const y = Math.min(
+        Math.max(8, clientY - 12),
+        (typeof window !== "undefined" ? window.innerHeight : 600) - approxH,
+      );
+      setHoverBubble({ key, x, y });
     },
     [],
   );
@@ -939,10 +940,29 @@ export default function AccountManageTab({
       null)
     : null;
   const hoverRows = useMemo(() => {
-    if (!hoverSlice) return [];
+    if (!hoverSlice || hoverSlice.key === "__cash__") return [];
     const set = new Set(hoverSlice.symbols.map((s) => s.toUpperCase()));
-    return holdingRows.filter((r) => set.has(r.symbol.toUpperCase())).slice(0, 6);
+    return holdingRows
+      .filter((r) => set.has(r.symbol.toUpperCase()))
+      .sort((a, b) => b.valueKrw - a.valueKrw);
   }, [hoverSlice, holdingRows]);
+
+  const bubbleRowReturnPct = useCallback((r: AccountHoldingRow): number | null => {
+    if (r.returnPercent != null && Number.isFinite(r.returnPercent)) {
+      return r.returnPercent;
+    }
+    if (
+      r.unrealizedPnlKrw != null &&
+      Number.isFinite(r.unrealizedPnlKrw) &&
+      r.valueKrw > 0
+    ) {
+      const cost = r.valueKrw - r.unrealizedPnlKrw;
+      if (cost > 0 && Number.isFinite(cost)) {
+        return (r.unrealizedPnlKrw / cost) * 100;
+      }
+    }
+    return null;
+  }, []);
 
   const cx = 100;
   const cy = 100;
@@ -1870,82 +1890,6 @@ export default function AccountManageTab({
                 </ul>
               )}
 
-              {hoverBubble && hoverSlice && hoverSeg ? (
-                <div
-                  className="account-manage-tab__bubble"
-                  style={{
-                    left: Math.min(
-                      Math.max(12, hoverBubble.x + 14),
-                      (wheelRef.current?.clientWidth ?? 320) - 200,
-                    ),
-                    top: Math.max(8, hoverBubble.y - 12),
-                  }}
-                  role="tooltip"
-                >
-                  <div className="account-manage-tab__bubble-head">
-                    <span
-                      className="account-manage-tab__swatch"
-                      style={{ background: hoverSeg.color }}
-                    />
-                    <strong>{hoverSlice.label}</strong>
-                  </div>
-                  <div className="account-manage-tab__bubble-row">
-                    <span>{ko.app.accountManageSliceValue}</span>
-                    <span
-                      className="account-manage-tab__money"
-                      aria-hidden={balanceHidden || undefined}
-                    >
-                      {money(hoverSlice.valueKrw)}
-                    </span>
-                  </div>
-                  <div className="account-manage-tab__bubble-row">
-                    <span>{ko.app.accountManageColWeight}</span>
-                    <span>{formatAllocPct(hoverSeg.pct)}</span>
-                  </div>
-                  {hoverSlice.key !== "__cash__" ? (
-                    <div className="account-manage-tab__bubble-row">
-                      <span>{ko.app.accountManageHoldings}</span>
-                      <span>
-                        {ko.app.accountManageSliceCount.replace(
-                          "{n}",
-                          String(hoverSlice.count),
-                        )}
-                      </span>
-                    </div>
-                  ) : null}
-                  {hoverRows.length > 0 ? (
-                    <div className="account-manage-tab__bubble-syms">
-                      <div className="account-manage-tab__bubble-syms-label">
-                        {ko.app.accountManageBubbleSymbols}
-                      </div>
-                      <ul>
-                        {hoverRows.map((r) => (
-                          <li key={r.symbol}>
-                            <span>
-                              {accountSymbolSliceLabel(r, r.symbol)}
-                            </span>
-                            <span
-                              className="account-manage-tab__money"
-                              aria-hidden={balanceHidden || undefined}
-                            >
-                              {money(r.valueKrw)}
-                            </span>
-                          </li>
-                        ))}
-                        {hoverSlice.symbols.length > hoverRows.length ? (
-                          <li className="account-manage-tab__bubble-more">
-                            {ko.app.accountManageBubbleMore.replace(
-                              "{n}",
-                              String(hoverSlice.symbols.length - hoverRows.length),
-                            )}
-                          </li>
-                        ) : null}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
               {activeChartFilter ? (
                 renderChartFilterBar()
               ) : (
@@ -2041,11 +1985,23 @@ export default function AccountManageTab({
                             d={donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)}
                             fill={seg.color}
                             onClick={() => onStyleChipClick(seg.sector)}
-                            onMouseEnter={() => {
+                            onMouseEnter={(e) => {
                               setStyleHoveredKey(seg.sector);
                               setHoveredKey(null);
+                              showHoverBubble(
+                                seg.sector,
+                                e.clientX,
+                                e.clientY,
+                              );
                             }}
-                            onMouseLeave={() => setStyleHoveredKey(null)}
+                            onMouseMove={(e) => {
+                              showHoverBubble(
+                                seg.sector,
+                                e.clientX,
+                                e.clientY,
+                              );
+                            }}
+                            onMouseLeave={hideHoverBubble}
                           />
                         );
                       })}
@@ -2099,11 +2055,23 @@ export default function AccountManageTab({
                               .filter(Boolean)
                               .join(" ")}
                             onClick={() => onStyleChipClick(seg.sector)}
-                            onMouseEnter={() => {
+                            onMouseEnter={(e) => {
                               setStyleHoveredKey(seg.sector);
                               setHoveredKey(null);
+                              showHoverBubble(
+                                seg.sector,
+                                e.clientX,
+                                e.clientY,
+                              );
                             }}
-                            onMouseLeave={() => setStyleHoveredKey(null)}
+                            onMouseMove={(e) => {
+                              showHoverBubble(
+                                seg.sector,
+                                e.clientX,
+                                e.clientY,
+                              );
+                            }}
+                            onMouseLeave={hideHoverBubble}
                           >
                             <span
                               className="account-manage-tab__swatch"
@@ -2399,6 +2367,112 @@ export default function AccountManageTab({
               )}
             </section>
           </div>
+
+          {hoverBubble && hoverSlice && hoverSeg ? (
+            <div
+              className="account-manage-tab__bubble account-manage-tab__bubble--fixed"
+              style={{ left: hoverBubble.x, top: hoverBubble.y }}
+              role="tooltip"
+            >
+              <div className="account-manage-tab__bubble-head">
+                <span
+                  className="account-manage-tab__swatch"
+                  style={{ background: hoverSeg.color }}
+                />
+                <strong>
+                  {hoverSeg.sector === "__growth__" ||
+                  hoverSeg.sector === "__value__" ||
+                  hoverSeg.sector === "__cash__"
+                    ? styleSegmentLabel(hoverSeg)
+                    : hoverSlice.label}
+                </strong>
+              </div>
+              <div className="account-manage-tab__bubble-row">
+                <span>{ko.app.accountManageSliceValue}</span>
+                <span
+                  className="account-manage-tab__money"
+                  aria-hidden={balanceHidden || undefined}
+                >
+                  {money(hoverSlice.valueKrw)}
+                </span>
+              </div>
+              <div className="account-manage-tab__bubble-row">
+                <span>{ko.app.accountManageColWeight}</span>
+                <span>{formatAllocPct(hoverSeg.pct)}</span>
+              </div>
+              {hoverSlice.key === "__cash__" ? (
+                <div className="account-manage-tab__bubble-syms">
+                  <div className="account-manage-tab__bubble-syms-label">
+                    {ko.app.accountManageBubbleSymbols}
+                  </div>
+                  <ul>
+                    {provider === "toss" ? (
+                      <>
+                        <li>
+                          <span>{ko.app.accountManageCashKrw}</span>
+                          <span
+                            className="account-manage-tab__money"
+                            aria-hidden={balanceHidden || undefined}
+                          >
+                            {formatPrice(cashNativeKrw, "KRW")}
+                          </span>
+                        </li>
+                        <li>
+                          <span>{ko.app.accountManageCashUsd}</span>
+                          <span
+                            className="account-manage-tab__money"
+                            aria-hidden={balanceHidden || undefined}
+                          >
+                            {formatPrice(cashNativeUsd, "USD")}
+                          </span>
+                        </li>
+                      </>
+                    ) : (
+                      <li>
+                        <span>{ko.app.accountManageCash}</span>
+                        <span
+                          className="account-manage-tab__money"
+                          aria-hidden={balanceHidden || undefined}
+                        >
+                          {money(cashKrw)}
+                        </span>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              ) : hoverRows.length > 0 ? (
+                <div className="account-manage-tab__bubble-syms">
+                  <div className="account-manage-tab__bubble-syms-label">
+                    {ko.app.accountManageBubbleSymbols}
+                  </div>
+                  <ul className="account-manage-tab__bubble-syms-list">
+                    {hoverRows.map((r) => {
+                      const pct = bubbleRowReturnPct(r);
+                      return (
+                        <li key={r.symbol}>
+                          <span className="account-manage-tab__bubble-sym-name">
+                            {accountSymbolSliceLabel(r, r.symbol)}
+                          </span>
+                          <span
+                            className="account-manage-tab__bubble-sym-val account-manage-tab__money"
+                            aria-hidden={balanceHidden || undefined}
+                          >
+                            {money(r.valueKrw)}
+                            {pct != null ? (
+                              <span className="account-manage-tab__bubble-sym-pct">
+                                {" "}
+                                ({formatPercent(pct)})
+                              </span>
+                            ) : null}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <details className="account-manage-tab__raw card">
             <summary>{ko.app.accountManageRawSummary}</summary>
