@@ -651,10 +651,64 @@ html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-label--real {
 }
 
 .account-rebalance-modal__foot-zone-summary {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, inherit);
+}
+
+.account-rebalance-modal__foot-zone-summary-lead {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text, inherit);
+}
+
+.account-rebalance-modal__spend-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.account-rebalance-modal__spend-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.28rem 0.38rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 0.5rem);
   font-size: 0.72rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--text, inherit);
+  line-height: 1.35;
+}
+
+.account-rebalance-modal__spend-line.is-krw {
+  border-left: 3px solid #3b82f6;
+  background: color-mix(in srgb, #3b82f6 8%, var(--card));
+}
+
+.account-rebalance-modal__spend-line.is-usd {
+  border-left: 3px solid #22c55e;
+  background: color-mix(in srgb, #22c55e 8%, var(--card));
+}
+
+.account-rebalance-modal__spend-line-market {
+  font-size: 0.68rem;
+  font-weight: 800;
+  word-break: keep-all;
+}
+
+.account-rebalance-modal__spend-line-text {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .account-rebalance-modal__foot-zone-hint--blocked {
@@ -787,5 +841,19 @@ html:not([data-theme="light"]) .account-rebalance-modal__foot-zone-hint--blocked
     min-height: 52px;
     font-size: 0.92rem;
     box-shadow: 0 2px 10px rgba(220, 38, 38, 0.28);
+  }
+
+  .account-rebalance-modal__chips .account-rebalance-modal__chip {
+    flex: 1 1 100%;
+  }
+
+  .account-rebalance-modal__cash-sum-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-rebalance-modal__plan li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
   }
 }

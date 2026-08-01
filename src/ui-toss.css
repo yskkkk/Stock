@@ -4982,7 +4982,32 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
 }
 
 .live-trade-exchange-picker--compact {
-  gap: 0.55rem;
+  gap: 0.35rem;
+}
+
+.live-trade-exchange-picker--compact .live-trade-exchange-picker__hint {
+  display: none;
+}
+
+.live-trade-exchange-picker--compact .live-trade-exchange-picker__grid {
+  gap: 0.35rem;
+}
+
+.live-trade-exchange-picker--compact .live-trade-exchange-picker__card {
+  flex-direction: row;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.65rem;
+  gap: 0.45rem;
+  border-radius: 10px;
+}
+
+.live-trade-exchange-picker--compact .live-trade-exchange-picker__mark {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.live-trade-exchange-picker--compact .live-trade-exchange-picker__name {
+  font-size: 0.8rem;
 }
 
 .live-trade-exchange-picker__hint {
@@ -5028,11 +5053,6 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   width: 2.25rem;
   height: 2.25rem;
   display: block;
-}
-
-.live-trade-exchange-picker--compact .live-trade-exchange-picker__mark {
-  width: 1.85rem;
-  height: 1.85rem;
 }
 
 .live-trade-exchange-picker__name {

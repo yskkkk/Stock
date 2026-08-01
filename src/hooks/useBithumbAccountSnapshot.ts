@@ -42,11 +42,16 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
     [],
   );
 
+  const snapshotRef = useRef<BithumbTestSnapshot | null>(null);
+  snapshotRef.current = snapshot;
+
   const reload = useCallback(
     async (refresh = false, silent = false) => {
-      syncingRef.current += 1;
-      setSyncing(true);
-      if (!silent) setLoading(true);
+      if (!silent) {
+        syncingRef.current += 1;
+        setSyncing(true);
+        if (!snapshotRef.current) setLoading(true);
+      }
       try {
         const me = await fetchAuthMe();
         setUser(me.user);
@@ -64,10 +69,12 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
         setUpdatedAtMs(null);
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
-        syncingRef.current = Math.max(0, syncingRef.current - 1);
-        setSyncing(syncingRef.current > 0);
+        if (!silent) {
+          syncingRef.current = Math.max(0, syncingRef.current - 1);
+          setSyncing(syncingRef.current > 0);
+          setLoading(false);
+        }
         setAuthChecked(true);
-        if (!silent) setLoading(false);
       }
     },
     [applySnapshotResponse],
@@ -78,9 +85,8 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
 
     void (async () => {
       if (cancelled) return;
-      await reload(false);
-      if (cancelled) return;
-      if (poll) await reload(true, true);
+      await reload(false, false);
+      // 폴링은 interval에만 맡김 — 마운트 직후 refresh 이중 요청 제거
     })();
 
     const id = poll

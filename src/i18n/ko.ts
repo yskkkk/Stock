@@ -267,8 +267,7 @@ export const ko = {
     accountManageRebalanceNow: "정규장 · 실제 매수",
     accountManageRebalanceNowRun: "정규장 · 실제 매수 실행",
     accountManageRebalanceNowRunning: "매수 중…",
-    accountManageRebalanceNowRunSummary:
-      "미리보기와 동일 · {summary} · {amountNote}",
+    accountManageRebalanceNowRunSummaryLead: "미리보기와 동일 · {amountNote}",
     accountManageRebalanceNowConfirm:
       "미리보기와 동일하게 시장가 매수합니다.\n\n{summary}\n({amountNote})\n\n정규장(시간외·애프터 제외)만 실행됩니다. 실제 주문이 나갑니다. 계속할까요?",
     accountManageRebalanceNowConfirmGeneric:

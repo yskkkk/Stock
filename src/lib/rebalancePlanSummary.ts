@@ -34,25 +34,44 @@ export function withRebalanceAmountNote(
   return out;
 }
 
-/** 켜진 시장별 cashToSpend — 미리보기 「이번 사용」과 동일 포맷 */
+export type RebalanceSpendLine = {
+  market: "kr" | "us";
+  cashLabel: string;
+  spend: string;
+};
+
+/** 켜진 시장별 cashToSpend — UI에서 시장·통화별로 분리 표시 */
+export function buildRebalanceSpendLines(
+  plans: TossRebalanceBuyPlan[],
+  enabledMarkets: Array<"kr" | "us">,
+): RebalanceSpendLine[] {
+  const lines: RebalanceSpendLine[] = [];
+  for (const m of enabledMarkets) {
+    const plan = plans.find((p) => p.market === m);
+    if (!plan) continue;
+    lines.push({
+      market: m,
+      cashLabel: rebalanceCashLabel(plan.currency),
+      spend: formatRebalanceMoney(plan.cashToSpend, plan.currency),
+    });
+  }
+  return lines;
+}
+
+function formatRebalanceSpendLine(line: RebalanceSpendLine): string {
+  return ko.app.accountManageRebalanceSpendLine
+    .replace("{cashLabel}", line.cashLabel)
+    .replace("{spend}", line.spend);
+}
+
+/** 켜진 시장별 cashToSpend — 확인 대화상자 등 한 줄 텍스트용 */
 export function buildRebalanceSpendSummary(
   plans: TossRebalanceBuyPlan[],
   enabledMarkets: Array<"kr" | "us">,
 ): string {
-  const parts: string[] = [];
-  for (const m of enabledMarkets) {
-    const plan = plans.find((p) => p.market === m);
-    if (!plan) continue;
-    parts.push(
-      ko.app.accountManageRebalanceSpendLine
-        .replace("{cashLabel}", rebalanceCashLabel(plan.currency))
-        .replace(
-          "{spend}",
-          formatRebalanceMoney(plan.cashToSpend, plan.currency),
-        ),
-    );
-  }
-  return parts.join(" · ");
+  return buildRebalanceSpendLines(plans, enabledMarkets)
+    .map(formatRebalanceSpendLine)
+    .join("\n");
 }
 
 /** @deprecated buildRebalanceSpendSummary 사용 — 하위 호환 alias */
@@ -63,16 +82,9 @@ export function summarizeRebalancePlanTotals(
   return buildRebalanceSpendSummary(plans, enabledMarkets);
 }
 
-/** 실행 버튼 위 요약 — 미리보기 「이번 사용」·수수료 안내와 동일 포맷 */
-export function buildRebalanceRunSummaryLine(
-  plans: TossRebalanceBuyPlan[],
-  enabledMarkets: Array<"kr" | "us">,
-): string | null {
-  const summary = buildRebalanceSpendSummary(plans, enabledMarkets);
-  if (!summary) return null;
-  return withRebalanceAmountNote(
-    ko.app.accountManageRebalanceNowRunSummary.replace("{summary}", summary),
-  );
+/** 실행 버튼 위 안내 — 시장별 금액은 buildRebalanceSpendLines로 분리 표시 */
+export function buildRebalanceRunSummaryLead(): string {
+  return withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSummaryLead);
 }
 
 export function buildRebalanceNowConfirmMessage(

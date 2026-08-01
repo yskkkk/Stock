@@ -40,6 +40,7 @@ import { formatPercent, formatPrice, formatSignedMoney, formatTimeMsKst, formatU
 import {
   buildRebalanceNowConfirmMessage,
   buildRebalanceNowRunSubLabel,
+  buildRebalanceRunSummaryLead,
   summarizeRebalancePlanTotals,
   withRebalanceAmountNote,
 } from "../lib/rebalancePlanSummary";
@@ -66,6 +67,7 @@ import LiveTradeApiNotConnectedNotice from "./LiveTradeApiNotConnectedNotice";
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import AccountRebalanceScheduleModal from "./AccountRebalanceScheduleModal";
+import RebalanceSpendSummaryList from "./RebalanceSpendSummaryList";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import "./account-manage-tab.css";
@@ -177,6 +179,7 @@ export default function AccountManageTab({
   const [rebalancePreviewMarkets, setRebalancePreviewMarkets] = useState<
     Array<"kr" | "us">
   >(["kr", "us"]);
+  const [rebalanceScheduleEnabled, setRebalanceScheduleEnabled] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [slowFetch, setSlowFetch] = useState(false);
@@ -203,10 +206,12 @@ export default function AccountManageTab({
       const markets = (
         res.schedule?.markets?.length ? res.schedule.markets : ["kr", "us"]
       ).filter((m): m is "kr" | "us" => m === "kr" || m === "us");
+      setRebalanceScheduleEnabled(Boolean(res.schedule?.enabled));
       setRebalancePreviewMarkets(markets.length ? markets : ["kr", "us"]);
       setRebalancePreviewPlans(res.preview?.plans ?? []);
     } catch {
       setRebalancePreviewPlans([]);
+      setRebalanceScheduleEnabled(false);
     }
   }, [user, tossReady]);
 
@@ -621,7 +626,7 @@ export default function AccountManageTab({
         markets,
       );
     } catch {
-      /* ???? ??? generic ?? ?? */
+      /* 미리보기 없으면 generic 확인 문구 */
     }
     if (!window.confirm(confirmMsg)) return;
     setBuyingNow(true);
@@ -677,18 +682,41 @@ export default function AccountManageTab({
     rebalancePreviewPlans,
     rebalancePreviewMarkets,
   );
+  const buyNowToolbarSummaryLead = buildRebalanceRunSummaryLead();
+  const hasBuyNowToolbarSpendLines = rebalancePreviewMarkets.some((m) =>
+    rebalancePreviewPlans.some((p) => p.market === m),
+  );
 
   const renderRebalanceActionButtons = (
     variant: "toolbar" | "wheel" | "bridge",
-  ) => (
-    <div className="account-manage-tab__rebalance-actions">
-      <div className="account-manage-tab__rebalance-zone account-manage-tab__rebalance-zone--preview">
-        <span className="account-manage-tab__rebalance-zone-label">
-          {ko.app.accountManageRebalancePreviewZoneLabel}
-          <span className="account-rebalance-modal__sim-badge">
-            {ko.app.accountManageRebalanceSimBadge}
+  ) => {
+    const compact = true;
+    return (
+    <div
+      className={[
+        "account-manage-tab__rebalance-actions",
+        compact ? "account-manage-tab__rebalance-actions--compact" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <div
+        className={[
+          "account-manage-tab__rebalance-zone",
+          "account-manage-tab__rebalance-zone--preview",
+          compact ? "account-manage-tab__rebalance-zone--compact" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {!compact ? (
+          <span className="account-manage-tab__rebalance-zone-label">
+            {ko.app.accountManageRebalancePreviewZoneLabel}
+            <span className="account-rebalance-modal__sim-badge">
+              {ko.app.accountManageRebalanceSimBadge}
+            </span>
           </span>
-        </span>
+        ) : null}
         <button
           type="button"
           className={[
@@ -720,38 +748,60 @@ export default function AccountManageTab({
           </span>
         </button>
       </div>
-      <div className="account-manage-tab__rebalance-zone account-manage-tab__rebalance-zone--real">
-        <span className="account-manage-tab__rebalance-zone-label account-manage-tab__rebalance-zone-label--real">
-          {ko.app.accountManageRebalanceRealOrderZoneLabel}
-          <span className="account-rebalance-modal__real-badge">
-            {ko.app.accountManageRebalanceRealBadge}
-          </span>
-        </span>
-        <p
-          className={[
-            "account-manage-tab__rebalance-zone-hint",
-            buyNowToolbarAllowed
-              ? ""
-              : "account-manage-tab__rebalance-zone-hint--blocked",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          role={buyNowToolbarAllowed ? undefined : "status"}
-        >
-          {buyNowToolbarAllowed
-            ? withRebalanceAmountNote(ko.app.accountManageRebalanceNowHoursHint)
-            : ko.app.accountManageRebalanceNowHoursBlocked}
-        </p>
-        {buyNowToolbarAllowed && buyNowToolbarSummary ? (
-          <p
-            className="account-manage-tab__rebalance-zone-summary"
-            data-vu="account-rebalance-buy-now-summary"
-          >
-            {ko.app.accountManageRebalanceNowRunSummary.replace(
-              "{summary}",
-              buyNowToolbarSummary,
-            )}
-          </p>
+      <div
+        className={[
+          "account-manage-tab__rebalance-zone",
+          "account-manage-tab__rebalance-zone--real",
+          compact ? "account-manage-tab__rebalance-zone--compact" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {!compact ? (
+          <>
+            <span className="account-manage-tab__rebalance-zone-label account-manage-tab__rebalance-zone-label--real">
+              {ko.app.accountManageRebalanceRealOrderZoneLabel}
+              <span className="account-rebalance-modal__real-badge">
+                {ko.app.accountManageRebalanceRealBadge}
+              </span>
+            </span>
+            <p
+              className={[
+                "account-manage-tab__rebalance-zone-hint",
+                buyNowToolbarAllowed
+                  ? ""
+                  : "account-manage-tab__rebalance-zone-hint--blocked",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              role={buyNowToolbarAllowed ? undefined : "status"}
+            >
+              {buyNowToolbarAllowed
+                ? withRebalanceAmountNote(ko.app.accountManageRebalanceNowHoursHint)
+                : ko.app.accountManageRebalanceNowHoursBlocked}
+            </p>
+            {buyNowToolbarAllowed && hasBuyNowToolbarSpendLines ? (
+              <div
+                className="account-manage-tab__rebalance-zone-summary"
+                data-vu="account-rebalance-buy-now-summary"
+              >
+                <p className="account-manage-tab__rebalance-zone-summary-lead">
+                  {buyNowToolbarSummaryLead}
+                </p>
+                <RebalanceSpendSummaryList
+                  plans={rebalancePreviewPlans}
+                  enabledMarkets={rebalancePreviewMarkets}
+                />
+              </div>
+            ) : buyNowToolbarAllowed ? (
+              <p
+                className="account-manage-tab__rebalance-zone-summary"
+                data-vu="account-rebalance-buy-now-summary"
+              >
+                {buyNowToolbarSummaryLead}
+              </p>
+            ) : null}
+          </>
         ) : null}
         <button
           type="button"
@@ -796,7 +846,8 @@ export default function AccountManageTab({
         </button>
       </div>
     </div>
-  );
+    );
+  };
 
   const showHoverBubble = useCallback(
     (key: string, clientX: number, clientY: number) => {
@@ -884,7 +935,7 @@ export default function AccountManageTab({
       setSlowFetch(false);
       return;
     }
-    const id = window.setTimeout(() => setSlowFetch(true), 1200);
+    const id = window.setTimeout(() => setSlowFetch(true), 2500);
     return () => window.clearTimeout(id);
   }, [fetchActivity]);
 
@@ -1209,10 +1260,13 @@ export default function AccountManageTab({
                   <div
                     className="account-manage-tab__rebalance-hours"
                     role="group"
-                    aria-label={ko.app.accountManageRebalanceMarketHoursAria}
+                    aria-label={ko.app.accountManageRebalanceMarkets}
                   >
                     {(["kr", "us"] as const).map((m) => {
                       const hoursOpen = isMarketRegularOpenClient(m);
+                      const scheduleOn =
+                        rebalanceScheduleEnabled &&
+                        rebalancePreviewMarkets.includes(m);
                       return (
                         <span
                           key={m}
@@ -1221,33 +1275,57 @@ export default function AccountManageTab({
                             m === "us" ? "is-usd" : "is-krw",
                           ].join(" ")}
                         >
-                          <span
-                            className={[
-                              "account-rebalance-modal__badge",
-                              m === "us" ? "is-usd" : "is-krw",
-                            ].join(" ")}
-                          >
-                            {m === "us" ? "$" : "원"}
+                          <span className="account-manage-tab__rebalance-hour-top">
+                            <span
+                              className={[
+                                "account-rebalance-modal__badge",
+                                m === "us" ? "is-usd" : "is-krw",
+                              ].join(" ")}
+                            >
+                              {m === "us" ? "$" : "원"}
+                            </span>
+                            <span className="account-manage-tab__rebalance-hour-name">
+                              {m === "us"
+                                ? ko.app.accountManageMarketUs
+                                : ko.app.accountManageMarketKr}
+                            </span>
+                            <span className="account-manage-tab__rebalance-hour-cur">
+                              {m === "us"
+                                ? ko.app.accountManageCurrencyUsd
+                                : ko.app.accountManageCurrencyKrw}
+                            </span>
                           </span>
-                          <span className="account-manage-tab__rebalance-hour-name">
-                            {m === "us"
-                              ? ko.app.accountManageMarketUs
-                              : ko.app.accountManageMarketKr}
-                          </span>
-                          <span className="account-manage-tab__rebalance-hour-cur">
-                            {m === "us"
-                              ? ko.app.accountManageCurrencyUsd
-                              : ko.app.accountManageCurrencyKrw}
-                          </span>
-                          <span
-                            className={[
-                              "account-rebalance-modal__chip-hours",
-                              hoursOpen ? "is-open" : "is-closed",
-                            ].join(" ")}
-                          >
-                            {hoursOpen
-                              ? ko.app.accountManageRebalanceMarketRegularOpen
-                              : ko.app.accountManageRebalanceMarketRegularClosed}
+                          <span className="account-manage-tab__rebalance-hour-meta">
+                            <span className="account-rebalance-modal__chip-meta-row">
+                              <span className="account-rebalance-modal__chip-meta-label">
+                                {ko.app.accountManageRebalanceMarketScheduleLabel}
+                              </span>
+                              <span
+                                className={[
+                                  "account-rebalance-modal__chip-state",
+                                  scheduleOn ? "is-on" : "is-off",
+                                ].join(" ")}
+                              >
+                                {scheduleOn
+                                  ? ko.app.accountManageRebalanceMarketOn
+                                  : ko.app.accountManageRebalanceMarketOff}
+                              </span>
+                            </span>
+                            <span className="account-rebalance-modal__chip-meta-row">
+                              <span className="account-rebalance-modal__chip-meta-label">
+                                {ko.app.accountManageRebalanceMarketSessionLabel}
+                              </span>
+                              <span
+                                className={[
+                                  "account-rebalance-modal__chip-hours",
+                                  hoursOpen ? "is-open" : "is-closed",
+                                ].join(" ")}
+                              >
+                                {hoursOpen
+                                  ? ko.app.accountManageRebalanceMarketRegularOpen
+                                  : ko.app.accountManageRebalanceMarketRegularClosed}
+                              </span>
+                            </span>
                           </span>
                         </span>
                       );
@@ -1329,7 +1407,7 @@ export default function AccountManageTab({
                     aria-hidden={balanceHidden || undefined}
                   >
                     {summaryPending
-                      ? "?"
+                      ? "…"
                       : money((holdingsTotalKrw ?? 0) + cashKrw)}
                   </span>
                 </span>
@@ -1358,7 +1436,7 @@ export default function AccountManageTab({
                     className="account-manage-tab__money"
                     aria-hidden={balanceHidden || undefined}
                   >
-                    {summaryPending ? "?" : money(holdingsTotalKrw)}
+                    {summaryPending ? "…" : money(holdingsTotalKrw)}
                   </span>
                   {!summaryPending && holdingsReturnPct != null ? (
                     <span className="account-manage-tab__stat-pct">
@@ -1390,14 +1468,14 @@ export default function AccountManageTab({
                   >
                     <span className="account-manage-tab__stat-label" aria-hidden="true">
                       <span className="account-rebalance-modal__badge is-krw" aria-hidden="true">
-                        ?
+                        원
                       </span>
                       {ko.app.accountManageCashKrw}
                     </span>
                     <span className="account-manage-tab__stat-value" aria-hidden="true">
                       <span className="account-manage-tab__money">
                         {summaryPending
-                          ? "?"
+                          ? "…"
                           : formatPrice(cashNativeKrw, "KRW")}
                       </span>
                     </span>
@@ -1434,7 +1512,7 @@ export default function AccountManageTab({
                     <span className="account-manage-tab__stat-value" aria-hidden="true">
                       <span className="account-manage-tab__money">
                         {summaryPending
-                          ? "?"
+                          ? "…"
                           : formatPrice(cashNativeUsd, "USD")}
                       </span>
                       {!summaryPending &&
@@ -1464,7 +1542,7 @@ export default function AccountManageTab({
                       className="account-manage-tab__money"
                       aria-hidden={balanceHidden || undefined}
                     >
-                      {summaryPending ? "?" : money(cashKrw)}
+                      {summaryPending ? "…" : money(cashKrw)}
                     </span>
                   </span>
                 </div>

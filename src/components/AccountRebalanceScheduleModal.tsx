@@ -12,7 +12,7 @@ import { formatPercent } from "../lib/format";
 import {
   buildRebalanceNowConfirmMessage,
   buildRebalanceNowRunSubLabel,
-  buildRebalanceRunSummaryLine,
+  buildRebalanceRunSummaryLead,
   formatRebalanceMoney,
   withRebalanceAmountNote,
 } from "../lib/rebalancePlanSummary";
@@ -20,6 +20,7 @@ import {
   anySelectedMarketRegularOpen,
   isMarketRegularOpenClient,
 } from "../lib/marketRegularHours";
+import RebalanceSpendSummaryList from "./RebalanceSpendSummaryList";
 import "./account-rebalance-schedule-modal.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -285,7 +286,8 @@ export default function AccountRebalanceScheduleModal({
 
   const monthLabel = `${year}년 ${monthIndex + 1}월`;
   const buyNowAllowed = anySelectedMarketRegularOpen(markets);
-  const buyNowRunSummaryLine = buildRebalanceRunSummaryLine(plans, markets);
+  const buyNowRunSummaryLead = buildRebalanceRunSummaryLead();
+  const hasBuyNowSpendLines = markets.some((m) => planByMarket.get(m));
   const showScheduleForm = !loading && !loadError;
 
   const renderMarketChip = (m: "kr" | "us") => {
@@ -752,12 +754,22 @@ export default function AccountRebalanceScheduleModal({
                   ? withRebalanceAmountNote(ko.app.accountManageRebalanceNowHoursHint)
                   : ko.app.accountManageRebalanceNowHoursBlocked}
               </p>
-              {buyNowAllowed && buyNowRunSummaryLine ? (
+              {buyNowAllowed && hasBuyNowSpendLines ? (
+                <div
+                  className="account-rebalance-modal__foot-zone-summary"
+                  data-vu="account-rebalance-buy-now-summary"
+                >
+                  <p className="account-rebalance-modal__foot-zone-summary-lead">
+                    {buyNowRunSummaryLead}
+                  </p>
+                  <RebalanceSpendSummaryList plans={plans} enabledMarkets={markets} />
+                </div>
+              ) : buyNowAllowed ? (
                 <p
                   className="account-rebalance-modal__hint account-rebalance-modal__foot-zone-summary"
                   data-vu="account-rebalance-buy-now-summary"
                 >
-                  {buyNowRunSummaryLine}
+                  {buyNowRunSummaryLead}
                 </p>
               ) : null}
               <button

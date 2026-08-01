@@ -165,10 +165,12 @@ export function useTossAccountSnapshot(opts?: {
 
   const reload = useCallback(
     async (refresh = false, silent = false) => {
-      syncingRef.current += 1;
-      setSyncing(true);
       const uid = userRef.current?.id ?? null;
       const hasLocal = Boolean(uid && readTossSnapshotCache(uid));
+      if (!silent) {
+        syncingRef.current += 1;
+        setSyncing(true);
+      }
       if (!silent && !hasLocal && !snapshotRef.current) setLoading(true);
       try {
         const me = await fetchAuthMe();
@@ -216,8 +218,10 @@ export function useTossAccountSnapshot(opts?: {
           setUpdatedAtMs(null);
         }
       } finally {
-        syncingRef.current = Math.max(0, syncingRef.current - 1);
-        setSyncing(syncingRef.current > 0);
+        if (!silent) {
+          syncingRef.current = Math.max(0, syncingRef.current - 1);
+          setSyncing(syncingRef.current > 0);
+        }
         setAuthChecked(true);
         if (!silent) setLoading(false);
       }
@@ -230,9 +234,11 @@ export function useTossAccountSnapshot(opts?: {
 
     void (async () => {
       if (cancelled) return;
-      await reload(false, Boolean(peek?.snapshot));
+      const hadPeek = Boolean(peek?.snapshot);
+      await reload(false, hadPeek);
       if (cancelled || !poll) return;
-      await reload(true, true);
+      // 캐시로 먼저 그린 경우에만 즉시 서버 갱신 — 콜드 로드 직후 이중 요청 방지
+      if (hadPeek) await reload(true, true);
     })();
 
     const cacheId = poll
