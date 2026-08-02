@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense, type ReactNode } from "react";
 import { useChartDrawMagnet } from "./hooks/useChartDrawMagnet";
 import {
   clearStockOpsInstructionDraft,
@@ -61,26 +61,29 @@ import { LIVE_TRADE_NAVIGATE_EXPECTED_RETURN_CALC_TAB_EVENT, LIVE_TRADE_NAVIGATE
 import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
 import { OPEN_FINANCIALS_TAB_EVENT, type OpenFinancialsTabDetail } from "./lib/openFinancialsTab";
 import StockSearchTab from "./components/StockSearchTab";
+import { lazyWithRetry } from "./lib/lazyWithRetry";
 
-const StockChart = lazy(() => import("./components/StockChart"));
-const TradingViewAdvancedChart = lazy(
+const StockChart = lazyWithRetry(() => import("./components/StockChart"));
+const TradingViewAdvancedChart = lazyWithRetry(
   () => import("./components/TradingViewAdvancedChart"),
 );
 
-const Sp500SectorTab = lazy(() => import("./components/Sp500SectorTab"));
-const AccountManageTab = lazy(() => import("./components/AccountManageTab"));
-const ExpectedReturnCalcTab = lazy(() => import("./components/ExpectedReturnCalcTab"));
-const NasdaqEtfTab = lazy(() => import("./components/NasdaqEtfTab"));
-const RedditMentionsTab = lazy(() => import("./components/RedditMentionsTab"));
-const CryptoTab = lazy(() => import("./components/CryptoTab"));
-const OpsManagementTab = lazy(() => import("./components/OpsManagementTab"));
-const LiveTradingTab = lazy(() => import("./components/LiveTradingTab"));
-const RecommendationsTab = lazy(() => import("./components/RecommendationsTab"));
-const TradeHistoryTab = lazy(() => import("./components/TradeHistoryTab"));
-const BoxRangeTab = lazy(() => import("./components/BoxRangeTab"));
-const FinancialsTab = lazy(() => import("./components/FinancialsTab"));
-const StockVaultTab = lazy(() => import("./components/StockVaultTab"));
-const InvestorFlowTab = lazy(() => import("./components/InvestorFlowTab"));
+const Sp500SectorTab = lazyWithRetry(() => import("./components/Sp500SectorTab"));
+const AccountManageTab = lazyWithRetry(() => import("./components/AccountManageTab"));
+const ExpectedReturnCalcTab = lazyWithRetry(
+  () => import("./components/ExpectedReturnCalcTab"),
+);
+const NasdaqEtfTab = lazyWithRetry(() => import("./components/NasdaqEtfTab"));
+const RedditMentionsTab = lazyWithRetry(() => import("./components/RedditMentionsTab"));
+const CryptoTab = lazyWithRetry(() => import("./components/CryptoTab"));
+const OpsManagementTab = lazyWithRetry(() => import("./components/OpsManagementTab"));
+const LiveTradingTab = lazyWithRetry(() => import("./components/LiveTradingTab"));
+const RecommendationsTab = lazyWithRetry(() => import("./components/RecommendationsTab"));
+const TradeHistoryTab = lazyWithRetry(() => import("./components/TradeHistoryTab"));
+const BoxRangeTab = lazyWithRetry(() => import("./components/BoxRangeTab"));
+const FinancialsTab = lazyWithRetry(() => import("./components/FinancialsTab"));
+const StockVaultTab = lazyWithRetry(() => import("./components/StockVaultTab"));
+const InvestorFlowTab = lazyWithRetry(() => import("./components/InvestorFlowTab"));
 
 function TabSuspense({ children }: { children: ReactNode }) {
   return (

@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { clearStockWebCache } from "../lib/webCache";
+import { isChunkLoadError } from "../lib/lazyWithRetry";
 
 type Props = {
   children: ReactNode;
@@ -9,6 +10,8 @@ type Props = {
 type State = {
   message: string | null;
 };
+
+const BOUNDARY_REFRESH_KEY = "ystock:error-boundary-chunk-refresh";
 
 export default class AppErrorBoundary extends Component<Props, State> {
   state: State = { message: null };
@@ -28,6 +31,23 @@ export default class AppErrorBoundary extends Component<Props, State> {
         : "화면을 표시하는 중 오류가 발생했습니다.";
     this.props.onError?.(message);
     console.error("[AppErrorBoundary]", error, info.componentStack);
+
+    if (!isChunkLoadError(error)) return;
+    let already = false;
+    try {
+      already = sessionStorage.getItem(BOUNDARY_REFRESH_KEY) === "1";
+    } catch {
+      /* ignore */
+    }
+    if (already) return;
+    try {
+      sessionStorage.setItem(BOUNDARY_REFRESH_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    window.setTimeout(() => {
+      void clearStockWebCache({ resetPurgeFlag: true });
+    }, 0);
   }
 
   render() {
