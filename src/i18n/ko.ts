@@ -311,7 +311,10 @@ export const ko = {
     accountManageHide: "숨김",
     accountManageUnhide: "표시",
     accountManageHiddenCount: "숨김 {n}",
-    accountManageClearHidden: "숨김 해제",
+    accountManageClearHidden: "숨김 모두 해제",
+    accountManageHiddenList: "숨긴 종목",
+    accountManageHiddenListHint:
+      "차트·평가금액 합산에서 빠진 종목입니다. 「표시」로 다시 포함할 수 있습니다.",
     accountManageRawSummary: "계좌 상세(잔고·주문)",
     accountManageNoExchange: "연동된 거래소 API가 없습니다. 실거래 탭에서 키를 연결하세요.",
     tabOps: "운영",

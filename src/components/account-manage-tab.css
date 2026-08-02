@@ -971,18 +971,55 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
   box-sizing: border-box;
 }
 
-.account-manage-tab__holdings {
+.account-manage-tab__holdings-stack {
   grid-area: holdings;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+  width: 100%;
+  align-self: start;
+}
+
+.account-manage-tab__holdings {
   padding: 0.85rem 1rem 1rem;
   min-width: 0;
   height: auto;
-  align-self: start;
+  align-self: stretch;
   box-sizing: border-box;
   scroll-margin-top: 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
   width: 100%;
+}
+
+.account-manage-tab__holdings-hidden {
+  padding: 0.85rem 1rem 1rem;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  border-style: dashed;
+}
+
+.account-manage-tab__holdings-hidden .account-manage-tab__holdings-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.account-manage-tab__hidden-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.account-manage-tab__table-wrap--hidden {
+  max-height: min(40vh, 22rem);
 }
 
 .account-manage-tab__wheel {
@@ -2104,12 +2141,6 @@ html[data-theme="light"] .account-manage-tab__bubble-sym-pnl.is-down {
 
 .account-manage-tab__hide-row-btn:hover {
   background: color-mix(in srgb, var(--accent-dim) 35%, transparent);
-}
-
-.account-manage-tab__hidden-bar {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
 }
 
 .account-manage-tab__hidden-count {
