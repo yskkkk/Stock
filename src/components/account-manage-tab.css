@@ -1596,6 +1596,10 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   text-align: left;
 }
 
+.account-manage-tab__legend-btn--style {
+  grid-template-columns: 0.65rem minmax(0, 1fr) 3.6rem 4.4rem 7.6rem;
+}
+
 .account-manage-tab__legend-btn:hover,
 .account-manage-tab__legend-btn.active {
   background: color-mix(in srgb, var(--accent-dim) 40%, transparent);
@@ -1616,12 +1620,33 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 }
 
 .account-manage-tab__legend-pct,
+.account-manage-tab__legend-ret,
 .account-manage-tab__legend-val {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   text-align: right;
   justify-self: stretch;
   white-space: nowrap;
+}
+
+.account-manage-tab__legend-ret {
+  font-weight: 650;
+}
+
+.account-manage-tab__legend-ret.is-up {
+  color: #22c55e;
+}
+
+.account-manage-tab__legend-ret.is-down {
+  color: #ef4444;
+}
+
+html[data-theme="light"] .account-manage-tab__legend-ret.is-up {
+  color: #15803d;
+}
+
+html[data-theme="light"] .account-manage-tab__legend-ret.is-down {
+  color: #dc2626;
 }
 
 .account-manage-tab__legend-val {

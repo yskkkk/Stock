@@ -1113,6 +1113,30 @@ export default function AccountManageTab({
     return null;
   }, []);
 
+  const sliceReturnPct = useCallback(
+    (slice: { key: string; symbols: string[]; valueKrw: number } | undefined) => {
+      if (!slice || slice.key === "__cash__") return null;
+      const set = new Set(slice.symbols.map((s) => s.toUpperCase()));
+      let pnlSum = 0;
+      let any = false;
+      for (const r of holdingRows) {
+        if (!set.has(r.symbol.toUpperCase())) continue;
+        if (r.unrealizedPnlKrw == null || !Number.isFinite(r.unrealizedPnlKrw)) {
+          continue;
+        }
+        pnlSum += r.unrealizedPnlKrw;
+        any = true;
+      }
+      if (!any) return null;
+      const mv = slice.valueKrw;
+      if (!(mv > 0) || !Number.isFinite(mv)) return null;
+      const cost = mv - pnlSum;
+      if (!(cost > 0) || !Number.isFinite(cost)) return null;
+      return (pnlSum / cost) * 100;
+    },
+    [holdingRows],
+  );
+
   const cx = 100;
   const cy = 100;
   const r0 = 52;
@@ -2229,12 +2253,22 @@ export default function AccountManageTab({
                     {styleSegments.map((seg) => {
                       const slice = styleSlices.find((s) => s.key === seg.sector);
                       const mix = styleSourceCounts[seg.sector];
+                      const retPct = sliceReturnPct(slice);
+                      const retTone =
+                        retPct != null
+                          ? retPct > 0
+                            ? "is-up"
+                            : retPct < 0
+                              ? "is-down"
+                              : ""
+                          : "";
                       return (
                         <li key={`style-leg-${seg.sector}`}>
                           <button
                             type="button"
                             className={[
                               "account-manage-tab__legend-btn",
+                              "account-manage-tab__legend-btn--style",
                               styleFocusKey === seg.sector ? "active" : "",
                             ]
                               .filter(Boolean)
@@ -2275,6 +2309,16 @@ export default function AccountManageTab({
                             </span>
                             <span className="account-manage-tab__legend-pct">
                               {formatAllocPct(seg.pct)}
+                            </span>
+                            <span
+                              className={[
+                                "account-manage-tab__legend-ret",
+                                retTone,
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            >
+                              {retPct != null ? `(${formatPercent(retPct)})` : ""}
                             </span>
                             <span
                               className="account-manage-tab__legend-val account-manage-tab__money"
