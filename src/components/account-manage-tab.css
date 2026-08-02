@@ -2113,14 +2113,6 @@ html[data-theme="light"] .account-manage-tab__bubble-sym-pnl.is-down {
   color: #ef4444;
 }
 
-.account-manage-tab__row--hidden {
-  opacity: 0.48;
-}
-
-.account-manage-tab__row--hidden td {
-  color: var(--muted);
-}
-
 .account-manage-tab__hide-row-btn {
   border: 1px solid var(--card-border);
   background: color-mix(in srgb, var(--surface) 55%, var(--card));
@@ -2132,11 +2124,6 @@ html[data-theme="light"] .account-manage-tab__bubble-sym-pnl.is-down {
   cursor: pointer;
   white-space: nowrap;
   touch-action: manipulation;
-}
-
-.account-manage-tab__hide-row-btn.is-hidden {
-  border-color: rgba(148, 163, 184, 0.55);
-  color: var(--muted);
 }
 
 .account-manage-tab__hide-row-btn:hover {
