@@ -22,7 +22,7 @@ const MAX_PROMPT_LEN = 12_000;
 const MAX_TITLE_LEN = 200;
 const MAX_DETAIL_LEN = 4_000;
 
-/** @typedef {"new"|"queued"|"done"|"dismissed"} VuFeedbackStatus */
+/** @typedef {"new"|"pending_review"|"approved"|"queued"|"done"|"dismissed"} VuFeedbackStatus */
 /** @typedef {"blocker"|"major"|"minor"|"nit"} VuSeverity */
 
 /**
@@ -60,6 +60,10 @@ const MAX_DETAIL_LEN = 4_000;
  *   nextPersonaIndex: number;
  *   noveltyAngleOffset: number;
  *   emptyExploreStreak: number;
+ *   lastManagerAtMs: number | null;
+ *   lastManagerDecision: string | null;
+ *   lastManagerScore: number | null;
+ *   managerReviewCount: number;
  * }} VirtualUserContinuous
  */
 
@@ -89,6 +93,10 @@ const MAX_DETAIL_LEN = 4_000;
  *   telegramSentAtMs: number | null;
  *   backupCount: number;
  *   lastBackupId: string | null;
+ *   managerScore: number | null;
+ *   managerDecision: string | null;
+ *   managerNotes: string;
+ *   managerReviewedAtMs: number | null;
  * }} VirtualFeedback
  */
 
@@ -135,6 +143,10 @@ export function defaultContinuousConfig() {
     nextPersonaIndex: 0,
     noveltyAngleOffset: 0,
     emptyExploreStreak: 0,
+    lastManagerAtMs: null,
+    lastManagerDecision: null,
+    lastManagerScore: null,
+    managerReviewCount: 0,
   };
 }
 
@@ -184,6 +196,17 @@ function normalizeContinuous(raw) {
       Math.floor(Number(o.noveltyAngleOffset) || 0),
     ),
     emptyExploreStreak: Math.max(0, Math.floor(Number(o.emptyExploreStreak) || 0)),
+    lastManagerAtMs:
+      o.lastManagerAtMs == null ? null : Number(o.lastManagerAtMs) || null,
+    lastManagerDecision:
+      o.lastManagerDecision == null || o.lastManagerDecision === ""
+        ? null
+        : String(o.lastManagerDecision).slice(0, 40),
+    lastManagerScore:
+      o.lastManagerScore == null
+        ? null
+        : Math.max(0, Math.min(100, Number(o.lastManagerScore) || 0)),
+    managerReviewCount: Math.max(0, Math.floor(Number(o.managerReviewCount) || 0)),
   };
 }
 
@@ -325,7 +348,13 @@ function normalizeFeedback(raw) {
   const st = String(o.status ?? "new");
   /** @type {VuFeedbackStatus} */
   const status =
-    st === "queued" || st === "done" || st === "dismissed" ? st : "new";
+    st === "queued" ||
+    st === "done" ||
+    st === "dismissed" ||
+    st === "pending_review" ||
+    st === "approved"
+      ? st
+      : "new";
   const sev = String(o.severity ?? "minor");
   /** @type {VuSeverity} */
   const severity =
@@ -378,6 +407,22 @@ function normalizeFeedback(raw) {
       o.lastBackupId == null || o.lastBackupId === ""
         ? null
         : String(o.lastBackupId).slice(0, 80),
+    managerScore: (() => {
+      const n = o.managerScore == null ? null : Number(o.managerScore);
+      return n != null && Number.isFinite(n)
+        ? Math.max(0, Math.min(100, n))
+        : null;
+    })(),
+    managerDecision:
+      o.managerDecision == null || o.managerDecision === ""
+        ? null
+        : String(o.managerDecision).slice(0, 40),
+    managerNotes: String(o.managerNotes ?? "").slice(0, 1200),
+    managerReviewedAtMs: (() => {
+      const n =
+        o.managerReviewedAtMs == null ? null : Number(o.managerReviewedAtMs);
+      return n != null && Number.isFinite(n) ? n : null;
+    })(),
   };
 }
 
@@ -602,6 +647,10 @@ export function appendVirtualFeedbackSync(input) {
     telegramSentAtMs: null,
     backupCount: 0,
     lastBackupId: null,
+    managerScore: null,
+    managerDecision: null,
+    managerNotes: "",
+    managerReviewedAtMs: null,
   };
   store.feedback = [item, ...store.feedback].slice(0, MAX_FEEDBACK);
   writeVirtualUserStoreSync(store);

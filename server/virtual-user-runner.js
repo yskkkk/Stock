@@ -464,8 +464,9 @@ async function emitFeedback(persona, sessionId, seed, notify, extra = "", known)
   );
   const patched = patchVirtualFeedbackSync(res.item.id, {
     prompt,
+    status: "pending_review",
     improvementSummary:
-      "개발 대기열에 쌓임. 3분마다 스캔하며 서버가 개발 중이 아닐 때 순서대로 에이전트에 전송됩니다.",
+      "매니저 검토 대기 — 승인된 뒤에만 에이전트 전송 대기열에 들어갑니다.",
   });
   const item = patched.ok && patched.item ? patched.item : { ...res.item, prompt };
 

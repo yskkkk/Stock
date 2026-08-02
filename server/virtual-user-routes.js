@@ -31,6 +31,10 @@ import {
   readCodeVersionStoreSync,
 } from "./code-version-store.js";
 import { scheduleVirtualUserAdminHydration } from "./virtual-user-admin-hydrate.js";
+import {
+  reviewPendingVirtualFeedbackBatchSync,
+  reviewVirtualFeedbackByIdSync,
+} from "./virtual-user-manager.js";
 
 /**
  * @param {(handler: (req: any, res: any) => Promise<void>) => import("express").RequestHandler} asyncRoute
@@ -49,7 +53,18 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
       const discomfortCount = store.feedback.filter((f) =>
         String(f.discomfort || f.detail || f.title || "").trim(),
       ).length;
-      const waitingCount = store.feedback.filter((f) => f.status === "new").length;
+      const waitingCount = store.feedback.filter(
+        (f) =>
+          f.status === "new" ||
+          f.status === "pending_review" ||
+          f.status === "approved",
+      ).length;
+      const pendingReviewCount = store.feedback.filter(
+        (f) => f.status === "pending_review" || f.status === "new",
+      ).length;
+      const approvedCount = store.feedback.filter(
+        (f) => f.status === "approved",
+      ).length;
       const runningCount = store.feedback.filter(
         (f) => f.status === "queued",
       ).length;
@@ -80,6 +95,8 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
         narrative: {
           discomfortCount,
           waitingCount,
+          pendingReviewCount,
+          approvedCount,
           runningCount,
           queuedCount: waitingCount,
           improvedCount,
@@ -191,6 +208,37 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
         continuous: getVirtualUserContinuousSync(),
         busy: isVirtualUserContinuousBusy(),
       });
+    }),
+  );
+
+  app.post(
+    "/api/virtual-users/manager/review-batch",
+    requireAccessAdmin,
+    asyncRoute(async (req, res) => {
+      const limit = Number(req.body?.limit);
+      const result = reviewPendingVirtualFeedbackBatchSync({
+        limit: Number.isFinite(limit) ? limit : 8,
+      });
+      res.json({
+        ok: true,
+        ...result,
+        continuous: getVirtualUserContinuousSync(),
+      });
+    }),
+  );
+
+  app.post(
+    "/api/virtual-users/feedback/:id/manager-review",
+    requireAccessAdmin,
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id ?? "").trim();
+      const force = req.body?.force === true;
+      const result = reviewVirtualFeedbackByIdSync(id, { force });
+      if (!result.ok && !result.skipped) {
+        res.status(404).json(result);
+        return;
+      }
+      res.json(result);
     }),
   );
 
@@ -341,12 +389,23 @@ export function registerVirtualUserRoutes(app, asyncRoute) {
     asyncRoute(async (req, res) => {
       const id = String(req.params.id ?? "").trim();
       const status = String(req.body?.status ?? "").trim();
-      if (!["new", "queued", "done", "dismissed"].includes(status)) {
+      if (
+        ![
+          "new",
+          "pending_review",
+          "approved",
+          "queued",
+          "done",
+          "dismissed",
+        ].includes(status)
+      ) {
         res.status(400).json({ ok: false, error: "잘못된 status 입니다." });
         return;
       }
       const patched = patchVirtualFeedbackSync(id, {
-        status: /** @type {"new"|"queued"|"done"|"dismissed"} */ (status),
+        status: /** @type {import("./virtual-user-store.js").VuFeedbackStatus} */ (
+          status
+        ),
       });
       if (!patched.ok) {
         res.status(404).json(patched);

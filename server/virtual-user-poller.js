@@ -20,11 +20,14 @@ import {
 } from "./virtual-user-api-guard.js";
 import { enrichVirtualFeedbackNarrativesSync } from "./virtual-user-feedback-enrich.js";
 import { dispatchNextVirtualUserImplement } from "./virtual-user-auto-implement.js";
+import { reviewPendingVirtualFeedbackBatchSync } from "./virtual-user-manager.js";
 import { isOpsAgentJobRunning } from "./ops-agent-job-queue.js";
 
 const POLLER_ID = "virtual-user-continuous";
 /** 에이전트 전송 스캔 주기 */
 const IMPLEMENT_SCAN_MS = 3 * 60_000;
+/** 매니저 검토 스캔 (프롬프트 게이트) */
+const MANAGER_SCAN_MS = 45_000;
 /** 백엔드 전용 연속 탐색 세션 간격 */
 const EXPLORE_GAP_MS = 5_000;
 
@@ -34,6 +37,8 @@ let running = false;
 let exploreTimer = null;
 /** @type {ReturnType<typeof setInterval> | null} */
 let implementTimer = null;
+/** @type {ReturnType<typeof setInterval> | null} */
+let managerTimer = null;
 
 export function getVirtualUserContinuousPollIntervalMs() {
   return IMPLEMENT_SCAN_MS;
@@ -141,9 +146,31 @@ function scheduleExploreSoon(delayMs = EXPLORE_GAP_MS) {
 }
 
 /**
+ * 매니저: pending_review/new 프롬프트 검토 → approved 또는 dismissed
+ */
+function tickManagerReviewOnce() {
+  try {
+    const r = reviewPendingVirtualFeedbackBatchSync({ limit: 8 });
+    if (r.reviewed > 0) {
+      appendServerEventLog(
+        "virtual-user-manager",
+        `batch reviewed=${r.reviewed}`,
+      );
+    }
+    return r;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    appendServerEventLog("virtual-user-manager", `batch fail ${msg}`);
+    return { ok: false, reviewed: 0, error: msg };
+  }
+}
+
+/**
  * 3분마다: 개발 중이 아니면 대기 피드백 1건만 에이전트로
  */
 async function tickImplementScanOnce() {
+  // 전송 직전 미검토 분량 선처리
+  tickManagerReviewOnce();
   if (isServerDevelopingSync()) {
     appendServerEventLog(
       "virtual-user",
@@ -213,6 +240,13 @@ export function startVirtualUserContinuousPoller() {
 
   // 탐색: 거의 연속 루프
   scheduleExploreSoon(45_000);
+
+  // 매니저 검토: 45초마다 (프롬프트 게이트)
+  if (managerTimer) clearInterval(managerTimer);
+  managerTimer = setInterval(() => {
+    tickManagerReviewOnce();
+  }, MANAGER_SCAN_MS);
+  setTimeout(() => tickManagerReviewOnce(), 12_000);
 
   // 에이전트 전송: 3분마다, 개발 중 아닐 때만
   if (implementTimer) clearInterval(implementTimer);

@@ -20,6 +20,7 @@ import {
   hasCursorApiKey,
   pauseVirtualUserForApiExhaustion,
 } from "./virtual-user-api-guard.js";
+import { ensureManagerApprovedForImplementSync } from "./virtual-user-manager.js";
 
 const SEV_RANK = { blocker: 4, major: 3, minor: 2, nit: 1 };
 
@@ -73,10 +74,12 @@ function reclaimOrphanQueuedFeedbackSync() {
     if (f.status !== "queued" || !f.implementJobId) continue;
     if (ids.has(f.implementJobId)) continue;
     patchVirtualFeedbackSync(f.id, {
-      status: "new",
+      status: f.managerDecision && f.managerDecision !== "reject"
+        ? "approved"
+        : "pending_review",
       implementJobId: null,
       implementQueuedAtMs: null,
-      improvementSummary: "",
+      improvementSummary: "큐 유실 — 매니저 승인 상태로 복구 후 재전송 대기",
     });
     n += 1;
   }
@@ -106,6 +109,17 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
   const autoOn = opts.force === true || cfg.autoImplement !== false;
   if (!autoOn) return { ok: false, skipped: true, reason: "auto-off" };
 
+  // 피드백 프롬프트는 항상 매니저 검토 후 approved만 전송
+  const gated = ensureManagerApprovedForImplementSync(item);
+  if (!gated.ok || !gated.item) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: gated.reason || "manager-gate",
+    };
+  }
+  const approved = gated.item;
+
   if (!hasCursorApiKey()) {
     pauseVirtualUserForApiExhaustion(
       "CURSOR_API_KEY 없음 — 자동 구현을 정지했습니다.",
@@ -121,7 +135,7 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
   }
 
   const minSev = String(cfg.autoImplementMinSeverity || "minor");
-  if (!severityOk(item.severity, minSev)) {
+  if (!severityOk(approved.severity, minSev)) {
     return { ok: false, skipped: true, reason: "severity-gate" };
   }
 
@@ -129,15 +143,15 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
   ensureBaselineCodeVersionSync();
 
   const pre = createCodeVersionSync({
-    label: `피드백 직전 · ${String(item.title).slice(0, 40)}`,
+    label: `피드백 직전 · ${String(approved.title).slice(0, 40)}`,
     kind: "pre-feedback",
-    feedbackId: item.id,
-    note: `persona=${item.personaName}; severity=${item.severity}; area=${item.area}`,
+    feedbackId: approved.id,
+    note: `persona=${approved.personaName}; severity=${approved.severity}; area=${approved.area}`,
     commitIfDirty: false,
   });
 
   const baseline = ensureBaselineCodeVersionSync();
-  const promptBase = String(item.prompt || "").trim();
+  const promptBase = String(approved.prompt || "").trim();
   if (!promptBase || promptBase === "(생성 중)") {
     return { ok: false, skipped: true, reason: "empty-prompt" };
   }
@@ -160,7 +174,7 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
   if (!queued.ok) {
     appendServerEventLog(
       "virtual-user",
-      `auto-implement queue fail feedback=${item.id} code=${queued.code || "?"}`,
+      `auto-implement queue fail feedback=${approved.id} code=${queued.code || "?"}`,
     );
     return {
       ok: false,
@@ -170,7 +184,7 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
     };
   }
 
-  patchVirtualFeedbackSync(item.id, {
+  patchVirtualFeedbackSync(approved.id, {
     status: "queued",
     implementJobId: queued.id,
     implementQueuedAtMs: Date.now(),
@@ -178,13 +192,13 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
     preVersionId: pre.ok && pre.version ? pre.version.id : null,
     improvementSummary: "에이전트 실행 중 — 완료되면 다음 피드백을 이어서 실행합니다.",
     discomfort:
-      String(item.discomfort || "").trim() ||
-      [item.title, item.detail].filter(Boolean).join("\n\n"),
+      String(approved.discomfort || "").trim() ||
+      [approved.title, approved.detail].filter(Boolean).join("\n\n"),
   });
 
   appendServerEventLog(
     "virtual-user",
-    `auto-implement queued feedback=${item.id} job=${queued.id}`,
+    `auto-implement queued feedback=${approved.id} job=${queued.id}`,
   );
 
   try {
@@ -228,10 +242,11 @@ export async function dispatchNextVirtualUserImplement(opts = {}) {
     }
 
     const minSev = String(cfg.autoImplementMinSeverity || "minor");
+    // 매니저 승인(approved)만 에이전트 전송 — pending_review/new는 매니저 스캔이 먼저 처리
     const candidates = listVirtualFeedbackSync()
       .filter(
         (f) =>
-          f.status === "new" &&
+          f.status === "approved" &&
           severityOk(f.severity, minSev) &&
           String(f.prompt || "").trim() &&
           String(f.prompt).trim() !== "(생성 중)",

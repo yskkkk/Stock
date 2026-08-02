@@ -8,6 +8,8 @@ import {
   implementVirtualFeedback,
   patchVirtualPersona,
   patchVirtualUserContinuous,
+  reviewVirtualFeedbackManager,
+  reviewVirtualFeedbackManagerBatch,
   rollbackCodeVersion,
   runVirtualUsers,
   setVirtualFeedbackStatus,
@@ -27,6 +29,8 @@ function severityLabel(s: VirtualFeedback["severity"]): string {
 }
 
 function statusLabel(s: VirtualFeedback["status"]): string {
+  if (s === "pending_review") return ko.access.vuStatusPendingReview;
+  if (s === "approved") return ko.access.vuStatusApproved;
   if (s === "queued") return ko.access.vuStatusQueued;
   if (s === "done") return ko.access.vuStatusDone;
   if (s === "dismissed") return ko.access.vuStatusDismissed;
@@ -87,7 +91,9 @@ export default function VirtualUsersAdminPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [promptCache, setPromptCache] = useState<Record<string, string>>({});
   const [promptLoadingId, setPromptLoadingId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "new" | "queued" | "done">("all");
+  const [filter, setFilter] = useState<
+    "all" | "pending_review" | "approved" | "queued" | "done"
+  >("all");
 
   const reload = useCallback(async () => {
     setBusy(true);
@@ -226,6 +232,48 @@ export default function VirtualUsersAdminPanel({
         adminToken,
       );
       if (res.continuous) setContinuous(res.continuous);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const onManagerBatch = async () => {
+    setActionId("mgr-batch");
+    setErr(null);
+    setMsg(null);
+    try {
+      const res = await reviewVirtualFeedbackManagerBatch(adminToken, 12);
+      if (res.continuous) setContinuous(res.continuous);
+      setMsg(
+        `매니저 검토 ${res.reviewed ?? 0}건 완료` +
+          (res.results?.length
+            ? ` (${res.results
+                .slice(0, 4)
+                .map((r) => `${r.decision}:${r.score}`)
+                .join(", ")})`
+            : ""),
+      );
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const onManagerReviewOne = async (id: string) => {
+    setActionId(`mgr-${id}`);
+    setErr(null);
+    try {
+      const res = await reviewVirtualFeedbackManager(id, adminToken, true);
+      if (res.review) {
+        setMsg(
+          `매니저 ${res.review.decision} · score ${res.review.score}`,
+        );
+      }
+      await reload();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -468,6 +516,38 @@ export default function VirtualUsersAdminPanel({
         ) : null}
       </section>
 
+      <section className="vu-admin__section" aria-label={ko.access.vuManagerTitle}>
+        <div className="vu-admin__section-head">
+          <h3>{ko.access.vuManagerTitle}</h3>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={actionId === "mgr-batch"}
+            onClick={() => void onManagerBatch()}
+          >
+            {actionId === "mgr-batch"
+              ? "…"
+              : ko.access.vuManagerReviewBatch}
+          </button>
+        </div>
+        <p className="vu-admin__hint">{ko.access.vuManagerHint}</p>
+        {continuous ? (
+          <p className="vu-admin__meta">
+            {ko.access.vuManagerLast}:{" "}
+            {formatLastTick(continuous.lastManagerAtMs ?? null)}
+            {continuous.lastManagerScore != null
+              ? ` · ${ko.access.vuManagerScore} ${continuous.lastManagerScore}`
+              : ""}
+            {continuous.lastManagerDecision
+              ? ` · ${continuous.lastManagerDecision}`
+              : ""}
+            {continuous.managerReviewCount
+              ? ` · 누적 ${continuous.managerReviewCount}건`
+              : ""}
+          </p>
+        ) : null}
+      </section>
+
       <section className="vu-admin__section" aria-label={ko.access.vuVersions}>
         <div className="vu-admin__section-head">
           <h3>{ko.access.vuVersions}</h3>
@@ -615,7 +695,15 @@ export default function VirtualUsersAdminPanel({
             </span>
           </h3>
           <div className="vu-admin__filters" role="group">
-            {(["all", "new", "queued", "done"] as const).map((f) => (
+            {(
+              [
+                "all",
+                "pending_review",
+                "approved",
+                "queued",
+                "done",
+              ] as const
+            ).map((f) => (
               <button
                 key={f}
                 type="button"
@@ -628,11 +716,13 @@ export default function VirtualUsersAdminPanel({
               >
                 {f === "all"
                   ? ko.access.vuFilterAll
-                  : f === "new"
-                    ? ko.access.vuStatusNew
-                    : f === "queued"
-                      ? ko.access.vuStatusQueued
-                      : ko.access.vuStatusDone}
+                  : f === "pending_review"
+                    ? ko.access.vuFilterPendingReview
+                    : f === "approved"
+                      ? ko.access.vuFilterApproved
+                      : f === "queued"
+                        ? ko.access.vuStatusQueued
+                        : ko.access.vuStatusDone}
               </button>
             ))}
           </div>
@@ -692,17 +782,35 @@ export default function VirtualUsersAdminPanel({
                   <div className="vu-admin__block vu-admin__block--improve">
                     <strong>{ko.access.vuBlockImprovement}</strong>
                     <p>
-                      {it.improvementSummary?.trim()
-                        ? it.improvementSummary
-                        : it.status === "done"
-                          ? ko.access.vuImprovementPending
-                          : it.status === "queued"
-                            ? "구현 대기 중 — 프롬프트를 열어 에이전트에 준 내용을 확인할 수 있습니다."
-                            : ko.access.vuImprovementPending}
+                      {it.managerScore != null
+                        ? `매니저 ${it.managerDecision ?? "—"} · ${it.managerScore}점`
+                        : it.status === "pending_review"
+                          ? "매니저 검토 대기"
+                          : it.improvementSummary?.trim()
+                            ? it.improvementSummary
+                            : it.status === "done"
+                              ? ko.access.vuImprovementPending
+                              : it.status === "queued"
+                                ? "구현 대기 중 — 프롬프트를 열어 에이전트에 준 내용을 확인할 수 있습니다."
+                                : ko.access.vuImprovementPending}
                     </p>
                   </div>
 
                   <div className="vu-admin__item-actions">
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--sm"
+                      disabled={
+                        actionId === `mgr-${it.id}` ||
+                        it.status === "queued" ||
+                        it.status === "done"
+                      }
+                      onClick={() => void onManagerReviewOne(it.id)}
+                    >
+                      {actionId === `mgr-${it.id}`
+                        ? "…"
+                        : ko.access.vuManagerReviewOne}
+                    </button>
                     <button
                       type="button"
                       className="btn btn--primary btn--sm"

@@ -2930,6 +2930,10 @@ export type VirtualUserContinuous = {
   lastSessionId: string | null;
   lastError: string | null;
   lastCreatedCount: number;
+  lastManagerAtMs?: number | null;
+  lastManagerDecision?: string | null;
+  lastManagerScore?: number | null;
+  managerReviewCount?: number;
 };
 
 export type CodeVersion = {
@@ -2945,7 +2949,13 @@ export type CodeVersion = {
   note: string;
 };
 
-export type VirtualFeedbackStatus = "new" | "queued" | "done" | "dismissed";
+export type VirtualFeedbackStatus =
+  | "new"
+  | "pending_review"
+  | "approved"
+  | "queued"
+  | "done"
+  | "dismissed";
 export type VirtualFeedbackSeverity = "blocker" | "major" | "minor" | "nit";
 
 export type VirtualFeedback = {
@@ -2976,6 +2986,10 @@ export type VirtualFeedback = {
   telegramSentAtMs: number | null;
   backupCount: number;
   lastBackupId: string | null;
+  managerScore?: number | null;
+  managerDecision?: string | null;
+  managerNotes?: string;
+  managerReviewedAtMs?: number | null;
 };
 
 function virtualUserHeaders(adminToken?: string): Record<string, string> {
@@ -3176,6 +3190,45 @@ export function setVirtualFeedbackStatus(
       body: JSON.stringify({ status }),
     },
   );
+}
+
+export function reviewVirtualFeedbackManager(
+  id: string,
+  adminToken?: string,
+  force = false,
+) {
+  return fetchJson<{
+    ok: boolean;
+    skipped?: boolean;
+    reason?: string;
+    review?: {
+      score: number;
+      decision: string;
+      notes: string[];
+    };
+    item?: VirtualFeedback;
+    error?: string;
+  }>(`/api/virtual-users/feedback/${encodeURIComponent(id)}/manager-review`, {
+    method: "POST",
+    headers: virtualUserHeaders(adminToken),
+    body: JSON.stringify({ force }),
+  });
+}
+
+export function reviewVirtualFeedbackManagerBatch(
+  adminToken?: string,
+  limit = 8,
+) {
+  return fetchJson<{
+    ok: boolean;
+    reviewed: number;
+    results?: Array<{ id: string; decision: string; score: number }>;
+    continuous?: VirtualUserContinuous;
+  }>("/api/virtual-users/manager/review-batch", {
+    method: "POST",
+    headers: virtualUserHeaders(adminToken),
+    body: JSON.stringify({ limit }),
+  });
 }
 
 export function deleteVirtualFeedback(id: string, adminToken?: string) {
