@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   buildRebalanceNowConfirmMessage,
   buildRebalanceNowRunSubLabel,
+  buildRebalancePreviewRunSummaryLead,
   buildRebalancePreviewSubLabel,
   buildRebalanceRunSummaryLead,
   buildRebalanceSpendLines,
   buildRebalanceSpendSummary,
   buildRebalanceSpendSummaryInline,
+  buildRebalanceSpendSummaryLead,
   formatRebalanceMoney,
   withRebalanceAmountNote,
 } from "./rebalancePlanSummary";
@@ -178,5 +180,17 @@ describe("rebalancePlanSummary", () => {
     const line = buildRebalanceRunSummaryLead();
     expect(line).toContain("수수료·세금 미포함");
     expect(line).toContain("미리보기와 동일");
+  });
+
+  it("builds shared spend summary lead for compact toolbar", () => {
+    const line = buildRebalanceSpendSummaryLead();
+    expect(line).toContain("수수료·세금 미포함");
+    expect(line).toContain("시장별 사용 금액");
+  });
+
+  it("builds preview run summary lead matching modal preview block", () => {
+    const line = buildRebalancePreviewRunSummaryLead();
+    expect(line).toContain("수수료·세금 미포함");
+    expect(line).toContain("미리보기 금액");
   });
 });
