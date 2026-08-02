@@ -188,6 +188,7 @@ describe("stockVaultFilter", () => {
         ma120FromBelow: "하단접근",
         ma120FromAbove: "상단접근",
         timeframeWeekly: "주봉",
+        scanConditionNone: "탐색 조건 미선택",
       },
     });
     expect(labels).toEqual([
@@ -198,6 +199,31 @@ describe("stockVaultFilter", () => {
       "국내",
       "반도체",
     ]);
+  });
+
+  it("buildVaultActiveFilterLabels — 탐색 조건 없음 + 다른 필터", () => {
+    const labels = buildVaultActiveFilterLabels({
+      selectedScanDate: null,
+      filter: "all",
+      selectedScanSources: [],
+      timeframeFilter: "1d",
+      marketFilter: "kr",
+      industryFilter: "all",
+      ma120ApproachFilter: null,
+      scanSourceLabel: () => "골든크로스",
+      labels: {
+        historyAll: "전체",
+        scanDatePrefix: "일자",
+        filterFavorite: "즐겨찾기",
+        marketKr: "국내",
+        marketUs: "미국",
+        ma120FromBelow: "하단접근",
+        ma120FromAbove: "상단접근",
+        timeframeWeekly: "주봉",
+        scanConditionNone: "탐색 조건 미선택",
+      },
+    });
+    expect(labels).toEqual(["탐색 조건 미선택", "국내"]);
   });
 
   it("buildVaultActiveFilterLabels — 기본값이면 빈 배열", () => {
@@ -219,6 +245,7 @@ describe("stockVaultFilter", () => {
         ma120FromBelow: "하단접근",
         ma120FromAbove: "상단접근",
         timeframeWeekly: "주봉",
+        scanConditionNone: "탐색 조건 미선택",
       },
     });
     expect(labels).toEqual([]);
