@@ -14,6 +14,7 @@ import {
   accountSlicesToDonut,
   accountSymbolSliceLabel,
   buildAccountAllocationSlices,
+  portfolioShareChangePct,
   tossHoldingsToAccountRows,
   type AccountAllocMode,
   type AccountHoldingRow,
@@ -484,6 +485,8 @@ export default function AccountManageTab({
           currency: h.currency,
           quantity: h.quantity,
           valueKrw: mv,
+          costBasisKrw:
+            cost != null && Number.isFinite(cost) ? Math.round(cost) : null,
           returnPercent:
             h.returnPercent != null && Number.isFinite(h.returnPercent)
               ? h.returnPercent
@@ -566,6 +569,51 @@ export default function AccountManageTab({
   const { segments, total } = useMemo(
     () => accountSlicesToDonut(slices),
     [slices],
+  );
+
+  const totalCostKrw = useMemo(() => {
+    let sum = cashKrw;
+    for (const r of holdingRows) {
+      const c =
+        r.costBasisKrw != null && Number.isFinite(r.costBasisKrw) && r.costBasisKrw > 0
+          ? r.costBasisKrw
+          : r.valueKrw;
+      if (Number.isFinite(c) && c > 0) sum += c;
+    }
+    return sum;
+  }, [holdingRows, cashKrw]);
+
+  const sliceShareChangePct = useCallback(
+    (slice: { key: string; symbols: string[]; valueKrw: number } | undefined) => {
+      if (!slice || !(total > 0) || !(totalCostKrw > 0)) return null;
+      let sliceCost = 0;
+      if (slice.key === "__cash__") {
+        sliceCost = cashKrw;
+      } else {
+        const set = new Set(slice.symbols.map((s) => s.toUpperCase()));
+        let any = false;
+        for (const r of holdingRows) {
+          if (!set.has(r.symbol.toUpperCase())) continue;
+          const c =
+            r.costBasisKrw != null &&
+            Number.isFinite(r.costBasisKrw) &&
+            r.costBasisKrw > 0
+              ? r.costBasisKrw
+              : r.valueKrw;
+          if (!(Number.isFinite(c) && c > 0)) continue;
+          sliceCost += c;
+          any = true;
+        }
+        if (!any) return null;
+      }
+      return portfolioShareChangePct(
+        slice.valueKrw,
+        sliceCost,
+        total,
+        totalCostKrw,
+      );
+    },
+    [holdingRows, cashKrw, total, totalCostKrw],
   );
 
   const styleSlices = useMemo(
@@ -2055,6 +2103,7 @@ export default function AccountManageTab({
                   <ul className="account-manage-tab__legend">
                     {segments.map((seg) => {
                       const slice = slices.find((s) => s.key === seg.sector);
+                      const shareChg = sliceShareChangePct(slice);
                       return (
                         <li key={seg.sector}>
                           <button
@@ -2091,6 +2140,23 @@ export default function AccountManageTab({
                             </span>
                             <span className="account-manage-tab__legend-pct">
                               {formatAllocPct(seg.pct)}
+                            </span>
+                            <span
+                              className={[
+                                "account-manage-tab__legend-share-chg",
+                                shareChg != null && shareChg > 0
+                                  ? "is-up"
+                                  : shareChg != null && shareChg < 0
+                                    ? "is-down"
+                                    : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              title={ko.app.accountManageWeightChange}
+                            >
+                              {shareChg != null
+                                ? `(${formatPercent(shareChg)})`
+                                : ""}
                             </span>
                             <span
                               className="account-manage-tab__legend-val account-manage-tab__money"

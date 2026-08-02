@@ -862,6 +862,10 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
     .account-manage-tab__rebalance-actions--compact {
     grid-template-columns: 1fr;
   }
+
+  .account-manage-tab__toolbar-rebalance .account-manage-tab__rebalance-zone--real {
+    grid-column: 1;
+  }
 }
 
 .account-manage-tab__stat-sub {
@@ -1634,7 +1638,7 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
 
 .account-manage-tab__legend-btn {
   display: grid;
-  grid-template-columns: 0.65rem minmax(0, 1fr) 4.75rem 8.75rem;
+  grid-template-columns: 0.65rem minmax(0, 1fr) 3.4rem 4.2rem 7.6rem;
   column-gap: 0.55rem;
   row-gap: 0.15rem;
   align-items: center;
@@ -1674,6 +1678,7 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
 
 .account-manage-tab__legend-pct,
 .account-manage-tab__legend-ret,
+.account-manage-tab__legend-share-chg,
 .account-manage-tab__legend-val {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
@@ -1682,23 +1687,28 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
   white-space: nowrap;
 }
 
-.account-manage-tab__legend-ret {
+.account-manage-tab__legend-ret,
+.account-manage-tab__legend-share-chg {
   font-weight: 650;
 }
 
-.account-manage-tab__legend-ret.is-up {
+.account-manage-tab__legend-ret.is-up,
+.account-manage-tab__legend-share-chg.is-up {
   color: #22c55e;
 }
 
-.account-manage-tab__legend-ret.is-down {
+.account-manage-tab__legend-ret.is-down,
+.account-manage-tab__legend-share-chg.is-down {
   color: #ef4444;
 }
 
-html[data-theme="light"] .account-manage-tab__legend-ret.is-up {
+html[data-theme="light"] .account-manage-tab__legend-ret.is-up,
+html[data-theme="light"] .account-manage-tab__legend-share-chg.is-up {
   color: #15803d;
 }
 
-html[data-theme="light"] .account-manage-tab__legend-ret.is-down {
+html[data-theme="light"] .account-manage-tab__legend-ret.is-down,
+html[data-theme="light"] .account-manage-tab__legend-share-chg.is-down {
   color: #dc2626;
 }
 

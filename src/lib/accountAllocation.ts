@@ -18,6 +18,7 @@ import {
   type TossFeeRatesByMarket,
 } from "./tossHoldingFeeRates";
 import {
+  tossHoldingCostBasis,
   tossHoldingNetMarketValue,
   tossHoldingNetReturnPercentDisplay,
   tossHoldingNetUnrealizedPnlDisplay,
@@ -53,6 +54,8 @@ export type AccountHoldingRow = {
   currency?: string;
   quantity: number;
   valueKrw: number;
+  /** 매입 원가(원). US는 매수환율 반영 */
+  costBasisKrw: number | null;
   returnPercent: number | null;
   /** 평가손익(원) — 수수료 반영 순평가 기준 */
   unrealizedPnlKrw: number | null;
@@ -62,6 +65,25 @@ export type AccountHoldingRow = {
   sectorEn: string | null;
   sectorKo: string | null;
 };
+
+/**
+ * 최초 매입(원가) 비중 대비 현재 평가 비중의 증감률(%).
+ * (현재비중 / 원가비중 - 1) × 100
+ */
+export function portfolioShareChangePct(
+  sliceValueKrw: number,
+  sliceCostKrw: number,
+  totalValueKrw: number,
+  totalCostKrw: number,
+): number | null {
+  if (!(totalValueKrw > 0) || !(totalCostKrw > 0)) return null;
+  if (!(sliceCostKrw > 0) || !Number.isFinite(sliceValueKrw)) return null;
+  const cur = sliceValueKrw / totalValueKrw;
+  const init = sliceCostKrw / totalCostKrw;
+  if (!(init > 0) || !Number.isFinite(cur)) return null;
+  const pct = ((cur - init) / init) * 100;
+  return Number.isFinite(pct) ? pct : null;
+}
 
 /**
  * 정책 SSOT(`shared/account-holding-style-policy.js`) + 사용자 오버라이드.
@@ -310,6 +332,19 @@ export function tossHoldingsToAccountRows(
     const unrealizedPnlKrw =
       tossHoldingNetUnrealizedPnlKrw(h, rate, fee, buyFx) ??
       (displayCurrency === "KRW" ? unrealizedPnlDisplay : null);
+    const costNative = tossHoldingCostBasis(h);
+    let costBasisKrw: number | null = null;
+    if (costNative != null && Number.isFinite(costNative) && costNative > 0) {
+      if (market === "us") {
+        if (rate) {
+          const fx =
+            buyFx != null && Number.isFinite(buyFx) && buyFx > 0 ? buyFx : rate;
+          costBasisKrw = Math.round(costNative * fx);
+        }
+      } else {
+        costBasisKrw = Math.round(costNative);
+      }
+    }
     const meta = enrich.get(String(h.symbol ?? "").toUpperCase()) ?? {};
     const industry = meta.industry ?? null;
     const subIndustry = (meta.subIndustry || industry || null) as string | null;
@@ -321,6 +356,7 @@ export function tossHoldingsToAccountRows(
       currency: h.currency,
       quantity: h.quantity,
       valueKrw,
+      costBasisKrw,
       returnPercent:
         returnPctDisplay != null && Number.isFinite(returnPctDisplay)
           ? returnPctDisplay

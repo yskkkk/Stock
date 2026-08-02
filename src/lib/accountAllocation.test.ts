@@ -3,6 +3,7 @@ import {
   accountSymbolSliceLabel,
   buildAccountAllocationSlices,
   classifyAccountHoldingStyle,
+  portfolioShareChangePct,
   tossHoldingsToAccountRows,
 } from "./accountAllocation";
 import {
@@ -49,6 +50,14 @@ describe("accountAllocation symbol labels", () => {
   });
 });
 
+describe("portfolioShareChangePct", () => {
+  it("returns relative change of portfolio share vs cost share", () => {
+    // cost share 40% → current 50% → +25%
+    expect(portfolioShareChangePct(500, 400, 1000, 1000)).toBeCloseTo(25);
+    expect(portfolioShareChangePct(300, 400, 1000, 1000)).toBeCloseTo(-25);
+  });
+});
+
 describe("accountAllocation style mode", () => {
   it("splits growth / value / cash", () => {
     const rows = [
@@ -58,6 +67,7 @@ describe("accountAllocation style mode", () => {
         market: "us" as const,
         quantity: 1,
         valueKrw: 400,
+        costBasisKrw: null,
         returnPercent: null,
         unrealizedPnlKrw: null,
         industry: null,
@@ -71,6 +81,7 @@ describe("accountAllocation style mode", () => {
         market: "us" as const,
         quantity: 1,
         valueKrw: 300,
+        costBasisKrw: null,
         returnPercent: null,
         unrealizedPnlKrw: null,
         industry: null,
@@ -84,6 +95,7 @@ describe("accountAllocation style mode", () => {
         market: "kr" as const,
         quantity: 1,
         valueKrw: 200,
+        costBasisKrw: null,
         returnPercent: null,
         unrealizedPnlKrw: null,
         industry: "반도체",

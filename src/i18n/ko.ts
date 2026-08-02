@@ -306,6 +306,7 @@ export const ko = {
     accountManageEvalAmount: "평가금액",
     accountManageChangePct: "등락률",
     accountManageColWeight: "비중",
+    accountManageWeightChange: "최초 매입 대비 비중 증감",
     accountManageRawSummary: "계좌 상세(잔고·주문)",
     accountManageNoExchange: "연동된 거래소 API가 없습니다. 실거래 탭에서 키를 연결하세요.",
     tabOps: "운영",
