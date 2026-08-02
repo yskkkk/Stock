@@ -1782,7 +1782,14 @@ export default function AccountManageTab({
           >
             <aside
               ref={wheelRef}
-              className="account-manage-tab__wheel card"
+              className={[
+                "account-manage-tab__wheel card",
+                styleFocusKey && !focusKey
+                  ? "account-manage-tab__wheel--passive"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
               aria-label={ko.app.accountManageChartTitle}
             >
               <div className="account-manage-tab__wheel-head">
@@ -1863,16 +1870,7 @@ export default function AccountManageTab({
               {segments.length === 0 ? (
                 <p className="account-manage-tab__empty">{ko.app.accountManageEmpty}</p>
               ) : panelTab === "chart" ? (
-                <div
-                  className={[
-                    "account-manage-tab__chart-panel",
-                    styleFocusKey && !focusKey
-                      ? "account-manage-tab__chart-panel--passive"
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
+                <div className="account-manage-tab__chart-panel">
                   <svg
                     className="account-manage-tab__svg"
                     viewBox="0 0 200 200"
@@ -2058,7 +2056,17 @@ export default function AccountManageTab({
                 </ul>
               )}
 
-              {focusKey ? renderChartFilterBar(undefined, "weight") : null}
+              {focusKey ? (
+                renderChartFilterBar(undefined, "weight")
+              ) : styleFocusKey ? (
+                <p className="account-manage-tab__hint account-manage-tab__hint--passive">
+                  {ko.app.accountManageStyleFilterPassive}
+                </p>
+              ) : (
+                <p className="account-manage-tab__hint">
+                  {ko.app.accountManagePickHint} {ko.app.accountManageHoverHint}
+                </p>
+              )}
             </aside>
 
             {styleSegments.length > 0 ? (

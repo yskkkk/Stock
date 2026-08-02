@@ -914,7 +914,8 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   gap: 0.55rem;
 }
 
-.account-manage-tab__style-panel--passive {
+.account-manage-tab__style-panel--passive,
+.account-manage-tab__wheel--passive {
   opacity: 0.62;
   transition: opacity 0.15s ease;
 }
