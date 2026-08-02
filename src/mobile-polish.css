@@ -306,6 +306,12 @@
     padding: 0.48rem 0.55rem;
   }
 
+  .stock-vault-tab__empty-filter {
+    margin-inline: max(0px, env(safe-area-inset-left, 0px))
+      max(0px, env(safe-area-inset-right, 0px));
+    padding: 0.35rem 0.55rem 0.15rem;
+  }
+
   .stock-vault-tab__filter-reset {
     min-height: 44px;
     padding: 0.45rem 0.85rem;
