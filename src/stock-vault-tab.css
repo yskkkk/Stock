@@ -264,8 +264,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.45rem;
-  margin: 0.35rem 0 0;
+  gap: 0.55rem;
+  margin: 0.45rem 0 0.25rem;
+  padding: 0.35rem 0.25rem 0.15rem;
   text-align: center;
   word-break: keep-all;
   overflow-wrap: anywhere;
@@ -1476,22 +1477,23 @@ html[data-theme="light"] .stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
   width: 1.28rem;
   height: 1.28rem;
   padding: 0;
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-sm, 6px);
-  background: color-mix(in srgb, var(--card) 92%, var(--surface));
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--muted);
   cursor: pointer;
 }
 
 .stock-vault-tab__favorite:hover:not(:disabled) {
   color: var(--accent);
-  border-color: var(--accent-border);
+  background: transparent;
 }
 
 .stock-vault-tab__favorite--on {
   color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border));
-  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+  border: none;
+  background: transparent;
 }
 
 .stock-vault-tab__favorite:disabled {
@@ -1602,12 +1604,18 @@ html[data-theme="light"] .stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
   margin: 0;
   padding: 0;
   border: none;
+  border-radius: 0;
   background: transparent;
+  box-shadow: none;
+  outline: none;
   color: color-mix(in srgb, var(--muted) 78%, transparent);
   cursor: pointer;
-  transition:
-    color 0.15s ease,
-    background 0.15s ease;
+  transition: color 0.15s ease;
+}
+
+.stock-vault-mark:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .stock-vault-mark--inline {
@@ -1620,16 +1628,21 @@ html[data-theme="light"] .stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
 .stock-hot-item:hover .stock-vault-mark--inline,
 .stock-vault-mark--inline:hover {
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent-dim) 28%, transparent);
+  background: transparent;
 }
 
 .stock-vault-mark--saved,
 .stock-hot-item--active .stock-vault-mark--saved {
-  color: var(--accent);
+  color: var(--text, #0f172a);
+}
+
+html:not([data-theme="light"]) .stock-vault-mark--saved,
+html:not([data-theme="light"]) .stock-hot-item--active .stock-vault-mark--saved {
+  color: color-mix(in srgb, var(--text) 88%, var(--accent));
 }
 
 .stock-vault-mark--inline.stock-vault-mark--saved {
-  background: color-mix(in srgb, var(--accent-dim) 22%, transparent);
+  background: transparent;
 }
 
 .stock-vault-mark__icon {
@@ -1654,8 +1667,8 @@ html[data-theme="light"] .stock-vault-tab__row--tf-wk .stock-vault-tab__cross {
 
 .pick-action--vault-saved {
   color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--card-border));
-  background: color-mix(in srgb, var(--accent-dim) 30%, var(--surface));
+  border-color: transparent;
+  background: transparent;
 }
 
 .pick-action__icon--vault {

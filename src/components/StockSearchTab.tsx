@@ -734,11 +734,16 @@ export default function StockSearchTab({
     (pick: StockPick, row: StockSearchQuoteRow, anchor: HTMLElement) => {
       const sym = pick.symbol.trim().toUpperCase();
       if (vaultSymbols?.has(sym)) {
-        openTrackPopover(pick, row, anchor);
-        return;
+        setTrackPopover((prev) => (prev?.data.symbol === sym ? null : prev));
       }
       void (async () => {
         const result = await onAddToVault?.(pick, { row });
+        if (result?.action === "removed") {
+          setTrackPopover((prev) =>
+            prev?.data.symbol === sym ? null : prev,
+          );
+          return;
+        }
         if (result?.action === "added") {
           openTrackPopover(pick, row, anchor, {
             addedAtMs: result.addedAtMs,

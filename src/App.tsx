@@ -283,6 +283,8 @@ export default function App() {
   const [chartStale, setChartStale] = useState(false);
   const [chartEngine, setChartEngine] = useState<StockChartEngine>("app");
   const [vaultSymbols, setVaultSymbols] = useState<Set<string>>(() => new Set());
+  const vaultSymbolsRef = useRef(vaultSymbols);
+  vaultSymbolsRef.current = vaultSymbols;
   const [vaultFavoriteMeta, setVaultFavoriteMeta] = useState<
     Record<string, StockVaultFavoriteMeta>
   >({});
@@ -302,27 +304,44 @@ export default function App() {
     ): Promise<StockVaultToggleResult | void> => {
       if (pick.market !== "kr" && pick.market !== "us") return;
       const sym = pick.symbol.trim().toUpperCase();
-      if (vaultSymbols.has(sym)) {
+      const wasSaved = vaultSymbolsRef.current.has(sym);
+
+      if (wasSaved) {
+        setVaultSymbols((prev) => {
+          const next = new Set(prev);
+          next.delete(sym);
+          return next;
+        });
+        let metaRollback: StockVaultFavoriteMeta | undefined;
+        setVaultFavoriteMeta((prev) => {
+          metaRollback = prev[sym];
+          if (!(sym in prev)) return prev;
+          const next = { ...prev };
+          delete next[sym];
+          return next;
+        });
         try {
           await removeStockVaultItem(pick.symbol);
-          setVaultSymbols((prev) => {
-            const next = new Set(prev);
-            next.delete(sym);
-            return next;
-          });
-          setVaultFavoriteMeta((prev) => {
-            const next = { ...prev };
-            delete next[sym];
-            return next;
-          });
           return { action: "removed" };
         } catch {
-          /* ignore */
+          setVaultSymbols((prev) => new Set(prev).add(sym));
+          if (metaRollback) {
+            setVaultFavoriteMeta((prev) => ({ ...prev, [sym]: metaRollback! }));
+          }
         }
         return;
       }
-      const favoritePrice =
-        ctx?.row?.price ?? pick.price ?? null;
+
+      const favoritePrice = ctx?.row?.price ?? pick.price ?? null;
+      const optimisticMeta: StockVaultFavoriteMeta = {
+        name: pick.name,
+        market: pick.market,
+        addedAtMs: Date.now(),
+        updatedAtMs: Date.now(),
+        favoritePrice,
+      };
+      setVaultSymbols((prev) => new Set(prev).add(sym));
+      setVaultFavoriteMeta((prev) => ({ ...prev, [sym]: optimisticMeta }));
       try {
         const res = await addStockVaultItem({
           symbol: pick.symbol,
@@ -339,7 +358,6 @@ export default function App() {
           updatedAtMs: item.updatedAtMs,
           favoritePrice: item.favoritePrice ?? favoritePrice,
         };
-        setVaultSymbols((prev) => new Set(prev).add(sym));
         setVaultFavoriteMeta((prev) => ({ ...prev, [sym]: meta }));
         return {
           action: "added",
@@ -347,12 +365,22 @@ export default function App() {
           favoritePrice: meta.favoritePrice ?? null,
         };
       } catch (e) {
+        setVaultSymbols((prev) => {
+          const next = new Set(prev);
+          next.delete(sym);
+          return next;
+        });
+        setVaultFavoriteMeta((prev) => {
+          const next = { ...prev };
+          delete next[sym];
+          return next;
+        });
         if (e instanceof Error && e.message.includes("로그인")) {
           window.alert(ko.stockVault.loginRequired);
         }
       }
     },
-    [vaultSymbols],
+    [],
   );
 
   const handleVaultFavoritePriceSaved = useCallback(
@@ -866,7 +894,9 @@ export default function App() {
   const { rate: usdKrwRate, valuationDate: usdKrwValDate } = useUsdKrwRate(true);
   const {
     items: marketIndices,
+    updatedAt: marketIndicesUpdatedAt,
     loading: marketIndicesLoading,
+    syncing: marketIndicesSyncing,
   } = useMarketIndices(true);
 
   const toggleUsQuoteKrw = useCallback(() => {
@@ -1517,6 +1547,8 @@ export default function App() {
         <MarketIndicesBelt
           items={marketIndices}
           loading={marketIndicesLoading}
+          syncing={marketIndicesSyncing}
+          updatedAt={marketIndicesUpdatedAt}
           layout="top"
           onOpenItem={handleOpenMarketIndex}
         />
