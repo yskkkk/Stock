@@ -498,6 +498,10 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   min-width: 0;
 }
 
+.account-manage-tab__toolbar-rebalance .account-manage-tab__rebalance-zone--real {
+  grid-column: 2;
+}
+
 .account-manage-tab__toolbar-rebalance .account-manage-tab__rebalance-zone--compact .account-manage-tab__hide-btn {
   width: 100%;
   min-height: 3.1rem;
