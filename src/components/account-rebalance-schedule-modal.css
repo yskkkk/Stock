@@ -538,6 +538,10 @@ html:not([data-theme="light"]) .account-rebalance-modal__sim-badge {
 }
 
 .account-rebalance-modal__preview-spend-lines {
+  margin: 0;
+}
+
+.account-rebalance-modal__preview-spend-summary {
   margin: 0 0 0.55rem;
 }
 

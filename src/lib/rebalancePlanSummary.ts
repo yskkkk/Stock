@@ -92,6 +92,18 @@ export function summarizeRebalancePlanTotals(
   return buildRebalanceSpendSummary(plans, enabledMarkets);
 }
 
+/** 미리보기·compact 툴바 공통 — 시장별 금액 목록 위 lead */
+export function buildRebalanceSpendSummaryLead(): string {
+  return withRebalanceAmountNote(ko.app.accountManageRebalanceSpendSummaryLead);
+}
+
+/** 모달 미리보기 섹션 — spend 목록 위 lead (즉시매수 foot lead와 쌍) */
+export function buildRebalancePreviewRunSummaryLead(): string {
+  return withRebalanceAmountNote(
+    ko.app.accountManageRebalancePreviewRunSummaryLead,
+  );
+}
+
 /** 실행 버튼 위 안내 — 시장별 금액은 buildRebalanceSpendLines로 분리 표시 */
 export function buildRebalanceRunSummaryLead(): string {
   return withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSummaryLead);

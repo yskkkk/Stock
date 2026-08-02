@@ -12,6 +12,7 @@ import { formatPercent } from "../lib/format";
 import {
   buildRebalanceNowConfirmMessage,
   buildRebalanceNowRunSubLabel,
+  buildRebalancePreviewRunSummaryLead,
   buildRebalanceRunSummaryLead,
   formatRebalanceMoney,
   withRebalanceAmountNote,
@@ -299,6 +300,7 @@ export default function AccountRebalanceScheduleModal({
   const monthLabel = `${year}년 ${monthIndex + 1}월`;
   const buyNowAllowed = anySelectedMarketRegularOpen(markets);
   const buyNowRunSummaryLead = buildRebalanceRunSummaryLead();
+  const previewRunSummaryLead = buildRebalancePreviewRunSummaryLead();
   const hasBuyNowSpendLines = markets.some((m) => planByMarket.get(m));
   const showScheduleForm = !loading && !loadError;
 
@@ -595,11 +597,19 @@ export default function AccountRebalanceScheduleModal({
                 {withRebalanceAmountNote(ko.app.accountManageRebalancePreviewHint)}
               </p>
               {hasBuyNowSpendLines ? (
-                <RebalanceSpendSummaryList
-                  plans={plans}
-                  enabledMarkets={markets}
-                  className="account-rebalance-modal__spend-lines account-rebalance-modal__preview-spend-lines"
-                />
+                <div
+                  className="account-rebalance-modal__foot-zone-summary account-rebalance-modal__preview-spend-summary"
+                  data-vu="account-rebalance-preview-summary"
+                >
+                  <p className="account-rebalance-modal__foot-zone-summary-lead">
+                    {previewRunSummaryLead}
+                  </p>
+                  <RebalanceSpendSummaryList
+                    plans={plans}
+                    enabledMarkets={markets}
+                    className="account-rebalance-modal__spend-lines account-rebalance-modal__preview-spend-lines"
+                  />
+                </div>
               ) : null}
               {(["kr", "us"] as const).map((m) => {
                 const on = markets.includes(m);
