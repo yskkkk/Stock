@@ -1075,10 +1075,65 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
   border-style: dashed;
 }
 
+.account-manage-tab__holdings-hidden.is-collapsed {
+  padding-bottom: 0.75rem;
+}
+
+.account-manage-tab__hidden-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.1rem 0.15rem 0.1rem 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0.4rem;
+  min-width: 0;
+}
+
+.account-manage-tab__hidden-toggle:hover .account-manage-tab__holdings-title,
+.account-manage-tab__hidden-toggle:hover .account-manage-tab__hidden-chevron {
+  color: var(--accent-ink, var(--accent));
+}
+
+.account-manage-tab__hidden-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.account-manage-tab__hidden-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1rem;
+  font-size: 0.62rem;
+  line-height: 1;
+  color: var(--muted);
+  transform: rotate(-90deg);
+  transition: transform 0.18s ease;
+}
+
+.account-manage-tab__hidden-chevron.is-open {
+  transform: rotate(0deg);
+}
+
 .account-manage-tab__holdings-hidden .account-manage-tab__holdings-title {
   display: inline-flex;
   align-items: baseline;
   gap: 0.45rem;
+  margin: 0;
+}
+
+.account-manage-tab__hidden-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
 .account-manage-tab__hidden-hint {

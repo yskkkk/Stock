@@ -188,6 +188,7 @@ export default function AccountManageTab({
   const [stylePolicyLines, setStylePolicyLines] = useState<string[]>([]);
   const [styleSavingSym, setStyleSavingSym] = useState<string | null>(null);
   const [styleColHighlight, setStyleColHighlight] = useState(false);
+  const [hiddenHoldingsOpen, setHiddenHoldingsOpen] = useState(true);
   const [enrichMap, setEnrichMap] = useState<
     Map<
       string,
@@ -3047,19 +3048,43 @@ export default function AccountManageTab({
 
             {hiddenHoldingRows.length > 0 ? (
               <section
-                className="account-manage-tab__holdings-hidden card"
+                className={[
+                  "account-manage-tab__holdings-hidden",
+                  "card",
+                  hiddenHoldingsOpen ? "is-open" : "is-collapsed",
+                ].join(" ")}
                 aria-label={ko.app.accountManageHiddenList}
               >
                 <div className="account-manage-tab__holdings-head">
-                  <h3 className="account-manage-tab__holdings-title">
-                    {ko.app.accountManageHiddenList}
-                    <span className="account-manage-tab__hidden-count">
-                      {ko.app.accountManageHiddenCount.replace(
-                        "{n}",
-                        String(hiddenHoldingRows.length),
-                      )}
+                  <button
+                    type="button"
+                    className="account-manage-tab__hidden-toggle"
+                    aria-expanded={hiddenHoldingsOpen}
+                    aria-controls="account-hidden-holdings-body"
+                    aria-label={ko.app.accountManageHiddenListToggle}
+                    onClick={() => setHiddenHoldingsOpen((v) => !v)}
+                  >
+                    <span
+                      className={[
+                        "account-manage-tab__hidden-chevron",
+                        hiddenHoldingsOpen ? "is-open" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      aria-hidden
+                    >
+                      ▼
                     </span>
-                  </h3>
+                    <h3 className="account-manage-tab__holdings-title">
+                      {ko.app.accountManageHiddenList}
+                      <span className="account-manage-tab__hidden-count">
+                        {ko.app.accountManageHiddenCount.replace(
+                          "{n}",
+                          String(hiddenHoldingRows.length),
+                        )}
+                      </span>
+                    </h3>
+                  </button>
                   <button
                     type="button"
                     className="account-manage-tab__clear-hidden"
@@ -3068,97 +3093,112 @@ export default function AccountManageTab({
                     {ko.app.accountManageClearHidden}
                   </button>
                 </div>
-                <p className="account-manage-tab__hidden-hint">
-                  {ko.app.accountManageHiddenListHint}
-                </p>
-                <div className="account-manage-tab__table-wrap account-manage-tab__table-wrap--hidden">
-                  <table className="account-manage-tab__table">
-                    <thead>
-                      <tr>
-                        <th>{ko.app.liveTradePfColSymbol}</th>
-                        <th>{ko.app.accountManageGroupMarket}</th>
-                        <th>{ko.app.liveTradePfColQty}</th>
-                        <th>{ko.app.accountManageSliceValue}</th>
-                        <th>{ko.app.liveTradePfReturn}</th>
-                        <th>{ko.app.accountManageColHide}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {hiddenHoldingRows.map((row) => (
-                        <tr key={`hidden:${row.market}:${row.symbol}`}>
-                          <td>
-                            <strong>{row.symbol}</strong>
-                            <div className="account-manage-tab__name">{row.name}</div>
-                          </td>
-                          <td>
-                            {row.market === "us"
-                              ? labels.marketUs
-                              : row.market === "crypto"
-                                ? labels.marketCrypto
-                                : labels.marketKr}
-                          </td>
-                          <td>{row.quantity}</td>
-                          <td>
-                            <span
-                              className="account-manage-tab__money"
-                              aria-hidden={balanceHidden || undefined}
-                            >
-                              {money(row.valueKrw)}
-                            </span>
-                          </td>
-                          <td
-                            className={
-                              row.returnPercent != null && row.returnPercent > 0
-                                ? "is-up"
-                                : row.returnPercent != null && row.returnPercent < 0
-                                  ? "is-down"
-                                  : row.unrealizedPnlKrw != null &&
-                                      row.unrealizedPnlKrw > 0
+                {hiddenHoldingsOpen ? (
+                  <div
+                    id="account-hidden-holdings-body"
+                    className="account-manage-tab__hidden-body"
+                  >
+                    <p className="account-manage-tab__hidden-hint">
+                      {ko.app.accountManageHiddenListHint}
+                    </p>
+                    <div className="account-manage-tab__table-wrap account-manage-tab__table-wrap--hidden">
+                      <table className="account-manage-tab__table">
+                        <thead>
+                          <tr>
+                            <th>{ko.app.liveTradePfColSymbol}</th>
+                            <th>{ko.app.accountManageGroupMarket}</th>
+                            <th>{ko.app.liveTradePfColQty}</th>
+                            <th>{ko.app.accountManageSliceValue}</th>
+                            <th>{ko.app.liveTradePfReturn}</th>
+                            <th>{ko.app.accountManageColHide}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {hiddenHoldingRows.map((row) => (
+                            <tr key={`hidden:${row.market}:${row.symbol}`}>
+                              <td>
+                                <strong>{row.symbol}</strong>
+                                <div className="account-manage-tab__name">
+                                  {row.name}
+                                </div>
+                              </td>
+                              <td>
+                                {row.market === "us"
+                                  ? labels.marketUs
+                                  : row.market === "crypto"
+                                    ? labels.marketCrypto
+                                    : labels.marketKr}
+                              </td>
+                              <td>{row.quantity}</td>
+                              <td>
+                                <span
+                                  className="account-manage-tab__money"
+                                  aria-hidden={balanceHidden || undefined}
+                                >
+                                  {money(row.valueKrw)}
+                                </span>
+                              </td>
+                              <td
+                                className={
+                                  row.returnPercent != null &&
+                                  row.returnPercent > 0
                                     ? "is-up"
-                                    : row.unrealizedPnlKrw != null &&
-                                        row.unrealizedPnlKrw < 0
+                                    : row.returnPercent != null &&
+                                        row.returnPercent < 0
                                       ? "is-down"
-                                      : ""
-                            }
-                          >
-                            {row.returnPercent != null ||
-                            row.unrealizedPnlKrw != null ? (
-                              <span className="account-manage-tab__return-cell">
-                                {row.unrealizedPnlKrw != null ? (
-                                  <span
-                                    className="account-manage-tab__money"
-                                    aria-hidden={balanceHidden || undefined}
-                                  >
-                                    {signedPnl(row.unrealizedPnlKrw)}
+                                      : row.unrealizedPnlKrw != null &&
+                                          row.unrealizedPnlKrw > 0
+                                        ? "is-up"
+                                        : row.unrealizedPnlKrw != null &&
+                                            row.unrealizedPnlKrw < 0
+                                          ? "is-down"
+                                          : ""
+                                }
+                              >
+                                {row.returnPercent != null ||
+                                row.unrealizedPnlKrw != null ? (
+                                  <span className="account-manage-tab__return-cell">
+                                    {row.unrealizedPnlKrw != null ? (
+                                      <span
+                                        className="account-manage-tab__money"
+                                        aria-hidden={
+                                          balanceHidden || undefined
+                                        }
+                                      >
+                                        {signedPnl(row.unrealizedPnlKrw)}
+                                      </span>
+                                    ) : null}
+                                    {row.returnPercent != null ? (
+                                      <span className="account-manage-tab__return-pct">
+                                        {row.unrealizedPnlKrw != null
+                                          ? " "
+                                          : null}
+                                        ({formatPercent(row.returnPercent)})
+                                      </span>
+                                    ) : null}
                                   </span>
-                                ) : null}
-                                {row.returnPercent != null ? (
-                                  <span className="account-manage-tab__return-pct">
-                                    {row.unrealizedPnlKrw != null ? " " : null}
-                                    ({formatPercent(row.returnPercent)})
-                                  </span>
-                                ) : null}
-                              </span>
-                            ) : (
-                              "?"
-                            )}
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="account-manage-tab__hide-row-btn"
-                              aria-pressed={true}
-                              title={ko.app.accountManageUnhide}
-                              onClick={() => toggleHidden(row.symbol)}
-                            >
-                              {ko.app.accountManageUnhide}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                                ) : (
+                                  "?"
+                                )}
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="account-manage-tab__hide-row-btn"
+                                  aria-pressed={true}
+                                  title={ko.app.accountManageUnhide}
+                                  onClick={() => toggleHidden(row.symbol)}
+                                >
+                                  {ko.app.accountManageUnhide}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : null}
               </section>
             ) : null}
             </div>

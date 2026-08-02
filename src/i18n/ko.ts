@@ -332,6 +332,7 @@ export const ko = {
     accountManageHiddenCount: "숨김 {n}",
     accountManageClearHidden: "숨김 모두 해제",
     accountManageHiddenList: "숨긴 종목",
+    accountManageHiddenListToggle: "숨긴 종목 목록 펼치기/접기",
     accountManageHiddenListHint:
       "차트·평가금액 합산에서 빠진 종목입니다. 「표시」로 다시 포함할 수 있습니다.",
     accountManageRawSummary: "계좌 상세(잔고·주문)",
