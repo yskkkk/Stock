@@ -1807,6 +1807,20 @@ export default function AccountManageTab({
                     </span>
                   </p>
                 </div>
+                {provider === "toss" ? (
+                  <div
+                    className="account-manage-tab__wheel-rebalance"
+                    role="group"
+                    aria-label={ko.app.accountManageRebalanceTitle}
+                  >
+                    <span className="account-manage-tab__wheel-rebalance-label">
+                      {ko.app.accountManageRebalanceTitle}
+                    </span>
+                    <div className="account-manage-tab__wheel-rebalance-actions">
+                      {renderRebalanceActionButtons("wheel")}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div className="account-manage-tab__mode" role="group">
