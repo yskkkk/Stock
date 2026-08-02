@@ -32,7 +32,7 @@ describe("mergeLiveQuotesIntoTossSnapshot", () => {
       null,
     );
     expect(out.holdings[0]?.currentPrice).toBe(72_000);
-    const netPl = 72_000 * 10 * 0.999 - 70_000 * 10;
+    const netPl = 72_000 * 10 * 0.998 - 70_000 * 10;
     expect(out.summary?.profitLossKrw).toBe(netPl);
     expect(out.summary?.totalReturnPct).toBeCloseTo((netPl / 700_000) * 100, 4);
   });
@@ -59,7 +59,8 @@ describe("mergeLiveQuotesIntoTossSnapshot", () => {
       { AAPL: { price: 110 } },
       1300,
     );
-    expect(out.summary?.profitLossKrw).toBe(20 * 1300);
+    // netMv 220*0.998=219.56, cost 200 → pnl 19.56$ → KRW
+    expect(out.summary?.profitLossKrw).toBe(Math.round(19.56 * 1300));
   });
 });
 

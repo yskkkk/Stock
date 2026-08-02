@@ -67,15 +67,19 @@ export function tossHoldingGrossMarketValue(h: TossTestHolding): number | null {
   return null;
 }
 
-/** Net market value after half round-trip (sell-side) fee. */
+/** Net market value after round-trip fee (0.2%). USD keeps 2 decimal places. */
 export function tossHoldingNetMarketValue(
   h: TossTestHolding,
   roundTripFeeRate: number = DEFAULT_ROUND_TRIP_FEE_RATE,
 ): number | null {
   const mv = tossHoldingGrossMarketValue(h);
   if (mv == null) return null;
-  const askFee = normalizeRoundTripFeeRate(roundTripFeeRate) / 2;
-  return Math.round(mv * (1 - askFee));
+  const fee = normalizeRoundTripFeeRate(roundTripFeeRate);
+  const net = mv * (1 - fee);
+  if (!Number.isFinite(net) || !(net > 0)) return null;
+  const isUsd = h.currency === "USD" || h.market === "us";
+  if (isUsd) return Math.round(net * 100) / 100;
+  return Math.round(net);
 }
 
 export function tossHoldingNetUnrealizedPnl(
@@ -86,7 +90,10 @@ export function tossHoldingNetUnrealizedPnl(
   const netMv = tossHoldingNetMarketValue(h, roundTripFeeRate);
   if (cost == null || netMv == null) return null;
   const pnl = netMv - cost;
-  return Number.isFinite(pnl) ? pnl : null;
+  if (!Number.isFinite(pnl)) return null;
+  const isUsd = h.currency === "USD" || h.market === "us";
+  if (isUsd) return Math.round(pnl * 100) / 100;
+  return Math.round(pnl);
 }
 
 export function tossHoldingNetReturnPercent(

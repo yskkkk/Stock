@@ -86,11 +86,11 @@ function krwToDisplay(
   usdKrwRate: number | null,
 ): number | null {
   if (n == null || !Number.isFinite(n)) return null;
-  if (currency === "KRW") return n;
+  if (currency === "KRW") return Math.round(n);
   if (!(usdKrwRate != null && Number.isFinite(usdKrwRate) && usdKrwRate > 0)) {
     return null;
   }
-  return n / usdKrwRate;
+  return Math.round((n / usdKrwRate) * 100) / 100;
 }
 
 /** `unrealizedPnlKrw` is display-currency units; convert to KRW to pair with `valueKrw`. */

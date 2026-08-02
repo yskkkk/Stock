@@ -38,15 +38,20 @@ export function summarizeHoldingsPnl(
   return { pnlByCurrency, investedByCurrency, marketByCurrency };
 }
 
-/** 현재가×수량 평가액에서 매도 수수료(왕복의 절반)를 뺀 순평가액 */
+/** 현재가×수량 평가액에서 왕복 수수료(0.2%)를 뺀 순평가액 */
 export function holdingNetMarketValue(
-  h: Pick<LiveTradeHolding, "marketValue">,
+  h: Pick<LiveTradeHolding, "marketValue" | "market">,
   roundTripFeeRate: number,
 ): number | null {
   const mv = h.marketValue;
   if (mv == null || !Number.isFinite(mv) || mv <= 0) return null;
-  const askFee = normalizeRoundTripFeeRate(roundTripFeeRate) / 2;
-  return Math.round(mv * (1 - askFee));
+  const fee = normalizeRoundTripFeeRate(roundTripFeeRate);
+  const net = mv * (1 - fee);
+  if (!Number.isFinite(net) || !(net > 0)) return null;
+  if (h.market === "us" || h.market === "crypto") {
+    return Math.round(net * 100) / 100;
+  }
+  return Math.round(net);
 }
 
 /** 매도 수수료 반영 미실현 손익 */
@@ -250,7 +255,7 @@ export function holdingNetReturnPctFromCost(
   if (!Number.isFinite(cost) || cost <= 0) return null;
   if (!Number.isFinite(mv) || mv <= 0) return null;
   const fee = normalizeRoundTripFeeRate(roundTripFeeRate);
-  const netMv = mv * (1 - fee / 2);
+  const netMv = mv * (1 - fee);
   return ((netMv - cost) / cost) * 100;
 }
 

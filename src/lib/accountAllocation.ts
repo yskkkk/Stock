@@ -312,7 +312,10 @@ export function tossHoldingsToAccountRows(
       purchaseFxBySymbol?.get(String(h.symbol ?? "").toUpperCase()) ?? null;
     if (market === "us") {
       if (!rate) continue;
-      valueKrw = Math.round(net * rate);
+      // Keep FX product precise so USD toggle (valueKrw / rate) recovers cents.
+      valueKrw = net * rate;
+    } else {
+      valueKrw = Math.round(net);
     }
     const unrealizedPnlDisplay = tossHoldingNetUnrealizedPnlDisplay(
       h,

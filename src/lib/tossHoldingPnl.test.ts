@@ -22,14 +22,16 @@ const krHolding: TossTestHolding = {
 };
 
 describe("tossHoldingPnl", () => {
-  it("subtracts half round-trip fee from market value for PnL", () => {
+  it("subtracts full round-trip fee (0.2%) from market value for PnL", () => {
     const pnl = tossHoldingNetUnrealizedPnl(krHolding, 0.002);
-    expect(pnl).toBe(1_098_900 - 1_000_000);
+    expect(pnl).toBe(Math.round(1_100_000 * 0.998) - 1_000_000);
   });
 
   it("computes net return percent from cost and gross market value", () => {
     const pct = tossHoldingNetReturnPercent(krHolding, 0.002);
-    expect(pnlClose(pct, ((1_100_000 * 0.999 - 1_000_000) / 1_000_000) * 100)).toBe(true);
+    expect(
+      pnlClose(pct, ((1_100_000 * 0.998 - 1_000_000) / 1_000_000) * 100),
+    ).toBe(true);
   });
 
   it("aggregates net return across holdings", () => {
@@ -57,9 +59,27 @@ describe("tossHoldingPnl", () => {
       0.002,
     );
     expect(total).not.toBeNull();
-    const krNet = Math.round(1_100_000 * 0.999);
-    const usNet = Math.round(3_300 * 0.999);
-    expect(total).toBe(krNet + usNet * 1400);
+    const krNet = Math.round(1_100_000 * 0.998);
+    const usNet = Math.round(3_300 * 0.998 * 100) / 100;
+    expect(total).toBe(Math.round(krNet + usNet * 1400));
+  });
+
+  it("keeps USD net market value to 2 decimal places", async () => {
+    const { tossHoldingNetMarketValue } = await import("./tossHoldingPnl");
+    const usHolding: TossTestHolding = {
+      symbol: "GOOGL",
+      name: "Alphabet",
+      market: "us",
+      currency: "USD",
+      quantity: 14,
+      avgBuyPrice: 100,
+      currentPrice: 355.785714,
+      marketValue: 14 * 355.785714,
+    };
+    const net = tossHoldingNetMarketValue(usHolding, 0.002);
+    expect(net).not.toBeNull();
+    expect(Number.isInteger(net!)).toBe(false);
+    expect(Math.round(net! * 100) / 100).toBe(net);
   });
 
   it("combines KRW and USD account PnL via FX", () => {
