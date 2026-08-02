@@ -2,8 +2,8 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -22,6 +22,8 @@ type Sp500SectorContextValue = {
   setPanelTab: (tab: Sp500SectorPanelTab) => void;
   openSectorDetail: (sector: string, tab?: Sp500SectorPanelTab) => void;
   openPanel: (tab?: Sp500SectorPanelTab) => void;
+  /** 탭 진입·패널 오픈 시 호출 — 첫 접속 시 자동 fetch 하지 않음 */
+  ensureLoaded: () => void;
 };
 
 const Sp500SectorContext = createContext<Sp500SectorContextValue | null>(null);
@@ -34,45 +36,40 @@ export function Sp500SectorProvider({
   onNavigateToTab: () => void;
 }) {
   const [data, setData] = useState<Sp500SectorsPayload | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [panelTab, setPanelTab] = useState<Sp500SectorPanelTab>("chart");
+  const loadStartedRef = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const ensureLoaded = useCallback(() => {
+    if (loadStartedRef.current) return;
+    loadStartedRef.current = true;
     setLoading(true);
     setError(null);
     fetchSp500Sectors()
-      .then((payload) => {
-        if (!cancelled) setData(payload);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .then((payload) => setData(payload))
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setLoading(false));
   }, []);
 
   const openPanel = useCallback(
     (tab: Sp500SectorPanelTab = "chart") => {
+      ensureLoaded();
       setPanelTab(tab);
       onNavigateToTab();
     },
-    [onNavigateToTab],
+    [onNavigateToTab, ensureLoaded],
   );
 
   const openSectorDetail = useCallback(
     (sector: string, tab: Sp500SectorPanelTab = "list") => {
+      ensureLoaded();
       setSelectedSector(sector);
       setPanelTab(tab);
       onNavigateToTab();
     },
-    [onNavigateToTab],
+    [onNavigateToTab, ensureLoaded],
   );
 
   const value = useMemo(
@@ -86,6 +83,7 @@ export function Sp500SectorProvider({
       setPanelTab,
       openSectorDetail,
       openPanel,
+      ensureLoaded,
     }),
     [
       data,
@@ -95,11 +93,14 @@ export function Sp500SectorProvider({
       panelTab,
       openSectorDetail,
       openPanel,
+      ensureLoaded,
     ],
   );
 
   return (
-    <Sp500SectorContext.Provider value={value}>{children}</Sp500SectorContext.Provider>
+    <Sp500SectorContext.Provider value={value}>
+      {children}
+    </Sp500SectorContext.Provider>
   );
 }
 
@@ -109,8 +110,4 @@ export function useSp500Sector() {
     throw new Error("useSp500Sector must be used within Sp500SectorProvider");
   }
   return ctx;
-}
-
-export function useSp500SectorOptional() {
-  return useContext(Sp500SectorContext);
 }

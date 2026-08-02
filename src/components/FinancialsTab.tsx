@@ -32,6 +32,7 @@ import type {
 } from "../types";
 import BuffettIntrinsicPanel from "./BuffettIntrinsicPanel";
 import StockSearchHotRow, { rowToStockPick } from "./StockSearchHotRow";
+import "../financials-tab.css";
 
 const HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
 const HOT_REFRESH_MS = 120_000;

@@ -14,6 +14,7 @@ import {
 import { createPortal } from "react-dom";
 import { fetchStockShareStructure } from "../api";
 import { ko } from "../i18n/ko";
+import "../stock-share-structure-modal.css";
 import {
   dispatchForceCloseStockHoverBubble,
   isInsideStockHoverParentBubble,

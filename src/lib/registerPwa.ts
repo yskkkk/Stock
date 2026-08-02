@@ -10,5 +10,12 @@ export function registerPwaServiceWorker(): void {
   }
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
 
-  void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+  const run = () => {
+    void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+  };
+  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+    window.requestIdleCallback(() => run(), { timeout: 4000 });
+  } else {
+    window.setTimeout(run, 1500);
+  }
 }

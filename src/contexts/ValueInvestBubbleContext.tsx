@@ -14,6 +14,7 @@ import {
 import { createPortal } from "react-dom";
 import { fetchValueInvestReturn } from "../api";
 import { ko } from "../i18n/ko";
+import "../value-invest-bubble.css";
 import { formatPercent, formatPrice } from "../lib/format";
 import {
   buildValueInvestFormulaLines,

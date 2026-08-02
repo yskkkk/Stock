@@ -20,18 +20,11 @@ import "./ui-toss.css";
 import "./field-validation.css";
 import "./mobile-polish.css";
 import "./ui-nowrap-lines.css";
-import "./app-site-footer.css";
 import "./app-theme-corner.css";
-import "./sp500-sector-wheel-mini.css";
 import "./stock-lookup-flat.css";
-import "./financials-tab.css";
-import "./stock-vault-tab.css";
-import "./investor-flow-tab.css";
-import "./value-invest-bubble.css";
-import "./stock-share-structure-modal.css";
 import "./bubble-opaque.css";
 import "./account-snapshot.css";
-import "./scroll-to-top-button.css";
+/* 탭·모달 CSS는 해당 컴포넌트에서 import — 첫 페인트 번들 축소 */
 
 declare global {
   interface Window {

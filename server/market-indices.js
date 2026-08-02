@@ -1,8 +1,14 @@
 /**
  * 주요 지수·환율 시세 — Yahoo 차트 스냅샷(일봉·전일대비).
  */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadChartQuoteSnapshot } from "./stock-data.js";
 import { waitForYahooQueueReady } from "./yahoo-queue.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DISK_CACHE_PATH = path.join(__dirname, ".data", "market-indices-cache.json");
 
 const CACHE_MS = 20_000;
 const FETCH_CONCURRENCY = 4;
@@ -12,6 +18,49 @@ const SNAPSHOT_RETRY_ATTEMPTS = 3;
 let cached = null;
 /** @type {Promise<{ items: object[]; updatedAt: number }> | null} */
 let inflight = null;
+
+function itemHasPrice(item) {
+  return item?.price != null && Number.isFinite(item.price) && item.price > 0;
+}
+
+function readDiskCache() {
+  try {
+    if (!fs.existsSync(DISK_CACHE_PATH)) return null;
+    const raw = JSON.parse(fs.readFileSync(DISK_CACHE_PATH, "utf8"));
+    const items = Array.isArray(raw?.items) ? raw.items : [];
+    if (!items.length || !items.some(itemHasPrice)) return null;
+    const updatedAt = Number(raw?.updatedAt) || Number(raw?.at) || 0;
+    if (updatedAt && Date.now() - updatedAt > 7 * 24 * 60 * 60_000) return null;
+    return { items, updatedAt: updatedAt || Date.now() };
+  } catch {
+    return null;
+  }
+}
+
+/** @param {object[]} items @param {number} updatedAt */
+function writeDiskCache(items, updatedAt) {
+  if (!Array.isArray(items) || !items.some(itemHasPrice)) return;
+  try {
+    const dir = path.dirname(DISK_CACHE_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const tmp = `${DISK_CACHE_PATH}.tmp`;
+    fs.writeFileSync(
+      tmp,
+      `${JSON.stringify({ at: Date.now(), updatedAt, items })}\n`,
+      "utf8",
+    );
+    fs.renameSync(tmp, DISK_CACHE_PATH);
+  } catch {
+    /* ignore */
+  }
+}
+
+function hydrateFromDisk() {
+  if (cached?.items?.some(itemHasPrice)) return;
+  const disk = readDiskCache();
+  if (!disk) return;
+  cached = { items: disk.items, updatedAt: disk.updatedAt, at: 0 };
+}
 
 /** @typedef {{ id: string; symbol: string; label: string; region: "kr" | "us"; kind?: "index" | "fx"; lookupMarket?: "kr" | "us" }} MarketIndexDef */
 
@@ -30,9 +79,6 @@ export const MARKET_INDEX_DEFS = [
  * @param {MarketIndexDef} def
  * @param {Awaited<ReturnType<typeof loadChartQuoteSnapshot>>} snap
  */
-function itemHasPrice(item) {
-  return item?.price != null && Number.isFinite(item.price) && item.price > 0;
-}
 
 async function loadChartQuoteSnapshotWithRetry(symbol) {
   for (let attempt = 0; attempt < SNAPSHOT_RETRY_ATTEMPTS; attempt++) {
@@ -148,6 +194,7 @@ async function fetchMarketIndicesFresh() {
   }
   if (hasAnyPrice) {
     cached = { items, updatedAt, at: now };
+    writeDiskCache(items, updatedAt);
   }
   return { items, updatedAt };
 }
@@ -161,6 +208,7 @@ function kickMarketIndicesRefresh() {
 }
 
 export async function getMarketIndices() {
+  hydrateFromDisk();
   const now = Date.now();
   if (cached && now - cached.at < CACHE_MS) {
     return { items: cached.items, updatedAt: cached.updatedAt };

@@ -61,8 +61,11 @@ import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDock
 import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
 import { OPEN_FINANCIALS_TAB_EVENT, type OpenFinancialsTabDetail } from "./lib/openFinancialsTab";
 import StockSearchTab from "./components/StockSearchTab";
-import StockChart from "./components/StockChart";
-import TradingViewAdvancedChart from "./components/TradingViewAdvancedChart";
+
+const StockChart = lazy(() => import("./components/StockChart"));
+const TradingViewAdvancedChart = lazy(
+  () => import("./components/TradingViewAdvancedChart"),
+);
 
 const Sp500SectorTab = lazy(() => import("./components/Sp500SectorTab"));
 const AccountManageTab = lazy(() => import("./components/AccountManageTab"));
@@ -546,13 +549,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (appTab !== "screener") return;
     void pollPicks();
     const ms = picks?.running ? 4_000 : 10_000;
     const id = window.setInterval(() => {
       if (document.visibilityState !== "hidden") void pollPicks();
     }, ms);
     return () => window.clearInterval(id);
-  }, [pollPicks, picks?.running]);
+  }, [pollPicks, picks?.running, appTab]);
 
   /** IP 허용이 해제되면 API 403 외에도 상태 폴링으로 즉시 게이트로 보낸다 */
   useEffect(() => {
@@ -2319,13 +2323,22 @@ export default function App() {
 
                 <div className="crypto-chart-panel-body">
                   {chartEngine === "tradingview" && stockTvSymbol ? (
-                    <TradingViewAdvancedChart
-                      key={`tv-${workspacePick.symbol}-${timeframe}`}
-                      tvSymbol={stockTvSymbol}
-                      timeframe={timeframe}
-                      displayName={quote?.name ?? workspacePick.name}
-                      ariaLabel={ko.crypto.tvChartAria}
-                    />
+                    <Suspense
+                      fallback={
+                        <div className="overlay">
+                          <div className="spinner" />
+                          <p>{ko.app.chartLoading}</p>
+                        </div>
+                      }
+                    >
+                      <TradingViewAdvancedChart
+                        key={`tv-${workspacePick.symbol}-${timeframe}`}
+                        tvSymbol={stockTvSymbol}
+                        timeframe={timeframe}
+                        displayName={quote?.name ?? workspacePick.name}
+                        ariaLabel={ko.crypto.tvChartAria}
+                      />
+                    </Suspense>
                   ) : null}
 
                   {chartEngine === "app" && chartLoading && (
@@ -2352,6 +2365,14 @@ export default function App() {
                     !chartLoading &&
                     !chartError &&
                     candles.length > 0 && (
+                      <Suspense
+                        fallback={
+                          <div className="overlay">
+                            <div className="spinner" />
+                            <p>{ko.app.chartLoading}</p>
+                          </div>
+                        }
+                      >
                       <StockChart
                         colorMode={colorMode}
                         candles={candles}
@@ -2371,6 +2392,7 @@ export default function App() {
                         }
                         profitMarker={profitMarker}
                       />
+                      </Suspense>
                     )}
                   {chartEngine === "app" &&
                     !chartLoading &&

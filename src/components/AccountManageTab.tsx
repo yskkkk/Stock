@@ -2633,7 +2633,10 @@ export default function AccountManageTab({
                       const pct = bubbleRowReturnPct(r);
                       const pnl = r.unrealizedPnlKrw;
                       return (
-                        <li key={r.symbol}>
+                        <li
+                          key={r.symbol}
+                          className="account-manage-tab__bubble-sym-row"
+                        >
                           <span className="account-manage-tab__bubble-sym-name">
                             {accountSymbolSliceLabel(r, r.symbol)}
                           </span>
@@ -2642,18 +2645,12 @@ export default function AccountManageTab({
                             aria-hidden={balanceHidden || undefined}
                           >
                             {money(r.valueKrw)}
-                            {pct != null ? (
-                              <span className="account-manage-tab__bubble-sym-pct">
-                                {" "}
-                                ({formatPercent(pct)})
-                              </span>
-                            ) : null}
-                            {pnl != null ? (
-                              <span className="account-manage-tab__bubble-sym-pnl">
-                                {" "}
-                                {signedPnl(pnl)}
-                              </span>
-                            ) : null}
+                          </span>
+                          <span className="account-manage-tab__bubble-sym-pct">
+                            {pct != null ? `(${formatPercent(pct)})` : ""}
+                          </span>
+                          <span className="account-manage-tab__bubble-sym-pnl">
+                            {pnl != null ? signedPnl(pnl) : ""}
                           </span>
                         </li>
                       );

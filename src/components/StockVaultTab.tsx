@@ -10,6 +10,7 @@ import IndustryFilterPanel from "./IndustryFilterPanel";
 import StockVaultLastScanTable from "./StockVaultLastScanTable";
 import StockVaultScanCalendar from "./StockVaultScanCalendar";
 import { StockVaultScanProgress } from "./StockVaultScanProgress";
+import "../stock-vault-tab.css";
 import {
   fetchGoldenCrossHistory,
   fetchGoldenCrossStatus,
@@ -1000,6 +1001,7 @@ export default function StockVaultTab({
           ma120FromBelow: ko.stockVault.ma120ApproachFromBelow,
           ma120FromAbove: ko.stockVault.ma120ApproachFromAbove,
           timeframeWeekly: ko.stockVault.timeframeWeekly,
+          scanConditionNone: ko.stockVault.filterScanConditionNone,
         },
       }),
     [

@@ -539,7 +539,7 @@ export function startShellCriticalPrefetch(): void {
   shellPrefetchStarted = true;
   void prefetchMarketIndices().catch(() => {});
   void prefetchMacroBundle().catch(() => {});
-  void prefetchSectorEarnings().catch(() => {});
+  // 실적은 idle 이후 — Yahoo 큐를 지수·지표와 뺏지 않음
 }
 
 /** config 로드 후 — 탭 미진입 데이터를 백그라운드로 선요청 */
@@ -551,6 +551,7 @@ export function startBackgroundTabPrefetch(): void {
   startShellCriticalPrefetch();
 
   scheduleIdle(() => {
+    void prefetchSectorEarnings().catch(() => {});
     void prefetchRecommendationsTracker().catch(() => {});
     void prefetchCryptoTabData().catch(() => {});
     void prefetchLiveTradingTab().catch(() => {});

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchKrInvestorFlow, fetchKrInvestorFlowHoldings } from "../api";
 import { ko } from "../i18n/ko";
+import "../investor-flow-tab.css";
 import { formatPercent, formatPrice, formatTurnover } from "../lib/format";
 import {
   anchorRectForBubble,

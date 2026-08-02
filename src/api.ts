@@ -893,8 +893,33 @@ export interface AuthMeResponse {
   emailVerificationRequired?: boolean;
 }
 
+const AUTH_ME_TTL_MS = 8_000;
+/** @type {{ at: number; data: AuthMeResponse } | null} */
+let authMeCache: { at: number; data: AuthMeResponse } | null = null;
+/** @type {Promise<AuthMeResponse> | null} */
+let authMeInflight: Promise<AuthMeResponse> | null = null;
+
 export function fetchAuthMe() {
-  return fetchJson<AuthMeResponse>("/api/auth/me");
+  const now = Date.now();
+  if (authMeCache && now - authMeCache.at < AUTH_ME_TTL_MS) {
+    return Promise.resolve(authMeCache.data);
+  }
+  if (authMeInflight) return authMeInflight;
+  authMeInflight = fetchJson<AuthMeResponse>("/api/auth/me")
+    .then((data) => {
+      authMeCache = { at: Date.now(), data };
+      return data;
+    })
+    .finally(() => {
+      authMeInflight = null;
+    });
+  return authMeInflight;
+}
+
+/** 로그인·로그아웃 직후 캐시 무효화 */
+export function invalidateAuthMeCache() {
+  authMeCache = null;
+  authMeInflight = null;
 }
 
 export function loginAuth(
@@ -902,10 +927,19 @@ export function loginAuth(
   password: string,
   verificationCode: string,
 ) {
+  invalidateAuthMeCache();
   return fetchJson<{ ok: boolean; user: AuthUser }>("/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, verificationCode }),
+  }).then((data) => {
+    if (data?.user) {
+      authMeCache = {
+        at: Date.now(),
+        data: { user: data.user },
+      };
+    }
+    return data;
   });
 }
 
@@ -953,6 +987,7 @@ export function registerAuth(
 }
 
 export function logoutAuth() {
+  invalidateAuthMeCache();
   return fetchJson<{ ok: boolean }>("/api/auth/logout", { method: "POST" });
 }
 
