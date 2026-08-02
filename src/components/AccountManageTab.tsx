@@ -14,6 +14,7 @@ import {
   accountSlicesToDonut,
   accountSymbolSliceLabel,
   buildAccountAllocationSlices,
+  computeStyleTargetDrift,
   portfolioShareChangePct,
   tossHoldingsToAccountRows,
   type AccountAllocMode,
@@ -55,6 +56,7 @@ import {
   useAccountManageDisplayCurrency,
   type AccountManageDisplayCurrency,
 } from "../hooks/useAccountManageDisplayCurrency";
+import { useAccountStyleTargetWeights } from "../hooks/useAccountStyleTargetWeights";
 import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
 import {
   TOSS_LEDGER_POLL_MS,
@@ -134,6 +136,15 @@ function formatAllocPct(n: number): string {
   return fmtSectorPct(n);
 }
 
+function formatDriftPctPoints(n: number): string {
+  if (!Number.isFinite(n)) return "?";
+  const abs = Math.abs(n);
+  const body = abs > 0 && abs < 0.1 ? abs.toFixed(2) : abs.toFixed(1);
+  if (n > 0) return `+${body}%p`;
+  if (n < 0) return `-${body}%p`;
+  return `0%p`;
+}
+
 function accountCashStatAria(
   label: string,
   formattedAmount: string,
@@ -199,6 +210,8 @@ export default function AccountManageTab({
   const [displayCurrency, setDisplayCurrency] = useAccountManageDisplayCurrency(
     user?.id,
   );
+  const [styleTargetParts, setStyleTargetParts, setStyleGrowthParts] =
+    useAccountStyleTargetWeights(user?.id, provider);
   const { hiddenTickers, isHidden, toggleHidden, clearHidden } =
     useAccountHiddenHoldings(user?.id);
   const [rebalanceOpen, setRebalanceOpen] = useState(false);
@@ -662,6 +675,11 @@ export default function AccountManageTab({
   const { segments: styleSegments } = useMemo(
     () => accountSlicesToDonut(styleSlices),
     [styleSlices],
+  );
+
+  const styleTargetDrift = useMemo(
+    () => computeStyleTargetDrift(styleSlices, styleTargetParts),
+    [styleSlices, styleTargetParts],
   );
 
   const styleSourceCounts = useMemo(() => {
@@ -2554,6 +2572,195 @@ export default function AccountManageTab({
                       );
                     })}
                   </ul>
+                </div>
+                <div
+                  className="account-manage-tab__style-target"
+                  data-vu="account-style-target"
+                >
+                  <div className="account-manage-tab__style-target-head">
+                    <h4 className="account-manage-tab__style-target-title">
+                      {ko.app.accountManageStyleTargetTitle}
+                    </h4>
+                    <p className="account-manage-tab__style-target-hint">
+                      {ko.app.accountManageStyleTargetHint}
+                    </p>
+                  </div>
+                  <div className="account-manage-tab__style-target-presets">
+                    {(
+                      [
+                        [7, 3],
+                        [8, 2],
+                        [6, 4],
+                        [5, 5],
+                      ] as const
+                    ).map(([g, v]) => {
+                      const active =
+                        styleTargetParts.growth === g &&
+                        styleTargetParts.value === v;
+                      const ratio = `${g}:${v}`;
+                      return (
+                        <button
+                          key={ratio}
+                          type="button"
+                          className={[
+                            "account-manage-tab__style-target-preset",
+                            active ? "is-active" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                          aria-pressed={active}
+                          aria-label={ko.app.accountManageStyleTargetPresetAria.replace(
+                            "{ratio}",
+                            ratio,
+                          )}
+                          onClick={() =>
+                            setStyleTargetParts({ growth: g, value: v })
+                          }
+                        >
+                          {ratio}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="account-manage-tab__style-target-inputs">
+                    <label className="account-manage-tab__style-target-field">
+                      <span>{ko.app.accountManageStyleTargetGrowth}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={10}
+                        step={1}
+                        inputMode="numeric"
+                        value={styleTargetParts.growth}
+                        aria-label={ko.app.accountManageStyleTargetGrowth}
+                        onChange={(e) => {
+                          const n = Number(e.target.value);
+                          if (!Number.isFinite(n)) return;
+                          setStyleGrowthParts(Math.min(10, Math.max(0, Math.round(n))));
+                        }}
+                      />
+                    </label>
+                    <span className="account-manage-tab__style-target-colon" aria-hidden>
+                      :
+                    </span>
+                    <label className="account-manage-tab__style-target-field">
+                      <span>{ko.app.accountManageStyleTargetValue}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={10}
+                        step={1}
+                        inputMode="numeric"
+                        value={styleTargetParts.value}
+                        aria-label={ko.app.accountManageStyleTargetValue}
+                        onChange={(e) => {
+                          const n = Number(e.target.value);
+                          if (!Number.isFinite(n)) return;
+                          const v = Math.min(10, Math.max(0, Math.round(n)));
+                          setStyleTargetParts({
+                            growth: 10 - v,
+                            value: v,
+                          });
+                        }}
+                      />
+                    </label>
+                    <span className="account-manage-tab__style-target-sum">
+                      {ko.app.accountManageStyleTargetSumOk}
+                    </span>
+                  </div>
+                  {styleTargetDrift ? (
+                    <div className="account-manage-tab__style-target-stats">
+                      <p>
+                        {ko.app.accountManageStyleTargetCurrent
+                          .replace(
+                            "{growth}",
+                            formatAllocPct(styleTargetDrift.currentGrowthPct),
+                          )
+                          .replace(
+                            "{value}",
+                            formatAllocPct(styleTargetDrift.currentValuePct),
+                          )}
+                      </p>
+                      <p>
+                        {ko.app.accountManageStyleTargetGoal
+                          .replace(
+                            "{growth}",
+                            formatAllocPct(styleTargetDrift.targetGrowthPct),
+                          )
+                          .replace(
+                            "{value}",
+                            formatAllocPct(styleTargetDrift.targetValuePct),
+                          )}
+                      </p>
+                      <p className="account-manage-tab__style-target-drift">
+                        {ko.app.accountManageStyleTargetDrift
+                          .replace(
+                            "{growthDrift}",
+                            formatDriftPctPoints(
+                              styleTargetDrift.growthDriftPctPoints,
+                            ),
+                          )
+                          .replace(
+                            "{valueDrift}",
+                            formatDriftPctPoints(
+                              styleTargetDrift.valueDriftPctPoints,
+                            ),
+                          )}
+                      </p>
+                      {(() => {
+                        const gAdd = styleTargetDrift.growthCapitalToAddKrw;
+                        const vAdd = styleTargetDrift.valueCapitalToAddKrw;
+                        const lines: string[] = [];
+                        if (gAdd == null || vAdd == null) {
+                          lines.push(ko.app.accountManageStyleTargetAddSellNeeded);
+                        } else {
+                          if (gAdd > 0.5) {
+                            lines.push(
+                              ko.app.accountManageStyleTargetAddGrowth.replace(
+                                "{amount}",
+                                money(gAdd),
+                              ),
+                            );
+                          }
+                          if (vAdd > 0.5) {
+                            lines.push(
+                              ko.app.accountManageStyleTargetAddValue.replace(
+                                "{amount}",
+                                money(vAdd),
+                              ),
+                            );
+                          }
+                          if (lines.length === 0) {
+                            lines.push(ko.app.accountManageStyleTargetAddNone);
+                          }
+                        }
+                        const need =
+                          (gAdd != null && gAdd > 0 ? gAdd : 0) +
+                          (vAdd != null && vAdd > 0 ? vAdd : 0);
+                        return (
+                          <>
+                            <ul className="account-manage-tab__style-target-adds">
+                              {lines.map((line) => (
+                                <li key={line}>{line}</li>
+                              ))}
+                            </ul>
+                            {need > 0.5 && cashKrw > 0 ? (
+                              <p className="account-manage-tab__style-target-cash">
+                                {cashKrw >= need
+                                  ? ko.app.accountManageStyleTargetCashCover.replace(
+                                      "{amount}",
+                                      money(need),
+                                    )
+                                  : ko.app.accountManageStyleTargetCashShort
+                                      .replace("{amount}", money(need - cashKrw))
+                                      .replace("{cash}", money(cashKrw))}
+                              </p>
+                            ) : null}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  ) : null}
                 </div>
                 {styleFocusKey ? (
                   renderChartFilterBar(undefined, "style")

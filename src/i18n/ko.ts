@@ -183,6 +183,24 @@ export const ko = {
     accountManageStyleStripHint:
       "칩·막대·도넛을 누르면 해당 성향만 목록에 표시 · 「성향」열에서 자동/지정 구분",
     accountManageStyleAssignLink: "종목별 성향 지정 ↓",
+    accountManageStyleTargetTitle: "목표 비중 (성장:가치)",
+    accountManageStyleTargetHint:
+      "합이 10이 되도록 설정합니다. 예: 7:3, 8:2. 현금은 목표에서 제외하고 주식만 봅니다.",
+    accountManageStyleTargetGrowth: "성장",
+    accountManageStyleTargetValue: "가치",
+    accountManageStyleTargetSumOk: "합 10",
+    accountManageStyleTargetCurrent: "현재 성장 {growth} · 가치 {value}",
+    accountManageStyleTargetGoal: "목표 성장 {growth} · 가치 {value}",
+    accountManageStyleTargetDrift:
+      "괴리 성장 {growthDrift} · 가치 {valueDrift}",
+    accountManageStyleTargetAddGrowth: "성장주 투입 {amount}",
+    accountManageStyleTargetAddValue: "가치·방어주 투입 {amount}",
+    accountManageStyleTargetAddNone: "목표 비중에 맞춤 — 추가 투입 없음",
+    accountManageStyleTargetAddSellNeeded:
+      "목표 비중(전량)에는 매수만으로 맞출 수 없습니다. 반대 슬리브 축소가 필요합니다.",
+    accountManageStyleTargetCashCover: "보유 현금으로 충당 가능 {amount}",
+    accountManageStyleTargetCashShort: "현금 부족 {amount} (보유 {cash})",
+    accountManageStyleTargetPresetAria: "목표 비중 빠른 설정 {ratio}",
     accountManageTabChart: "원형 차트",
     accountManageTabList: "보유 목록",
     accountManageGroupSector: "업종·섹터",

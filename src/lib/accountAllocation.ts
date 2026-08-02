@@ -383,3 +383,119 @@ export function tossHoldingsToAccountRows(
   }
   return out;
 }
+
+/** 성장:가치 목표 비중 — 합이 항상 10 (예: 7:3, 8:2) */
+export type StyleTargetParts = {
+  growth: number;
+  value: number;
+};
+
+export const STYLE_TARGET_PARTS_SUM = 10;
+export const DEFAULT_STYLE_TARGET_PARTS: StyleTargetParts = {
+  growth: 7,
+  value: 3,
+};
+
+export function normalizeStyleTargetParts(
+  growth: number,
+  value?: number,
+): StyleTargetParts | null {
+  if (!Number.isFinite(growth)) return null;
+  const g = Math.round(growth);
+  if (g < 0 || g > STYLE_TARGET_PARTS_SUM) return null;
+  const v =
+    value != null && Number.isFinite(value)
+      ? Math.round(value)
+      : STYLE_TARGET_PARTS_SUM - g;
+  if (v < 0 || v > STYLE_TARGET_PARTS_SUM) return null;
+  if (g + v !== STYLE_TARGET_PARTS_SUM) return null;
+  return { growth: g, value: v };
+}
+
+export type StyleTargetDrift = {
+  equityKrw: number;
+  growthKrw: number;
+  valueKrw: number;
+  growthParts: number;
+  valueParts: number;
+  /** 주식(성장+가치) 내 현재 비중 % */
+  currentGrowthPct: number;
+  currentValuePct: number;
+  targetGrowthPct: number;
+  targetValuePct: number;
+  /** 현재 − 목표 (%p) */
+  growthDriftPctPoints: number;
+  valueDriftPctPoints: number;
+  /** 목표금액 − 현재 (양수=부족) */
+  growthGapKrw: number;
+  valueGapKrw: number;
+  /**
+   * 매도 없이 부족한 쪽에만 신규 자본을 넣을 때 필요한 금액.
+   * 목표가 0 또는 10이면 매도/전량 교체가 필요할 수 있어 null.
+   */
+  growthCapitalToAddKrw: number | null;
+  valueCapitalToAddKrw: number | null;
+};
+
+function capitalToAddOnlyBuy(
+  current: number,
+  equity: number,
+  targetFrac: number,
+): number | null {
+  if (!(equity > 0) || !Number.isFinite(current) || !Number.isFinite(targetFrac)) {
+    return 0;
+  }
+  if (targetFrac <= 0) return 0;
+  if (targetFrac >= 1) {
+    // 전량 목표 — 상대 비중만으로는 매수 무한대에 가까움
+    return current >= equity ? 0 : null;
+  }
+  const gap = targetFrac * equity - current;
+  if (gap <= 0.5) return 0;
+  const add = gap / (1 - targetFrac);
+  return Number.isFinite(add) && add > 0 ? add : 0;
+}
+
+/**
+ * 성장·가치 목표 비중(합 10) 대비 현재 포트 괴리·투입 필요 자본.
+ * 현금은 목표 합에서 제외(주식 슬리브만).
+ */
+export function computeStyleTargetDrift(
+  slices: readonly Pick<AccountAllocSlice, "key" | "valueKrw">[],
+  parts: StyleTargetParts,
+): StyleTargetDrift | null {
+  const normalized = normalizeStyleTargetParts(parts.growth, parts.value);
+  if (!normalized) return null;
+  const growthKrw =
+    slices.find((s) => s.key === "__growth__")?.valueKrw ?? 0;
+  const valueKrw = slices.find((s) => s.key === "__value__")?.valueKrw ?? 0;
+  const equityKrw = growthKrw + valueKrw;
+  if (!(equityKrw > 0)) return null;
+
+  const tg = normalized.growth / STYLE_TARGET_PARTS_SUM;
+  const tv = normalized.value / STYLE_TARGET_PARTS_SUM;
+  const currentGrowthPct = (growthKrw / equityKrw) * 100;
+  const currentValuePct = (valueKrw / equityKrw) * 100;
+  const targetGrowthPct = tg * 100;
+  const targetValuePct = tv * 100;
+  const growthTargetKrw = tg * equityKrw;
+  const valueTargetKrw = tv * equityKrw;
+
+  return {
+    equityKrw,
+    growthKrw,
+    valueKrw,
+    growthParts: normalized.growth,
+    valueParts: normalized.value,
+    currentGrowthPct,
+    currentValuePct,
+    targetGrowthPct,
+    targetValuePct,
+    growthDriftPctPoints: currentGrowthPct - targetGrowthPct,
+    valueDriftPctPoints: currentValuePct - targetValuePct,
+    growthGapKrw: growthTargetKrw - growthKrw,
+    valueGapKrw: valueTargetKrw - valueKrw,
+    growthCapitalToAddKrw: capitalToAddOnlyBuy(growthKrw, equityKrw, tg),
+    valueCapitalToAddKrw: capitalToAddOnlyBuy(valueKrw, equityKrw, tv),
+  };
+}

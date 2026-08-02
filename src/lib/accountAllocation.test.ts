@@ -175,3 +175,45 @@ describe("accountAllocation style mode", () => {
     );
   });
 });
+
+describe("computeStyleTargetDrift", () => {
+  it("normalizes parts and measures equity-only drift", async () => {
+    const { computeStyleTargetDrift, normalizeStyleTargetParts } = await import(
+      "./accountAllocation"
+    );
+    expect(normalizeStyleTargetParts(7, 3)).toEqual({ growth: 7, value: 3 });
+    expect(normalizeStyleTargetParts(8)).toEqual({ growth: 8, value: 2 });
+    expect(normalizeStyleTargetParts(7, 4)).toBeNull();
+
+    const drift = computeStyleTargetDrift(
+      [
+        { key: "__growth__", valueKrw: 800 },
+        { key: "__value__", valueKrw: 200 },
+        { key: "__cash__", valueKrw: 50 },
+      ],
+      { growth: 7, value: 3 },
+    );
+    expect(drift).not.toBeNull();
+    expect(drift!.equityKrw).toBe(1000);
+    expect(drift!.currentGrowthPct).toBeCloseTo(80);
+    expect(drift!.targetGrowthPct).toBeCloseTo(70);
+    expect(drift!.growthDriftPctPoints).toBeCloseTo(10);
+    expect(drift!.valueGapKrw).toBeCloseTo(100);
+    expect(drift!.growthCapitalToAddKrw).toBe(0);
+    // value underweight: (0.3*1000 - 200)/(0.7) = 100/0.7 ≈ 142.86
+    expect(drift!.valueCapitalToAddKrw).toBeCloseTo(100 / 0.7, 5);
+  });
+
+  it("returns null capital when target is 10:0 and opposite sleeve remains", async () => {
+    const { computeStyleTargetDrift } = await import("./accountAllocation");
+    const drift = computeStyleTargetDrift(
+      [
+        { key: "__growth__", valueKrw: 500 },
+        { key: "__value__", valueKrw: 500 },
+      ],
+      { growth: 10, value: 0 },
+    );
+    expect(drift!.growthCapitalToAddKrw).toBeNull();
+    expect(drift!.valueCapitalToAddKrw).toBe(0);
+  });
+});

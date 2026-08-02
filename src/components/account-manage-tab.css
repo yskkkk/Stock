@@ -1102,11 +1102,140 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
 .account-manage-tab__style-panel {
   grid-area: style;
   position: relative;
-  overflow: hidden;
+  overflow: auto;
   min-height: 26rem;
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+}
+
+.account-manage-tab__style-target {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: color-mix(in srgb, var(--surface) 55%, var(--card));
+}
+
+.account-manage-tab__style-target-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.account-manage-tab__style-target-hint {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.account-manage-tab__style-target-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.account-manage-tab__style-target-preset {
+  margin: 0;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-manage-tab__style-target-preset.is-active,
+.account-manage-tab__style-target-preset:hover {
+  color: var(--accent-ink, var(--accent));
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+}
+
+.account-manage-tab__style-target-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.4rem 0.55rem;
+}
+
+.account-manage-tab__style-target-field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.account-manage-tab__style-target-field input {
+  width: 3.25rem;
+  padding: 0.32rem 0.4rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.account-manage-tab__style-target-colon {
+  align-self: center;
+  padding-bottom: 0.15rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.account-manage-tab__style-target-sum {
+  align-self: center;
+  margin-left: 0.15rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-ink, var(--accent));
+}
+
+.account-manage-tab__style-target-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.account-manage-tab__style-target-stats p {
+  margin: 0;
+}
+
+.account-manage-tab__style-target-drift {
+  color: var(--muted);
+}
+
+.account-manage-tab__style-target-adds {
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-weight: 700;
+  color: var(--accent-ink, var(--accent));
+}
+
+.account-manage-tab__style-target-cash {
+  margin: 0.15rem 0 0 !important;
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 
 .account-manage-tab__style-panel--passive,
