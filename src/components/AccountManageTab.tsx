@@ -60,6 +60,7 @@ import {
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { useTossSnapshotLiveQuotes } from "../hooks/useTossSnapshotLiveQuotes";
+import { tossSnapshotLedgerFingerprint, tossSnapshotSymbolKey } from "../lib/tossSnapshotLiveQuotes";
 import LiveTradeAuthPanel, {
   useLiveTradeAuth,
 } from "./LiveTradeAuthAndCredentials";
@@ -282,6 +283,14 @@ export default function AccountManageTab({
     feeRates,
   );
   const activeToss = liveSnapshot ?? tossSnapshot;
+  const tossHoldingsSymKey = useMemo(
+    () => tossSnapshotSymbolKey(activeToss),
+    [activeToss],
+  );
+  const tossLedgerFp = useMemo(
+    () => (activeToss ? tossSnapshotLedgerFingerprint(activeToss) : ""),
+    [activeToss],
+  );
   const { rate: usdKrwRate } = useUsdKrwRate(Boolean(user));
   const money = useCallback(
     (n: number | null | undefined) =>
@@ -344,7 +353,8 @@ export default function AccountManageTab({
 
   // ???S&P GICS????? ??
   useEffect(() => {
-    if (!user || provider !== "toss" || !activeToss?.holdings?.length) return;
+    if (!user || provider !== "toss" || !tossHoldingsSymKey) return;
+    const holdings = activeToss?.holdings ?? [];
     let cancelled = false;
     void (async () => {
       const map = new Map<
@@ -379,13 +389,13 @@ export default function AccountManageTab({
           const industry = h.industry ?? null;
           map.set(sym, {
             industry,
-            // ??: Yahoo/Naver ?? ??, ??? S&P subIndustry
+            // 업종: Yahoo/Naver 우선, 없으면 S&P subIndustry
             subIndustry: industry || g?.subIndustry || null,
             sectorEn: g?.sector ?? null,
             sectorKo: g?.sectorKo ?? industry ?? null,
           });
         }
-        for (const h of activeToss.holdings) {
+        for (const h of holdings) {
           const sym = String(h.symbol ?? "").toUpperCase();
           if (map.has(sym)) continue;
           const g = gics.get(sym);
@@ -406,7 +416,9 @@ export default function AccountManageTab({
     return () => {
       cancelled = true;
     };
-  }, [user, provider, activeToss?.holdings]);
+    // activeToss.holdings 전체 참조 금지 — 라이브 시세 갱신마다 SP500/관리 API 재호출됨
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tossHoldingsSymKey
+  }, [user, provider, tossHoldingsSymKey]);
 
   const purchaseFxBySymbol = useMemo(() => {
     if (provider !== "toss" || !activeToss?.holdings?.length) {
@@ -417,7 +429,8 @@ export default function AccountManageTab({
       activeToss.holdings,
       usdKrwRate,
     );
-  }, [provider, activeToss?.holdings, user?.id, usdKrwRate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tossLedgerFp
+  }, [provider, tossLedgerFp, user?.id, usdKrwRate]);
 
   const holdingRows: AccountHoldingRow[] = useMemo(() => {
     if (provider === "toss" && activeToss) {

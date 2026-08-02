@@ -1535,8 +1535,6 @@ export default function App() {
           <div className="top-bar__macro">
             <MacroEventsBar
               onSecretAdminOpen={() => setShowAccessAdmin(true)}
-              onOpenNasdaqEtf={() => setAppTab("nasdaqEtf")}
-              nasdaqEtfActive={appTab === "nasdaqEtf"}
             />
           </div>
           <div className="top-bar__header-left">

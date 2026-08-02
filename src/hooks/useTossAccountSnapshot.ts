@@ -9,6 +9,7 @@ import {
 import { LIVE_TRADE_AUTH_CHANGE } from "../lib/liveTradeAuthEvents";
 import {
   clearTossSnapshotCache,
+  readLastTossSnapshotUserId,
   readTossSnapshotCache,
   rememberTossSnapshotUserId,
   writeTossSnapshotCache,
@@ -44,6 +45,39 @@ function hydrateFromClientCache(userId: string): {
   };
 }
 
+function initialHydrate(): {
+  snapshot: TossTestSnapshot | null;
+  feeLabelKo: string | null;
+  tossRoundTripFeeRate: number | null;
+  tossFeeRatesByMarket: TossFeeRatesByMarket | null;
+  updatedAtMs: number | null;
+  hasCache: boolean;
+} {
+  const uid = readLastTossSnapshotUserId();
+  if (!uid) {
+    return {
+      snapshot: null,
+      feeLabelKo: null,
+      tossRoundTripFeeRate: null,
+      tossFeeRatesByMarket: null,
+      updatedAtMs: null,
+      hasCache: false,
+    };
+  }
+  const cached = hydrateFromClientCache(uid);
+  if (!cached) {
+    return {
+      snapshot: null,
+      feeLabelKo: null,
+      tossRoundTripFeeRate: null,
+      tossFeeRatesByMarket: null,
+      updatedAtMs: null,
+      hasCache: false,
+    };
+  }
+  return { ...cached, hasCache: true };
+}
+
 export function useTossAccountSnapshot(opts?: {
   poll?: boolean;
   pollIntervalMs?: number;
@@ -53,21 +87,30 @@ export function useTossAccountSnapshot(opts?: {
   const pollIntervalMs = opts?.pollIntervalMs ?? TOSS_LEDGER_POLL_MS;
   const apiRefreshIntervalMs =
     opts?.apiRefreshIntervalMs ?? TOSS_LEDGER_API_REFRESH_MS;
+  const bootRef = useRef<ReturnType<typeof initialHydrate> | null>(null);
+  if (!bootRef.current) bootRef.current = initialHydrate();
+  const boot = bootRef.current;
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [snapshot, setSnapshot] = useState<TossTestSnapshot | null>(null);
-  const [feeLabelKo, setFeeLabelKo] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState<TossTestSnapshot | null>(
+    () => boot.snapshot,
+  );
+  const [feeLabelKo, setFeeLabelKo] = useState<string | null>(
+    () => boot.feeLabelKo,
+  );
   const [tossRoundTripFeeRate, setTossRoundTripFeeRate] = useState<number | null>(
-    null,
+    () => boot.tossRoundTripFeeRate,
   );
   const [tossFeeRatesByMarket, setTossFeeRatesByMarket] =
-    useState<TossFeeRatesByMarket | null>(null);
-  const [updatedAtMs, setUpdatedAtMs] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+    useState<TossFeeRatesByMarket | null>(() => boot.tossFeeRatesByMarket);
+  const [updatedAtMs, setUpdatedAtMs] = useState<number | null>(
+    () => boot.updatedAtMs,
+  );
+  const [loading, setLoading] = useState(() => !boot.hasCache);
   const [syncing, setSyncing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const userRef = useRef<AuthUser | null>(null);
-  const snapshotRef = useRef<TossTestSnapshot | null>(null);
+  const snapshotRef = useRef<TossTestSnapshot | null>(boot.snapshot);
   const syncingRef = useRef(0);
 
   useEffect(() => {
@@ -110,15 +153,16 @@ export function useTossAccountSnapshot(opts?: {
           if (
             prev &&
             tossSnapshotLedgerFingerprint(prev) ===
-              tossSnapshotLedgerFingerprint(out.snapshot)
+              tossSnapshotLedgerFingerprint(out.snapshot!)
           ) {
             return prev;
           }
-          return out.snapshot;
+          return out.snapshot!;
         });
         setFeeLabelKo(out.feeLabelKo ?? null);
         setTossRoundTripFeeRate(
-          out.tossRoundTripFeeRate != null && Number.isFinite(out.tossRoundTripFeeRate)
+          out.tossRoundTripFeeRate != null &&
+            Number.isFinite(out.tossRoundTripFeeRate)
             ? out.tossRoundTripFeeRate
             : null,
         );
@@ -130,21 +174,24 @@ export function useTossAccountSnapshot(opts?: {
             uid,
             out.snapshot,
             out.feeLabelKo ?? null,
-            out.tossRoundTripFeeRate ?? null,
+            out.tossRoundTripFeeRate != null &&
+              Number.isFinite(out.tossRoundTripFeeRate)
+              ? out.tossRoundTripFeeRate
+              : null,
             out.tossFeeRatesByMarket ?? null,
             syncedAt,
           );
         }
-        return;
-      }
-      setErr(out.messageKo ?? out.error ?? null);
-      if (!keepStale) {
-        setSnapshot(null);
-        setFeeLabelKo(null);
-        setTossRoundTripFeeRate(null);
-        setTossFeeRatesByMarket(null);
-        setUpdatedAtMs(null);
-        if (uid) clearTossSnapshotCache(uid);
+      } else {
+        setErr(out.messageKo ?? out.error ?? null);
+        if (!keepStale) {
+          setSnapshot(null);
+          setFeeLabelKo(null);
+          setTossRoundTripFeeRate(null);
+          setTossFeeRatesByMarket(null);
+          setUpdatedAtMs(null);
+          if (uid) clearTossSnapshotCache(uid);
+        }
       }
     },
     [persistSnapshot],
@@ -160,32 +207,37 @@ export function useTossAccountSnapshot(opts?: {
       }
       if (!silent && !hasLocal && !snapshotRef.current) setLoading(true);
       try {
-        const me = await fetchAuthMe();
-        const prevId = userRef.current?.id ?? null;
-        setUser(me.user);
-        userRef.current = me.user;
-        if (!me.user) {
-          setSnapshot(null);
-          setFeeLabelKo(null);
-          setTossRoundTripFeeRate(null);
-          setTossFeeRatesByMarket(null);
-          setUpdatedAtMs(null);
-          setErr(null);
-          snapshotRef.current = null;
-          clearTossSnapshotCache();
-          return;
+        let meUser = userRef.current;
+        if (!silent || !meUser) {
+          const me = await fetchAuthMe();
+          const prevId = userRef.current?.id ?? null;
+          setUser(me.user);
+          userRef.current = me.user;
+          meUser = me.user;
+          if (!me.user) {
+            setSnapshot(null);
+            setFeeLabelKo(null);
+            setTossRoundTripFeeRate(null);
+            setTossFeeRatesByMarket(null);
+            setUpdatedAtMs(null);
+            setErr(null);
+            snapshotRef.current = null;
+            clearTossSnapshotCache();
+            return;
+          }
+          if (prevId && prevId !== me.user.id) {
+            setSnapshot(null);
+            setFeeLabelKo(null);
+            setTossRoundTripFeeRate(null);
+            setTossFeeRatesByMarket(null);
+            setUpdatedAtMs(null);
+            setErr(null);
+            snapshotRef.current = null;
+          }
+          rememberTossSnapshotUserId(me.user.id);
         }
-        if (prevId && prevId !== me.user.id) {
-          setSnapshot(null);
-          setFeeLabelKo(null);
-          setTossRoundTripFeeRate(null);
-          setTossFeeRatesByMarket(null);
-          setUpdatedAtMs(null);
-          setErr(null);
-          snapshotRef.current = null;
-        }
-        rememberTossSnapshotUserId(me.user.id);
-        const cached = hydrateFromClientCache(me.user.id);
+        if (!meUser) return;
+        const cached = hydrateFromClientCache(meUser.id);
         if (cached && !refresh) {
           setSnapshot((prev) => {
             if (
@@ -205,7 +257,7 @@ export function useTossAccountSnapshot(opts?: {
         const out = await fetchTossAccountSnapshot({ refresh });
         applySnapshotResponse(
           out,
-          me.user.id,
+          meUser.id,
           Boolean(cached?.snapshot || snapshotRef.current),
         );
       } catch (e) {

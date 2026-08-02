@@ -167,16 +167,26 @@ export function buildProportionalBuyPlan(snapshot, market, cashUsePct = 100) {
 /**
  * @param {string} userId
  * @param {{ markets?: string[]; cashUsePct?: number } | null} [schedule]
+ * @param {{ forceRefresh?: boolean }} [opts]
  */
-export async function previewTossRebalanceScheduleForUser(userId, schedule = null) {
+export async function previewTossRebalanceScheduleForUser(
+  userId,
+  schedule = null,
+  opts = {},
+) {
   const uid = String(userId ?? "").trim();
   const sched = schedule ?? getTossRebalanceScheduleSync(uid);
-  try {
-    await refreshTossLedgerSnapshotForUserAsync(uid);
-  } catch {
-    /* use cache */
+  const forceRefresh = Boolean(opts?.forceRefresh);
+  let cache = getTossLedgerSnapshotCacheSync(uid);
+  // GET 미리보기는 캐시 우선 — 계좌 탭 진입 시 토스 원장 전체 갱신을 막음
+  if (forceRefresh || !cache?.snapshot) {
+    try {
+      await refreshTossLedgerSnapshotForUserAsync(uid);
+    } catch {
+      /* use cache */
+    }
+    cache = getTossLedgerSnapshotCacheSync(uid);
   }
-  const cache = getTossLedgerSnapshotCacheSync(uid);
   const snapshot = cache?.snapshot ?? null;
   const markets = (sched?.markets?.length ? sched.markets : ["kr", "us"]).filter(
     (m) => m === "kr" || m === "us",
@@ -244,7 +254,9 @@ export async function runTossRebalanceScheduleForUser(userId, opts = {}) {
     };
   }
 
-  const preview = await previewTossRebalanceScheduleForUser(uid, schedule);
+  const preview = await previewTossRebalanceScheduleForUser(uid, schedule, {
+    forceRefresh: true,
+  });
   if (!preview.ready) {
     const result = { ok: false, error: "계좌 스냅샷을 불러오지 못했습니다.", today };
     if (!dryRun) {
@@ -373,11 +385,15 @@ export async function runTossProportionalBuyNowForUser(userId, opts = {}) {
     };
   }
 
-  const preview = await previewTossRebalanceScheduleForUser(uid, {
-    ...(schedule ?? {}),
-    markets: marketsForRun,
-    cashUsePct,
-  });
+  const preview = await previewTossRebalanceScheduleForUser(
+    uid,
+    {
+      ...(schedule ?? {}),
+      markets: marketsForRun,
+      cashUsePct,
+    },
+    { forceRefresh: true },
+  );
   if (!preview.ready) {
     return { ok: false, error: "계좌 스냅샷을 불러오지 못했습니다." };
   }

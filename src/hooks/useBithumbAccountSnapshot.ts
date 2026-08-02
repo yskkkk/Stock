@@ -83,17 +83,22 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
   useEffect(() => {
     let cancelled = false;
 
+    // 토스 선택 시에는 빗썸 스냅샷을 아예 요청하지 않음 (계좌 탭 진입 지연 방지)
+    if (!poll) {
+      setLoading(false);
+      setAuthChecked(true);
+      return;
+    }
+
     void (async () => {
       if (cancelled) return;
       await reload(false, false);
       // 폴링은 interval에만 맡김 — 마운트 직후 refresh 이중 요청 제거
     })();
 
-    const id = poll
-      ? window.setInterval(() => {
-          void reload(true, true);
-        }, VISIBLE_POLL_MS)
-      : undefined;
+    const id = window.setInterval(() => {
+      void reload(true, true);
+    }, VISIBLE_POLL_MS);
 
     const onAuthChange = () => {
       void reload(true, false);
@@ -101,7 +106,7 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
     window.addEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     return () => {
       cancelled = true;
-      if (id != null) window.clearInterval(id);
+      window.clearInterval(id);
       window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     };
   }, [poll, reload]);

@@ -26,7 +26,6 @@ import { getMacroSurpriseUpBias } from "../lib/macroSentiment";
 import { stockLogoUrl } from "../lib/stockLogoUrl";
 import type { MacroEvent, Market, SectorEarningsSpotlightItem } from "../types";
 import MacroEventInfoModal from "./MacroEventInfoModal";
-import AppSp500EtfMicroStack from "./AppSp500EtfMicroStack";
 
 type MacroTrackEdge = { side: "none" | "left" | "right"; pull: number };
 
@@ -385,15 +384,10 @@ function writeSessionMacroCache(
 type MacroEventsBarProps = {
   /** 제목 문구를 연속으로 눌렀을 때만 호출 (접근 관리 등). */
   onSecretAdminOpen?: () => void;
-  /** 매크로 카드 왼쪽 — 나스닥 ETF 탭으로 이동 */
-  onOpenNasdaqEtf?: () => void;
-  nasdaqEtfActive?: boolean;
 };
 
 export default function MacroEventsBar({
   onSecretAdminOpen,
-  onOpenNasdaqEtf,
-  nasdaqEtfActive = false,
 }: MacroEventsBarProps) {
   const cachedInit = readSessionMacroCache() ?? peekMacroPrefetch();
   const [events, setEvents] = useState<MacroEvent[]>(() => cachedInit?.events ?? []);
@@ -589,24 +583,13 @@ export default function MacroEventsBar({
           </div>
         </div>
         <div
-          className={[
-            macroTrackWrapClass(eventsTrackEdge),
-            onOpenNasdaqEtf ? "macro-bar__track-wrap--with-quick" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
+          className={macroTrackWrapClass(eventsTrackEdge)}
           style={
             {
               "--macro-edge-pull": String(eventsTrackEdge.pull),
             } as CSSProperties
           }
         >
-          {onOpenNasdaqEtf ? (
-            <AppSp500EtfMicroStack
-              onOpenNasdaqEtf={onOpenNasdaqEtf}
-              nasdaqEtfActive={nasdaqEtfActive}
-            />
-          ) : null}
           <div className="macro-bar__track" ref={eventsTrackRef}>
             {loading && barItems.length === 0 && (
               <p className="macro-bar__status">{ko.macro.loading}</p>
