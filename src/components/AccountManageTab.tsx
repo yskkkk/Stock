@@ -1062,6 +1062,21 @@ export default function AccountManageTab({
     return any ? Math.round(sum) : null;
   }, [hoverSlice, hoverRows, holdingsPnlDisplay]);
 
+  const hoverReturnPct = useMemo(() => {
+    if (!hoverSlice || hoverSlice.key === "__cash__") return null;
+    if (hoverSlice.key === "__holdings__") {
+      return holdingsReturnPct != null && Number.isFinite(holdingsReturnPct)
+        ? holdingsReturnPct
+        : null;
+    }
+    if (hoverPnlKrw == null || !Number.isFinite(hoverPnlKrw)) return null;
+    const mv = hoverSlice.valueKrw;
+    if (!(mv > 0) || !Number.isFinite(mv)) return null;
+    const cost = mv - hoverPnlKrw;
+    if (!(cost > 0) || !Number.isFinite(cost)) return null;
+    return (hoverPnlKrw / cost) * 100;
+  }, [hoverSlice, hoverPnlKrw, holdingsReturnPct]);
+
   const bubbleRowReturnPct = useCallback((r: AccountHoldingRow): number | null => {
     if (r.returnPercent != null && Number.isFinite(r.returnPercent)) {
       return r.returnPercent;
@@ -2553,9 +2568,26 @@ export default function AccountManageTab({
                 >
                   {money(hoverSlice.valueKrw)}
                   {hoverPnlKrw != null ? (
-                    <span className="account-manage-tab__bubble-sym-pct">
+                    <span
+                      className={[
+                        "account-manage-tab__bubble-eval-pnl",
+                        hoverPnlKrw > 0
+                          ? "is-up"
+                          : hoverPnlKrw < 0
+                            ? "is-down"
+                            : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
                       {" "}
                       {signedPnl(hoverPnlKrw)}
+                      {hoverReturnPct != null ? (
+                        <span className="account-manage-tab__bubble-eval-ret">
+                          {" "}
+                          ({formatPercent(hoverReturnPct)})
+                        </span>
+                      ) : null}
                     </span>
                   ) : null}
                 </span>
@@ -2621,6 +2653,24 @@ export default function AccountManageTab({
                     {hoverRows.map((r) => {
                       const pct = bubbleRowReturnPct(r);
                       const pnl = r.unrealizedPnlKrw;
+                      const weightPct =
+                        total > 0 && Number.isFinite(r.valueKrw)
+                          ? (r.valueKrw / total) * 100
+                          : null;
+                      const tone =
+                        pct != null
+                          ? pct > 0
+                            ? "is-up"
+                            : pct < 0
+                              ? "is-down"
+                              : ""
+                          : pnl != null
+                            ? pnl > 0
+                              ? "is-up"
+                              : pnl < 0
+                                ? "is-down"
+                                : ""
+                            : "";
                       return (
                         <li
                           key={r.symbol}
@@ -2635,10 +2685,27 @@ export default function AccountManageTab({
                           >
                             {money(r.valueKrw)}
                           </span>
-                          <span className="account-manage-tab__bubble-sym-pct">
+                          <span className="account-manage-tab__bubble-sym-weight">
+                            {weightPct != null ? formatAllocPct(weightPct) : ""}
+                          </span>
+                          <span
+                            className={[
+                              "account-manage-tab__bubble-sym-pct",
+                              tone,
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                          >
                             {pct != null ? `(${formatPercent(pct)})` : ""}
                           </span>
-                          <span className="account-manage-tab__bubble-sym-pnl">
+                          <span
+                            className={[
+                              "account-manage-tab__bubble-sym-pnl",
+                              tone,
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                          >
                             {pnl != null ? signedPnl(pnl) : ""}
                           </span>
                         </li>
