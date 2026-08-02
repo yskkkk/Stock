@@ -28,6 +28,7 @@ export type VaultActiveFilterLabelsInput = {
     ma120FromBelow: string;
     ma120FromAbove: string;
     timeframeWeekly: string;
+    scanConditionNone: string;
   };
 };
 
@@ -72,6 +73,14 @@ export function buildVaultActiveFilterLabels(
     parts.push(input.labels.ma120FromBelow);
   } else if (input.ma120ApproachFilter === "from_above") {
     parts.push(input.labels.ma120FromAbove);
+  }
+
+  if (
+    input.filter !== "favorite" &&
+    sources.length === 0 &&
+    parts.length > 0
+  ) {
+    parts.unshift(input.labels.scanConditionNone);
   }
 
   return parts;

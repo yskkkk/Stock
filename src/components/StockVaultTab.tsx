@@ -1018,6 +1018,7 @@ export default function StockVaultTab({
   const showFilterEmptyState =
     !loading &&
     !error &&
+    !(isHistoricalView && snapshotLoading) &&
     filtered.length === 0 &&
     (activeFilterLabels.length > 0 || showEmptyIntersection);
 

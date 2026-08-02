@@ -1430,6 +1430,7 @@ export const ko = {
         : "선택한 조건에 맞는 종목이 없습니다.",
     filterReset: "필터 초기화",
     filterResetAria: "필터를 기본(최신·전체·일봉·골든크로스)으로 되돌리기",
+    filterScanConditionNone: "탐색 조건 미선택",
     filterScanDatePrefix: "일자",
     tabGolden: "골든크로스",
     tabMaAlign: "정배열",
