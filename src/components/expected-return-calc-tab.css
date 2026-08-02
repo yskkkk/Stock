@@ -13,6 +13,56 @@
   gap: 0.28rem;
 }
 
+.expected-return-calc__head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem 0.85rem;
+}
+
+.expected-return-calc__currency-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 0.45rem);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface, var(--card)) 80%, transparent);
+}
+
+.expected-return-calc__currency-btn {
+  margin: 0;
+  min-height: 2.2rem;
+  padding: 0.28rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.expected-return-calc__currency-btn + .expected-return-calc__currency-btn {
+  border-left: 1px solid var(--card-border);
+}
+
+.expected-return-calc__currency-btn.is-active {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent, #14b8a6) 16%, transparent);
+}
+
+.expected-return-calc__currency-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent, #14b8a6) 70%, transparent);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.expected-return-calc__unit {
+  font-weight: 550;
+  color: color-mix(in srgb, var(--muted) 85%, var(--accent, #14b8a6));
+}
+
 .expected-return-calc__title {
   margin: 0;
   font-size: 1.15rem;

@@ -8,8 +8,12 @@ import {
 import "./expected-return-calc-tab.css";
 
 type FieldKey = keyof ExpectedReturnCalcInput;
+type CalcCurrency = "KRW" | "USD";
 
-const DEFAULTS: Record<FieldKey, string> = {
+const CURRENCY_LS_KEY = "ystock:expected-return-calc-currency";
+
+/** 책 표 12-1(휴렛팩커드) 예시 — 달러 */
+const DEFAULTS_USD: Record<FieldKey, string> = {
   currentPrice: "120",
   currentEps: "3.33",
   earningsGrowthPct: "15.2",
@@ -19,14 +23,50 @@ const DEFAULTS: Record<FieldKey, string> = {
   targetReturnPct: "15",
 };
 
+/** 국내 주식 스케일 예시 — 원화 */
+const DEFAULTS_KRW: Record<FieldKey, string> = {
+  currentPrice: "50000",
+  currentEps: "3500",
+  earningsGrowthPct: "12",
+  avgPer: "15",
+  dividendPayoutPct: "20",
+  years: "10",
+  targetReturnPct: "15",
+};
+
+function defaultsFor(currency: CalcCurrency): Record<FieldKey, string> {
+  return currency === "KRW" ? { ...DEFAULTS_KRW } : { ...DEFAULTS_USD };
+}
+
+function readStoredCurrency(): CalcCurrency {
+  try {
+    const v = localStorage.getItem(CURRENCY_LS_KEY);
+    if (v === "KRW" || v === "USD") return v;
+  } catch {
+    /* ignore */
+  }
+  return "KRW";
+}
+
+function persistCurrency(currency: CalcCurrency): void {
+  try {
+    localStorage.setItem(CURRENCY_LS_KEY, currency);
+  } catch {
+    /* ignore */
+  }
+}
+
 function parseNum(raw: string): number {
   const n = Number(String(raw).replace(/,/g, "").trim());
   return Number.isFinite(n) ? n : NaN;
 }
 
-function fmtMoney(n: number | null | undefined): string {
+function fmtMoney(
+  n: number | null | undefined,
+  currency: CalcCurrency,
+): string {
   if (n == null || !Number.isFinite(n)) return "—";
-  return formatPrice(n);
+  return formatPrice(n, currency);
 }
 
 function fmtPctFromRatio(n: number | null | undefined): string {
@@ -35,7 +75,10 @@ function fmtPctFromRatio(n: number | null | undefined): string {
 }
 
 export default function ExpectedReturnCalcTab() {
-  const [fields, setFields] = useState(DEFAULTS);
+  const [currency, setCurrency] = useState<CalcCurrency>(() =>
+    readStoredCurrency(),
+  );
+  const [fields, setFields] = useState(() => defaultsFor(readStoredCurrency()));
 
   const input: ExpectedReturnCalcInput = useMemo(
     () => ({
@@ -56,9 +99,20 @@ export default function ExpectedReturnCalcTab() {
     setFields((prev) => ({ ...prev, [key]: value }));
   };
 
+  const onCurrency = (next: CalcCurrency) => {
+    if (next === currency) return;
+    setCurrency(next);
+    persistCurrency(next);
+  };
+
   const yearsLabel = Number.isFinite(input.years)
     ? String(Math.floor(input.years))
     : "—";
+
+  const moneyUnit =
+    currency === "KRW"
+      ? ko.app.expectedReturnCalcCurrencyKrw
+      : ko.app.expectedReturnCalcCurrencyUsd;
 
   return (
     <section
@@ -66,10 +120,44 @@ export default function ExpectedReturnCalcTab() {
       aria-label={ko.app.expectedReturnCalcAria}
     >
       <header className="expected-return-calc__head">
-        <h2 className="expected-return-calc__title">
-          {ko.app.expectedReturnCalcTitle}
-        </h2>
-        <p className="expected-return-calc__sub">{ko.app.expectedReturnCalcSubtitle}</p>
+        <div className="expected-return-calc__head-row">
+          <h2 className="expected-return-calc__title">
+            {ko.app.expectedReturnCalcTitle}
+          </h2>
+          <div
+            className="expected-return-calc__currency-toggle"
+            role="group"
+            aria-label={ko.app.expectedReturnCalcCurrencyAria}
+          >
+            <button
+              type="button"
+              className={
+                currency === "KRW"
+                  ? "expected-return-calc__currency-btn is-active"
+                  : "expected-return-calc__currency-btn"
+              }
+              aria-pressed={currency === "KRW"}
+              onClick={() => onCurrency("KRW")}
+            >
+              {ko.app.expectedReturnCalcCurrencyKrw}
+            </button>
+            <button
+              type="button"
+              className={
+                currency === "USD"
+                  ? "expected-return-calc__currency-btn is-active"
+                  : "expected-return-calc__currency-btn"
+              }
+              aria-pressed={currency === "USD"}
+              onClick={() => onCurrency("USD")}
+            >
+              {ko.app.expectedReturnCalcCurrencyUsd}
+            </button>
+          </div>
+        </div>
+        <p className="expected-return-calc__sub">
+          {ko.app.expectedReturnCalcSubtitle} ({moneyUnit})
+        </p>
       </header>
 
       <div className="expected-return-calc__grid">
@@ -87,23 +175,36 @@ export default function ExpectedReturnCalcTab() {
               ["years", ko.app.expectedReturnCalcYears],
               ["targetReturnPct", ko.app.expectedReturnCalcTarget],
             ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="expected-return-calc__field">
-              <span className="expected-return-calc__label">{label}</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                className="expected-return-calc__input"
-                value={fields[key]}
-                onChange={(e) => onChange(key, e.target.value)}
-                autoComplete="off"
-              />
-            </label>
-          ))}
+          ).map(([key, label]) => {
+            const unitHint =
+              key === "currentPrice" || key === "currentEps"
+                ? currency === "KRW"
+                  ? "원"
+                  : "$"
+                : null;
+            return (
+              <label key={key} className="expected-return-calc__field">
+                <span className="expected-return-calc__label">
+                  {label}
+                  {unitHint ? (
+                    <span className="expected-return-calc__unit"> ({unitHint})</span>
+                  ) : null}
+                </span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="expected-return-calc__input"
+                  value={fields[key]}
+                  onChange={(e) => onChange(key, e.target.value)}
+                  autoComplete="off"
+                />
+              </label>
+            );
+          })}
           <button
             type="button"
             className="expected-return-calc__reset"
-            onClick={() => setFields(DEFAULTS)}
+            onClick={() => setFields(defaultsFor(currency))}
           >
             {ko.app.expectedReturnCalcReset}
           </button>
@@ -124,15 +225,15 @@ export default function ExpectedReturnCalcTab() {
                       yearsLabel,
                     )}
                   </dt>
-                  <dd>{fmtMoney(result.futurePrice)}</dd>
+                  <dd>{fmtMoney(result.futurePrice, currency)}</dd>
                 </div>
                 <div>
                   <dt>{ko.app.expectedReturnCalcTotalDiv}</dt>
-                  <dd>{fmtMoney(result.totalDividends)}</dd>
+                  <dd>{fmtMoney(result.totalDividends, currency)}</dd>
                 </div>
                 <div>
                   <dt>{ko.app.expectedReturnCalcTotalProceeds}</dt>
-                  <dd>{fmtMoney(result.totalProceeds)}</dd>
+                  <dd>{fmtMoney(result.totalProceeds, currency)}</dd>
                 </div>
                 <div>
                   <dt>{ko.app.expectedReturnCalcCagr}</dt>
@@ -150,7 +251,7 @@ export default function ExpectedReturnCalcTab() {
                     )}
                   </dt>
                   <dd className="expected-return-calc__em">
-                    {fmtMoney(result.maxBuyPrice)}
+                    {fmtMoney(result.maxBuyPrice, currency)}
                   </dd>
                 </div>
               </dl>
@@ -168,14 +269,14 @@ export default function ExpectedReturnCalcTab() {
                     {result.years.map((row) => (
                       <tr key={row.year}>
                         <td>{row.year}</td>
-                        <td>{fmtMoney(row.eps)}</td>
+                        <td>{fmtMoney(row.eps, currency)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr>
                       <th scope="row">{ko.app.expectedReturnCalcTotalEps}</th>
-                      <td>{fmtMoney(result.totalEps)}</td>
+                      <td>{fmtMoney(result.totalEps, currency)}</td>
                     </tr>
                   </tfoot>
                 </table>

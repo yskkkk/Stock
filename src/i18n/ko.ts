@@ -395,6 +395,9 @@ export const ko = {
     expectedReturnCalcAria: "PER·성장·배당 기반 예상 수익률 계산기",
     expectedReturnCalcSubtitle:
       "이익 성장·평균 PER·배당성향으로 N년 후 주가와 총배당을 합산해 연평균 수익률과 목표 수익률 기준 최대 매수가를 계산합니다.",
+    expectedReturnCalcCurrencyAria: "계산 통화",
+    expectedReturnCalcCurrencyKrw: "원화",
+    expectedReturnCalcCurrencyUsd: "달러",
     expectedReturnCalcPrice: "현재 주가",
     expectedReturnCalcEps: "기준 EPS",
     expectedReturnCalcGrowth: "이익 성장률 (%)",
