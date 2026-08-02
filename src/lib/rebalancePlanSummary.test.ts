@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildRebalanceNowConfirmMessage,
   buildRebalanceNowRunSubLabel,
+  buildRebalancePreviewSubLabel,
   buildRebalanceRunSummaryLead,
   buildRebalanceSpendLines,
   buildRebalanceSpendSummary,
@@ -160,6 +161,17 @@ describe("rebalancePlanSummary", () => {
     expect(sub).not.toContain("50,000원");
     expect(sub).toContain("수수료·세금 미포함");
     expect(sub).toContain("돈이 나갑니다");
+  });
+
+  it("builds preview toolbar sub without spend-money wording", () => {
+    const withSum = buildRebalancePreviewSubLabel("50,000원 · 25.50$");
+    expect(withSum).toContain("50,000원");
+    expect(withSum).toContain("수수료·세금 미포함");
+    expect(withSum).not.toContain("돈이 나갑니다");
+
+    const bare = buildRebalancePreviewSubLabel(null, { repeatSummary: false });
+    expect(bare).toContain("주문 없음");
+    expect(bare).not.toContain("돈이 나갑니다");
   });
 
   it("builds run summary lead with shared amount note", () => {

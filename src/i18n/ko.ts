@@ -251,6 +251,8 @@ export const ko = {
     accountManageRebalanceNowRunSub: "{amountNote} · 돈이 나갑니다",
     accountManageRebalanceNowRunSubAmount:
       "{summary} · {amountNote} · 돈이 나갑니다",
+    accountManageRebalancePreviewSub: "{amountNote} · 주문 없음",
+    accountManageRebalancePreviewSubAmount: "{summary} · {amountNote}",
     accountManageRebalancePreviewHint:
       "아래 금액은 {amountNote}입니다. 「미리보기만 실행」은 계산만 하며 돈이 나가지 않습니다.",
     accountManageRebalanceSpendLine: "{cashLabel} 이번 사용 {spend}",

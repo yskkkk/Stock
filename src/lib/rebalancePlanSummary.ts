@@ -126,3 +126,21 @@ export function buildRebalanceNowRunSubLabel(
   }
   return withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSub);
 }
+
+/**
+ * 계좌관리 툴바 「미리보기·스케줄」 부제 —
+ * 합계가 있으면 합계+amountNote, 없으면 amountNote만 (실주문 ‘돈이 나갑니다’ 문구는 쓰지 않음)
+ */
+export function buildRebalancePreviewSubLabel(
+  summary?: string | null,
+  opts?: { repeatSummary?: boolean },
+): string {
+  const s = typeof summary === "string" ? summary.trim() : "";
+  if (s && opts?.repeatSummary !== false) {
+    return withRebalanceAmountNote(
+      ko.app.accountManageRebalancePreviewSubAmount,
+      { summary: s },
+    );
+  }
+  return withRebalanceAmountNote(ko.app.accountManageRebalancePreviewSub);
+}
