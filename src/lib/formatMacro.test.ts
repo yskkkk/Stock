@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatMacroCountdown, macroCardNearness } from "./formatMacro";
+import {
+  formatMacroCountdown,
+  formatMacroWhen,
+  macroCardNearness,
+} from "./formatMacro";
 
 describe("formatMacroCountdown", () => {
   it("uses D-n for multi-day remaining", () => {
@@ -14,6 +18,16 @@ describe("formatMacroCountdown", () => {
   it("uses D-day when live or past", () => {
     expect(formatMacroCountdown(0)).toBe("D-day");
     expect(formatMacroCountdown(-1000)).toBe("D-day");
+  });
+});
+
+describe("formatMacroWhen", () => {
+  it("always formats in Asia/Seoul even if US timezone is passed", () => {
+    // 2026-08-03 10:00 America/New_York (EDT, UTC-4) = 2026-08-03 23:00 KST
+    const at = Date.parse("2026-08-03T14:00:00.000Z");
+    const text = formatMacroWhen(at, "America/New_York");
+    expect(text).toMatch(/23:00/);
+    expect(text).toMatch(/8\.\s*3/);
   });
 });
 

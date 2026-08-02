@@ -14,10 +14,10 @@ export function formatMacroCountdown(msLeft: number): string {
   return `D-day ${clock}`;
 }
 
-export function formatMacroWhen(at: number, timeZone?: string): string {
-  const tz = timeZone?.trim() || "Asia/Seoul";
+/** 카드·모달 발표 시각 — 항상 한국 표준시(KST)로 표시 */
+export function formatMacroWhen(at: number, _timeZone?: string): string {
   return new Date(at).toLocaleString("ko-KR", {
-    timeZone: tz,
+    timeZone: "Asia/Seoul",
     month: "numeric",
     day: "numeric",
     weekday: "short",
@@ -81,9 +81,9 @@ export function formatSectorEarningsDday(
   return `D+${-diffDays}`;
 }
 
-export function formatSectorEarningsWhen(at: number, timeZone: string): string {
+export function formatSectorEarningsWhen(at: number, _timeZone?: string): string {
   return new Date(at).toLocaleString("ko-KR", {
-    timeZone,
+    timeZone: "Asia/Seoul",
     month: "numeric",
     day: "numeric",
     weekday: "short",
