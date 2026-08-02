@@ -91,6 +91,20 @@ function krwToDisplay(
   return n / usdKrwRate;
 }
 
+/** `unrealizedPnlKrw` is display-currency units; convert to KRW to pair with `valueKrw`. */
+function displayPnlToKrw(
+  pnlDisplay: number | null | undefined,
+  currency: AccountManageDisplayCurrency,
+  usdKrwRate: number | null,
+): number | null {
+  if (pnlDisplay == null || !Number.isFinite(pnlDisplay)) return null;
+  if (currency === "KRW") return pnlDisplay;
+  if (!(usdKrwRate != null && Number.isFinite(usdKrwRate) && usdKrwRate > 0)) {
+    return null;
+  }
+  return pnlDisplay * usdKrwRate;
+}
+
 function formatAccountMoney(
   n: number | null | undefined,
   currency: AccountManageDisplayCurrency,
@@ -1096,8 +1110,14 @@ export default function AccountManageTab({
       sum += r.unrealizedPnlKrw;
       any = true;
     }
-    return any ? Math.round(sum) : null;
-  }, [hoverSlice, hoverRows, holdingsPnlDisplay]);
+    if (!any) return null;
+    return displayCurrency === "KRW" ? Math.round(sum) : sum;
+  }, [hoverSlice, hoverRows, holdingsPnlDisplay, displayCurrency]);
+
+  const hoverPnlAsKrw = useMemo(
+    () => displayPnlToKrw(hoverPnlKrw, displayCurrency, usdKrwRate),
+    [hoverPnlKrw, displayCurrency, usdKrwRate],
+  );
 
   const hoverReturnPct = useMemo(() => {
     if (!hoverSlice || hoverSlice.key === "__cash__") return null;
@@ -1106,53 +1126,63 @@ export default function AccountManageTab({
         ? holdingsReturnPct
         : null;
     }
-    if (hoverPnlKrw == null || !Number.isFinite(hoverPnlKrw)) return null;
+    if (hoverPnlAsKrw == null || !Number.isFinite(hoverPnlAsKrw)) return null;
     const mv = hoverSlice.valueKrw;
     if (!(mv > 0) || !Number.isFinite(mv)) return null;
-    const cost = mv - hoverPnlKrw;
+    const cost = mv - hoverPnlAsKrw;
     if (!(cost > 0) || !Number.isFinite(cost)) return null;
-    return (hoverPnlKrw / cost) * 100;
-  }, [hoverSlice, hoverPnlKrw, holdingsReturnPct]);
+    return (hoverPnlAsKrw / cost) * 100;
+  }, [hoverSlice, hoverPnlAsKrw, holdingsReturnPct]);
 
-  const bubbleRowReturnPct = useCallback((r: AccountHoldingRow): number | null => {
-    if (r.returnPercent != null && Number.isFinite(r.returnPercent)) {
-      return r.returnPercent;
-    }
-    if (
-      r.unrealizedPnlKrw != null &&
-      Number.isFinite(r.unrealizedPnlKrw) &&
-      r.valueKrw > 0
-    ) {
-      const cost = r.valueKrw - r.unrealizedPnlKrw;
-      if (cost > 0 && Number.isFinite(cost)) {
-        return (r.unrealizedPnlKrw / cost) * 100;
+  const bubbleRowReturnPct = useCallback(
+    (r: AccountHoldingRow): number | null => {
+      if (r.returnPercent != null && Number.isFinite(r.returnPercent)) {
+        return r.returnPercent;
       }
-    }
-    return null;
-  }, []);
+      const pnlKrw = displayPnlToKrw(
+        r.unrealizedPnlKrw,
+        displayCurrency,
+        usdKrwRate,
+      );
+      if (pnlKrw != null && r.valueKrw > 0) {
+        const cost = r.valueKrw - pnlKrw;
+        if (cost > 0 && Number.isFinite(cost)) {
+          return (pnlKrw / cost) * 100;
+        }
+      }
+      return null;
+    },
+    [displayCurrency, usdKrwRate],
+  );
 
   const sliceReturnPct = useCallback(
     (slice: { key: string; symbols: string[]; valueKrw: number } | undefined) => {
       if (!slice || slice.key === "__cash__") return null;
       const set = new Set(slice.symbols.map((s) => s.toUpperCase()));
-      let pnlSum = 0;
+      let pnlSumDisplay = 0;
       let any = false;
       for (const r of holdingRows) {
         if (!set.has(r.symbol.toUpperCase())) continue;
         if (r.unrealizedPnlKrw == null || !Number.isFinite(r.unrealizedPnlKrw)) {
           continue;
         }
-        pnlSum += r.unrealizedPnlKrw;
+        pnlSumDisplay += r.unrealizedPnlKrw;
         any = true;
       }
       if (!any) return null;
+      const pnlSum = displayPnlToKrw(
+        pnlSumDisplay,
+        displayCurrency,
+        usdKrwRate,
+      );
+      if (pnlSum == null) return null;
       const mv = slice.valueKrw;
       if (!(mv > 0) || !Number.isFinite(mv)) return null;
       const cost = mv - pnlSum;
       if (!(cost > 0) || !Number.isFinite(cost)) return null;
       return (pnlSum / cost) * 100;
     },
-    [holdingRows],
+    [holdingRows, displayCurrency, usdKrwRate],
   );
 
   const cx = 100;
@@ -2690,9 +2720,9 @@ export default function AccountManageTab({
                       aria-hidden={balanceHidden || undefined}
                     >
                       {money(
-                        hoverPnlKrw != null &&
+                        hoverPnlAsKrw != null &&
                           Number.isFinite(hoverSlice.valueKrw)
-                          ? hoverSlice.valueKrw - hoverPnlKrw
+                          ? hoverSlice.valueKrw - hoverPnlAsKrw
                           : hoverSlice.valueKrw,
                       )}
                     </span>
