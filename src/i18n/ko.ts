@@ -303,6 +303,8 @@ export const ko = {
     accountManageSliceValue: "평가",
     accountManageBubblePrincipal: "투자원금",
     accountManageBubbleEval: "평가금",
+    accountManageEvalAmount: "평가금액",
+    accountManageChangePct: "등락률",
     accountManageColWeight: "비중",
     accountManageRawSummary: "계좌 상세(잔고·주문)",
     accountManageNoExchange: "연동된 거래소 API가 없습니다. 실거래 탭에서 키를 연결하세요.",

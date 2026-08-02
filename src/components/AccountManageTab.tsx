@@ -1554,41 +1554,66 @@ export default function AccountManageTab({
             ) : null}
           <div className="account-manage-tab__summary-row">
             <div className="account-manage-tab__summary account-manage-tab__summary--primary">
-              <div className="account-manage-tab__stat">
-                <span className="account-manage-tab__stat-label">
-                  {ko.app.accountManageBubblePrincipal}
-                </span>
-                <span
-                  className={[
-                    "account-manage-tab__stat-value",
-                    !summaryPending &&
-                    holdingsPnlDisplay != null &&
-                    holdingsPnlDisplay > 0
-                      ? "is-up"
+              <div
+                className={[
+                  "account-manage-tab__stat account-manage-tab__stat--trio",
+                  !summaryPending &&
+                  holdingsReturnPct != null &&
+                  holdingsReturnPct > 0
+                    ? "is-up"
+                    : !summaryPending &&
+                        holdingsReturnPct != null &&
+                        holdingsReturnPct < 0
+                      ? "is-down"
                       : !summaryPending &&
                           holdingsPnlDisplay != null &&
-                          holdingsPnlDisplay < 0
-                        ? "is-down"
-                        : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
+                          holdingsPnlDisplay > 0
+                        ? "is-up"
+                        : !summaryPending &&
+                            holdingsPnlDisplay != null &&
+                            holdingsPnlDisplay < 0
+                          ? "is-down"
+                          : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                <div className="account-manage-tab__stat-trio-item">
+                  <span className="account-manage-tab__stat-label">
+                    {ko.app.accountManageBubblePrincipal}
+                  </span>
                   <span
-                    className="account-manage-tab__money"
+                    className="account-manage-tab__stat-value account-manage-tab__money"
                     aria-hidden={balanceHidden || undefined}
                   >
                     {summaryPending ? "…" : money(totalPrincipalKrw)}
                   </span>
-                  {!summaryPending && holdingsPnlDisplay != null ? (
-                    <span
-                      className="account-manage-tab__stat-pnl"
-                      aria-hidden={balanceHidden || undefined}
-                    >
-                      {signedPnl(holdingsPnlDisplay)}
-                    </span>
-                  ) : null}
-                </span>
+                </div>
+                <div className="account-manage-tab__stat-trio-item">
+                  <span className="account-manage-tab__stat-label">
+                    {ko.app.accountManageChangePct}
+                  </span>
+                  <span className="account-manage-tab__stat-value">
+                    {summaryPending
+                      ? "…"
+                      : holdingsReturnPct != null
+                        ? `(${formatPercent(holdingsReturnPct)})`
+                        : "—"}
+                  </span>
+                </div>
+                <div className="account-manage-tab__stat-trio-item">
+                  <span className="account-manage-tab__stat-label">
+                    {ko.app.accountManageEvalAmount}
+                  </span>
+                  <span
+                    className="account-manage-tab__stat-value account-manage-tab__money"
+                    aria-hidden={balanceHidden || undefined}
+                  >
+                    {summaryPending
+                      ? "…"
+                      : money((holdingsTotalKrw ?? 0) + cashKrw)}
+                  </span>
+                </div>
               </div>
               <div
                 className="account-manage-tab__stat account-manage-tab__stat--holdings"

@@ -723,6 +723,37 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   box-sizing: border-box;
 }
 
+.account-manage-tab__stat--trio {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.45rem 0.85rem;
+}
+
+.account-manage-tab__stat-trio-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.account-manage-tab__stat--trio.is-up .account-manage-tab__stat-value {
+  color: #22c55e;
+}
+
+.account-manage-tab__stat--trio.is-down .account-manage-tab__stat-value {
+  color: #ef4444;
+}
+
+html[data-theme="light"] .account-manage-tab__stat--trio.is-up .account-manage-tab__stat-value {
+  color: #15803d;
+}
+
+html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage-tab__stat-value {
+  color: #dc2626;
+}
+
 .account-manage-tab__stat--muted .account-manage-tab__stat-value {
   font-size: 0.85rem;
   font-weight: 600;
