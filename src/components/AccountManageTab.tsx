@@ -797,9 +797,7 @@ export default function AccountManageTab({
     rebalancePreviewPlans.some((p) => p.market === m),
   );
 
-  const renderRebalanceActionButtons = (
-    variant: "toolbar" | "wheel" | "bridge",
-  ) => {
+  const renderRebalanceActionButtons = () => {
     const compact = true;
     return (
     <div
@@ -834,18 +832,10 @@ export default function AccountManageTab({
             "account-manage-tab__hide-btn",
             "account-manage-tab__hide-btn--summary",
             "account-manage-tab__hide-btn--schedule",
-            variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
-            variant === "bridge" ? "account-manage-tab__hide-btn--bridge" : "",
           ]
             .filter(Boolean)
             .join(" ")}
-          data-vu={
-            variant === "wheel"
-              ? "account-rebalance-open-wheel"
-              : variant === "bridge"
-                ? "account-rebalance-open-bridge"
-                : "account-rebalance-open"
-          }
+          data-vu="account-rebalance-open"
           aria-label={ko.app.accountManageRebalancePreviewZoneLabel}
           title={ko.app.accountManageRebalanceMarketHint}
           onClick={() => setRebalanceOpen(true)}
@@ -922,18 +912,10 @@ export default function AccountManageTab({
             "account-manage-tab__hide-btn",
             "account-manage-tab__hide-btn--summary",
             "account-manage-tab__hide-btn--real-order",
-            variant === "wheel" ? "account-manage-tab__hide-btn--wheel" : "",
-            variant === "bridge" ? "account-manage-tab__hide-btn--bridge" : "",
           ]
             .filter(Boolean)
             .join(" ")}
-          data-vu={
-            variant === "wheel"
-              ? "account-rebalance-buy-now-wheel"
-              : variant === "bridge"
-                ? "account-rebalance-buy-now-bridge"
-                : "account-rebalance-buy-now-toolbar"
-          }
+          data-vu="account-rebalance-buy-now-toolbar"
           disabled={buyingNow || !buyNowToolbarAllowed}
           aria-label={ko.app.accountManageRebalanceRealOrderZoneLabel}
           title={
@@ -1485,7 +1467,7 @@ export default function AccountManageTab({
                   role="group"
                   aria-label={ko.app.accountManageRebalanceTitle}
                 >
-                  {renderRebalanceActionButtons("toolbar")}
+                  {renderRebalanceActionButtons()}
                 </div>
               ) : null}
             </div>
@@ -1759,20 +1741,6 @@ export default function AccountManageTab({
               </details>
             ) : null}
           </div>
-            {provider === "toss" ? (
-              <div
-                className="account-manage-tab__summary-toolbar account-manage-tab__summary-toolbar--rebalance"
-                role="group"
-                aria-label={ko.app.accountManageRebalanceTitle}
-              >
-                <span className="account-manage-tab__rebalance-bridge-label">
-                  {ko.app.accountManageRebalanceTitle}
-                </span>
-                <div className="account-manage-tab__rebalance-bridge-actions">
-                  {renderRebalanceActionButtons("bridge")}
-                </div>
-              </div>
-            ) : null}
           </div>
 
           {summaryPending ? (
@@ -1820,20 +1788,6 @@ export default function AccountManageTab({
                     </span>
                   </p>
                 </div>
-                {provider === "toss" ? (
-                  <div
-                    className="account-manage-tab__wheel-rebalance"
-                    role="group"
-                    aria-label={ko.app.accountManageRebalanceTitle}
-                  >
-                    <span className="account-manage-tab__wheel-rebalance-label">
-                      {ko.app.accountManageRebalanceTitle}
-                    </span>
-                    <div className="account-manage-tab__wheel-rebalance-actions">
-                      {renderRebalanceActionButtons("wheel")}
-                    </div>
-                  </div>
-                ) : null}
               </div>
 
               <div className="account-manage-tab__mode" role="group">
