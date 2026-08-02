@@ -598,6 +598,18 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   align-items: stretch;
 }
 
+.account-manage-tab__rebalance-compact-summary {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  margin: 0 0 0.15rem;
+  padding: 0.35rem 0.42rem;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: color-mix(in srgb, var(--surface) 45%, var(--card));
+}
+
 .account-manage-tab__rebalance-zone--compact {
   display: flex;
   flex-direction: column;
@@ -1674,6 +1686,17 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   gap: 0.4rem;
   margin-bottom: 0.4rem;
   font-size: 0.8rem;
+}
+
+.account-manage-tab__bubble-summary-row {
+  color: var(--muted);
+  margin-top: 0.12rem;
+  line-height: 1.35;
+  padding: 0.08rem 0;
+}
+
+.account-manage-tab__bubble-summary-row .account-manage-tab__bubble-sym-name {
+  font-weight: 600;
 }
 
 .account-manage-tab__bubble-row {

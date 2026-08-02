@@ -2580,21 +2580,28 @@ export default function AccountManageTab({
                 </strong>
               </div>
               {hoverSlice.key === "__cash__" ? (
-                <div className="account-manage-tab__bubble-row">
-                  <span>{ko.app.accountManageBubbleEval}</span>
+                <div className="account-manage-tab__bubble-sym-row account-manage-tab__bubble-summary-row">
+                  <span className="account-manage-tab__bubble-sym-name">
+                    {ko.app.accountManageBubbleEval}
+                  </span>
                   <span
-                    className="account-manage-tab__money"
+                    className="account-manage-tab__bubble-sym-val account-manage-tab__money"
                     aria-hidden={balanceHidden || undefined}
                   >
                     {money(hoverSlice.valueKrw)}
                   </span>
+                  <span className="account-manage-tab__bubble-sym-weight" />
+                  <span className="account-manage-tab__bubble-sym-pct" />
+                  <span className="account-manage-tab__bubble-sym-pnl" />
                 </div>
               ) : (
                 <>
-                  <div className="account-manage-tab__bubble-row">
-                    <span>{ko.app.accountManageBubblePrincipal}</span>
+                  <div className="account-manage-tab__bubble-sym-row account-manage-tab__bubble-summary-row">
+                    <span className="account-manage-tab__bubble-sym-name">
+                      {ko.app.accountManageBubblePrincipal}
+                    </span>
                     <span
-                      className="account-manage-tab__money"
+                      className="account-manage-tab__bubble-sym-val account-manage-tab__money"
                       aria-hidden={balanceHidden || undefined}
                     >
                       {money(
@@ -2604,52 +2611,68 @@ export default function AccountManageTab({
                           : hoverSlice.valueKrw,
                       )}
                     </span>
+                    <span className="account-manage-tab__bubble-sym-weight" />
+                    <span className="account-manage-tab__bubble-sym-pct" />
+                    <span className="account-manage-tab__bubble-sym-pnl" />
                   </div>
-                  <div className="account-manage-tab__bubble-row">
-                    <span>{ko.app.accountManageBubbleEval}</span>
+                  <div className="account-manage-tab__bubble-sym-row account-manage-tab__bubble-summary-row">
+                    <span className="account-manage-tab__bubble-sym-name">
+                      {ko.app.accountManageBubbleEval}
+                    </span>
                     <span
-                      className="account-manage-tab__money"
+                      className="account-manage-tab__bubble-sym-val account-manage-tab__money"
                       aria-hidden={balanceHidden || undefined}
                     >
                       {money(hoverSlice.valueKrw)}
-                      {hoverPnlKrw != null ? (
-                        <span
-                          className={[
-                            "account-manage-tab__bubble-eval-pnl",
-                            hoverPnlKrw > 0
-                              ? "is-up"
-                              : hoverPnlKrw < 0
-                                ? "is-down"
-                                : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                        >
-                          {" "}
-                          {signedPnl(hoverPnlKrw)}
-                          {hoverReturnPct != null ? (
-                            <span className="account-manage-tab__bubble-eval-ret">
-                              {" "}
-                              ({formatPercent(hoverReturnPct)})
-                            </span>
-                          ) : null}
-                        </span>
-                      ) : null}
+                    </span>
+                    <span className="account-manage-tab__bubble-sym-weight" />
+                    <span
+                      className={[
+                        "account-manage-tab__bubble-sym-pct",
+                        hoverReturnPct != null && hoverReturnPct > 0
+                          ? "is-up"
+                          : hoverReturnPct != null && hoverReturnPct < 0
+                            ? "is-down"
+                            : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {hoverReturnPct != null
+                        ? `(${formatPercent(hoverReturnPct)})`
+                        : ""}
+                    </span>
+                    <span
+                      className={[
+                        "account-manage-tab__bubble-sym-pnl",
+                        hoverPnlKrw != null && hoverPnlKrw > 0
+                          ? "is-up"
+                          : hoverPnlKrw != null && hoverPnlKrw < 0
+                            ? "is-down"
+                            : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {hoverPnlKrw != null ? signedPnl(hoverPnlKrw) : ""}
                     </span>
                   </div>
                 </>
               )}
-              <div className="account-manage-tab__bubble-row">
-                <span>
+              <div className="account-manage-tab__bubble-sym-row account-manage-tab__bubble-summary-row">
+                <span className="account-manage-tab__bubble-sym-name">
                   {hoverBubble.key === "__holdings__"
                     ? ko.app.liveTradePfReturn
                     : ko.app.accountManageColWeight}
                 </span>
-                <span>
+                <span className="account-manage-tab__bubble-sym-val" />
+                <span className="account-manage-tab__bubble-sym-weight">
                   {hoverBubble.key === "__holdings__" && holdingsReturnPct != null
                     ? formatPercent(holdingsReturnPct)
                     : formatAllocPct(hoverSeg.pct)}
                 </span>
+                <span className="account-manage-tab__bubble-sym-pct" />
+                <span className="account-manage-tab__bubble-sym-pnl" />
               </div>
               {hoverSlice.key === "__cash__" ? (
                 <div className="account-manage-tab__bubble-syms">
