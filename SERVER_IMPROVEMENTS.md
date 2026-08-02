@@ -156,6 +156,94 @@ _재발 17619회 (최초 2026-05-27 07:14:23.020 KST)_
 
 ---
 
+### [WARN] auto-git — 2026-08-02 15:17:59.781 KST
+
+<!-- id:log-auto-git-2d1b4b6a49 -->
+
+**문제**: resolve stash manually: git stash list → git stash apply → git stash drop
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 2회 (최초 2026-08-02 02:19:12.135 KST)_
+
+---
+
+### [WARN] auto-git — 2026-08-02 15:17:59.778 KST
+
+<!-- id:log-auto-git-5c1fef8aab -->
+
+**문제**: stash apply conflict — worktree reset to pulled HEAD; local WIP kept in stash (Auto-merging src/mobile-polish.css CONFLICT (content): Merge conflict in src/mobile-polish.css Auto-merging src/stock-vault-tab.css On branch main Your branch is up to date with 'origin/main'.  Changes to be committed:   (use "git restore -)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] auto-git — 2026-08-02 15:17:56.290 KST
+
+<!-- id:log-auto-git-7066587b69 -->
+
+**문제**: remote origin/main overlaps dirty: src/mobile-polish.css, src/stock-vault-tab.css · branch=main · dirty=11 tracked — stash then pull (VU/agent sync; pop may need manual resolve)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] auto-git — 2026-08-02 04:30:15.963 KST
+
+<!-- id:log-auto-git-0deb79c9ea -->
+
+**문제**: remote origin/main overlaps dirty: src/components/AccountManageTab.tsx, src/components/account-manage-tab.css, src/i18n/ko.ts · branch=main · dirty=16 tracked — stash then pull (VU/agent sync; pop may need manual resolve)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] auto-git — 2026-08-02 02:19:12.130 KST
+
+<!-- id:log-auto-git-1c9202c4c0 -->
+
+**문제**: stash apply conflict — worktree reset to pulled HEAD; local WIP kept in stash (Auto-merging src/components/StockVaultTab.tsx CONFLICT (content): Merge conflict in src/components/StockVaultTab.tsx On branch main Your branch is up to date with 'origin/main'.  Changes to be committed:   (use "git restore --staged <file>.)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] auto-git — 2026-08-02 02:19:07.918 KST
+
+<!-- id:log-auto-git-0ea018747e -->
+
+**문제**: remote origin/main overlaps dirty: src/components/StockVaultTab.tsx · branch=main · dirty=7 tracked — stash then pull (VU/agent sync; pop may need manual resolve)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] telegram — 2026-08-02 01:35:10.492 KST
+
+<!-- id:ops-dev-notify-pending-stale -->
+
+**문제**: 개발 완료 텔레그램 pending이 10분 이상 디스크에 남아 있습니다.
+
+**개선 제안**: flushOpsDevNotifyPendingFromDisk·coalesce 타이머·프로세스 재기동 경로를 점검하세요.
+
+**근거**: pending since 2026-08-02 01:17:52.441 KST
+
+_재발 35회 (최초 2026-05-28 07:59:33.276 KST)_
+
+---
+
 ### [WARN] virtual-user — 2026-07-30 23:21:35.665 KST
 
 <!-- id:logfreq-d708c2d972 -->
@@ -700,20 +788,6 @@ _재발 9회 (최초 2026-06-25 02:34:37.492 KST)_
 
 ---
 
-### [WARN] telegram — 2026-06-23 18:29:24.784 KST
-
-<!-- id:ops-dev-notify-pending-stale -->
-
-**문제**: 개발 완료 텔레그램 pending이 10분 이상 디스크에 남아 있습니다.
-
-**개선 제안**: flushOpsDevNotifyPendingFromDisk·coalesce 타이머·프로세스 재기동 경로를 점검하세요.
-
-**근거**: pending since 2026-06-23 18:15:47.502 KST
-
-_재발 33회 (최초 2026-05-28 07:59:33.276 KST)_
-
----
-
 ## 최근 자동 점검
 
-2026-07-31 00:50:55.266 KST — probes 완료 · 열린 54건 · 이번 기록 0건
+2026-08-02 16:10:25.469 KST — probes 완료 · 열린 60건 · 이번 기록 0건
