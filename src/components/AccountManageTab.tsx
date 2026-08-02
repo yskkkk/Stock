@@ -699,6 +699,24 @@ export default function AccountManageTab({
     holdingRows,
   ]);
 
+  const totalPrincipalKrw = useMemo(() => {
+    const totalEvalKrw = (holdingsTotalKrw ?? 0) + cashKrw;
+    if (holdingsPnlDisplay == null || !Number.isFinite(holdingsPnlDisplay)) {
+      return totalEvalKrw;
+    }
+    if (displayCurrency === "KRW") return totalEvalKrw - holdingsPnlDisplay;
+    if (usdKrwRate != null && usdKrwRate > 0) {
+      return totalEvalKrw - holdingsPnlDisplay * usdKrwRate;
+    }
+    return totalEvalKrw;
+  }, [
+    holdingsTotalKrw,
+    cashKrw,
+    holdingsPnlDisplay,
+    displayCurrency,
+    usdKrwRate,
+  ]);
+
   const signedPnl = useCallback(
     (n: number | null | undefined) => {
       if (n == null || !Number.isFinite(n)) return "?";
@@ -1493,8 +1511,8 @@ export default function AccountManageTab({
                                 ].join(" ")}
                               >
                                 {scheduleOn
-                                  ? ko.app.accountManageRebalanceMarketOn
-                                  : ko.app.accountManageRebalanceMarketOff}
+                                  ? ko.app.accountManageRebalanceMarketOnShort
+                                  : ko.app.accountManageRebalanceMarketOffShort}
                               </span>
                             </span>
                             <span className="account-rebalance-modal__chip-meta-row">
@@ -1508,8 +1526,8 @@ export default function AccountManageTab({
                                 ].join(" ")}
                               >
                                 {hoursOpen
-                                  ? ko.app.accountManageRebalanceMarketRegularOpen
-                                  : ko.app.accountManageRebalanceMarketRegularClosed}
+                                  ? ko.app.accountManageRebalanceMarketRegularOpenShort
+                                  : ko.app.accountManageRebalanceMarketRegularClosedShort}
                               </span>
                             </span>
                           </span>
@@ -1538,7 +1556,7 @@ export default function AccountManageTab({
             <div className="account-manage-tab__summary account-manage-tab__summary--primary">
               <div className="account-manage-tab__stat">
                 <span className="account-manage-tab__stat-label">
-                  {ko.app.accountManageTotal}
+                  {ko.app.accountManageBubblePrincipal}
                 </span>
                 <span
                   className={[
@@ -1560,9 +1578,7 @@ export default function AccountManageTab({
                     className="account-manage-tab__money"
                     aria-hidden={balanceHidden || undefined}
                   >
-                    {summaryPending
-                      ? "…"
-                      : money((holdingsTotalKrw ?? 0) + cashKrw)}
+                    {summaryPending ? "…" : money(totalPrincipalKrw)}
                   </span>
                   {!summaryPending && holdingsPnlDisplay != null ? (
                     <span
@@ -1625,14 +1641,14 @@ export default function AccountManageTab({
                       className="account-manage-tab__stat-pnl-line"
                       aria-hidden={balanceHidden || undefined}
                     >
-                      {holdingsReturnPct != null ? (
-                        <span className="account-manage-tab__stat-pct">
-                          ({formatPercent(holdingsReturnPct)})
-                        </span>
-                      ) : null}
                       {holdingsPnlDisplay != null ? (
                         <span className="account-manage-tab__stat-pnl">
                           {signedPnl(holdingsPnlDisplay)}
+                        </span>
+                      ) : null}
+                      {holdingsReturnPct != null ? (
+                        <span className="account-manage-tab__stat-pct">
+                          ({formatPercent(holdingsReturnPct)})
                         </span>
                       ) : null}
                     </span>

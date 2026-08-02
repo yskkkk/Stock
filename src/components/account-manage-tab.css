@@ -130,28 +130,46 @@
   align-items: center;
 }
 
+.account-manage-tab__summary-controls .account-manage-tab__rebalance-hours,
 .account-manage-tab__summary-toolbar .account-manage-tab__rebalance-hours,
 .account-manage-tab__summary-toolbar .account-manage-tab__toolbar-rebalance {
   align-items: stretch;
 }
 
+.account-manage-tab__summary-controls .account-manage-tab__rebalance-hour-chip,
 .account-manage-tab__summary-toolbar .account-manage-tab__rebalance-hour-chip {
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   align-content: center;
   gap: 0.28rem 0.45rem;
   min-height: 2.45rem;
   height: 100%;
   box-sizing: border-box;
+  white-space: nowrap;
 }
 
+.account-manage-tab__summary-controls .account-manage-tab__rebalance-hour-top,
+.account-manage-tab__summary-toolbar .account-manage-tab__rebalance-hour-top {
+  flex-wrap: nowrap;
+  width: auto;
+  flex-shrink: 0;
+}
+
+.account-manage-tab__summary-controls .account-manage-tab__rebalance-hour-meta,
 .account-manage-tab__summary-toolbar .account-manage-tab__rebalance-hour-meta {
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.28rem 0.45rem;
   width: auto;
+  flex-shrink: 0;
+}
+
+.account-manage-tab__summary-controls .account-rebalance-modal__chip-meta-row,
+.account-manage-tab__summary-toolbar .account-rebalance-modal__chip-meta-row {
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .account-manage-tab__summary-toolbar .account-manage-tab__currency-toggle,
