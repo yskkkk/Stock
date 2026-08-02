@@ -73,6 +73,7 @@ import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import AccountRebalanceScheduleModal from "./AccountRebalanceScheduleModal";
 import RebalanceSpendSummaryList from "./RebalanceSpendSummaryList";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
+import AccountCurrencySlideToggle from "./AccountCurrencySlideToggle";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import { syncTossPurchaseFxLedger } from "../lib/tossPurchaseFxLedger";
 import "./account-manage-tab.css";
@@ -1558,45 +1559,19 @@ export default function AccountManageTab({
                     ) : null}
                   </span>
                   <div className="account-manage-tab__summary-controls-tools">
-                    <div
-                      className="account-manage-tab__currency-toggle"
-                      role="group"
-                      aria-label={ko.app.accountManageCurrencyAria}
-                    >
-                      <button
-                        type="button"
-                        className={
-                          displayCurrency === "KRW"
-                            ? "account-manage-tab__currency-btn is-active"
-                            : "account-manage-tab__currency-btn"
-                        }
-                        aria-pressed={displayCurrency === "KRW"}
-                        onClick={() => setDisplayCurrency("KRW")}
-                      >
-                        {ko.app.accountManageCurrencyKrw}
-                      </button>
-                      <button
-                        type="button"
-                        className={
-                          displayCurrency === "USD"
-                            ? "account-manage-tab__currency-btn is-active"
-                            : "account-manage-tab__currency-btn"
-                        }
-                        aria-pressed={displayCurrency === "USD"}
-                        disabled={!(usdKrwRate != null && usdKrwRate > 0)}
-                        title={
-                          usdKrwRate != null && usdKrwRate > 0
-                            ? ko.app.accountManageCurrencyUsdRate.replace(
-                                "{rate}",
-                                Math.round(usdKrwRate).toLocaleString("ko-KR"),
-                              )
-                            : undefined
-                        }
-                        onClick={() => setDisplayCurrency("USD")}
-                      >
-                        {ko.app.accountManageCurrencyUsd}
-                      </button>
-                    </div>
+                    <AccountCurrencySlideToggle
+                      value={displayCurrency}
+                      onChange={setDisplayCurrency}
+                      usdEnabled={usdKrwRate != null && usdKrwRate > 0}
+                      usdRateTitle={
+                        usdKrwRate != null && usdKrwRate > 0
+                          ? ko.app.accountManageCurrencyUsdRate.replace(
+                              "{rate}",
+                              Math.round(usdKrwRate).toLocaleString("ko-KR"),
+                            )
+                          : undefined
+                      }
+                    />
                     <button
                       type="button"
                       className="bithumb-balance-hide-btn account-manage-tab__hide-btn account-manage-tab__hide-btn--summary"
