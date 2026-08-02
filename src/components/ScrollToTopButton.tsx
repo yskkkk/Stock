@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import { ko } from "../i18n/ko";
-import "./scroll-to-top-button.css";
+import "../scroll-to-top-button.css";
 
 type ScrollToTopButtonProps = {
   scrollRef: RefObject<HTMLElement | null>;

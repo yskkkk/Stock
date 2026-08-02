@@ -3,7 +3,7 @@ import { ko } from "../i18n/ko";
 import type { FeedbackCornerHandle } from "./FeedbackCorner";
 import ServerRestartButton from "./ServerRestartButton";
 import { useUiFeature } from "../contexts/UiFeatureToggleContext";
-import "./app-site-footer.css";
+import "./../app-site-footer.css";
 
 const FOOTER_TEXT: CSSProperties = {
   fontFamily: '"Segoe UI", Arial, Helvetica, sans-serif',
