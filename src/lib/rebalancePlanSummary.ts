@@ -109,6 +109,11 @@ export function buildRebalanceRunSummaryLead(): string {
   return withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSummaryLead);
 }
 
+/** 미리보기 푸터·공통 합계 블록 — amountNote를 즉시매수와 동일 포맷으로 */
+export function buildRebalancePreviewSummaryLead(): string {
+  return withRebalanceAmountNote(ko.app.accountManageRebalancePreviewRunSummaryLead);
+}
+
 export function buildRebalanceNowConfirmMessage(
   plans: TossRebalanceBuyPlan[],
   enabledMarkets: Array<"kr" | "us">,
