@@ -6,6 +6,17 @@ export type { LiveTradeTradesExchange };
 export const LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT =
   "ystock-navigate-trade-history-tab";
 
+/** 메인 «예상 투자 수익률» 계산기 — 우측 도크 아이콘 */
+export const LIVE_TRADE_NAVIGATE_EXPECTED_RETURN_CALC_TAB_EVENT =
+  "ystock-navigate-expected-return-calc-tab";
+
+export function dispatchNavigateExpectedReturnCalcTab(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(LIVE_TRADE_NAVIGATE_EXPECTED_RETURN_CALC_TAB_EVENT),
+  );
+}
+
 /** @deprecated 거래내역은 우측 도크; `openAccountTrades` 사용 */
 export type LiveTradeDockAccountSubTab = "balance" | "trades";
 

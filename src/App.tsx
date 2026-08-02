@@ -57,7 +57,7 @@ import {
   LIVE_TRADE_AUTH_CHANGE,
 } from "./components/LiveTradeAuthAndCredentials";
 import { prefetchRedditMentions } from "./components/RedditMentionsTab";
-import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
+import { LIVE_TRADE_NAVIGATE_EXPECTED_RETURN_CALC_TAB_EVENT, LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
 import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
 import { OPEN_FINANCIALS_TAB_EVENT, type OpenFinancialsTabDetail } from "./lib/openFinancialsTab";
 import StockSearchTab from "./components/StockSearchTab";
@@ -69,6 +69,7 @@ const TradingViewAdvancedChart = lazy(
 
 const Sp500SectorTab = lazy(() => import("./components/Sp500SectorTab"));
 const AccountManageTab = lazy(() => import("./components/AccountManageTab"));
+const ExpectedReturnCalcTab = lazy(() => import("./components/ExpectedReturnCalcTab"));
 const NasdaqEtfTab = lazy(() => import("./components/NasdaqEtfTab"));
 const RedditMentionsTab = lazy(() => import("./components/RedditMentionsTab"));
 const CryptoTab = lazy(() => import("./components/CryptoTab"));
@@ -765,7 +766,8 @@ export default function App() {
       appTab === "sp500Sector" ||
       appTab === "nasdaqEtf" ||
       appTab === "redditMentions" ||
-      appTab === "accountManage"
+      appTab === "accountManage" ||
+      appTab === "expectedReturnCalc"
     ) {
       return null;
     }
@@ -829,7 +831,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage") return;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage" || appTab === "expectedReturnCalc") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -1194,7 +1196,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage") return;
+    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage" || appTab === "expectedReturnCalc") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -1406,15 +1408,25 @@ export default function App() {
 
   useEffect(() => {
     const onTradeHistoryTab = () => setAppTab("tradeHistory");
+    const onExpectedReturnCalcTab = () => setAppTab("expectedReturnCalc");
     window.addEventListener(
       LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
       onTradeHistoryTab,
     );
-    return () =>
+    window.addEventListener(
+      LIVE_TRADE_NAVIGATE_EXPECTED_RETURN_CALC_TAB_EVENT,
+      onExpectedReturnCalcTab,
+    );
+    return () => {
       window.removeEventListener(
         LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
         onTradeHistoryTab,
       );
+      window.removeEventListener(
+        LIVE_TRADE_NAVIGATE_EXPECTED_RETURN_CALC_TAB_EVENT,
+        onExpectedReturnCalcTab,
+      );
+    };
   }, []);
   return (
     <div
@@ -1441,6 +1453,8 @@ export default function App() {
                   ? "app app--reddit-mentions"
                 : appTab === "accountManage"
                   ? "app app--account-manage"
+                : appTab === "expectedReturnCalc"
+                  ? "app app--expected-return-calc"
                 : appTab === "liveTrading"
                 ? "app app--live-trade"
                 : appTab === "ops"
@@ -1888,6 +1902,10 @@ export default function App() {
       ) : appTab === "accountManage" ? (
         <TabSuspense>
           <AccountManageTab onOpenHoldingChart={handleTossHoldingChart} />
+        </TabSuspense>
+      ) : appTab === "expectedReturnCalc" ? (
+        <TabSuspense>
+          <ExpectedReturnCalcTab />
         </TabSuspense>
       ) : appTab === "liveTrading" ? (
         <TabSuspense>
@@ -2552,6 +2570,7 @@ export default function App() {
               feedbackRef={feedbackRef}
               feedbackActive={footerFeedbackKind != null}
               tradeHistoryMainActive={committedTab === "tradeHistory"}
+              expectedReturnCalcMainActive={committedTab === "expectedReturnCalc"}
               portalSource={
                 showLiveTradeDockPortals ? (
                   <Suspense fallback={null}>

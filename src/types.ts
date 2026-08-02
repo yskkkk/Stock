@@ -17,6 +17,7 @@ export type AppTab =
   | "nasdaqEtf"
   | "redditMentions"
   | "accountManage"
+  | "expectedReturnCalc"
   | "ops";
 
 /** 실매매·시뮬 포트폴리오 시장 */

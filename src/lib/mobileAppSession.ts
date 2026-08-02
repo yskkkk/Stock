@@ -18,6 +18,7 @@ const APP_TABS: readonly AppTab[] = [
   "nasdaqEtf",
   "redditMentions",
   "accountManage",
+  "expectedReturnCalc",
   "ops",
 ];
 
@@ -35,6 +36,7 @@ const EPHEMERAL_MAIN_TABS: ReadonlySet<AppTab> = new Set([
   "sp500Sector",
   "nasdaqEtf",
   "redditMentions",
+  "expectedReturnCalc",
 ]);
 
 export function resolvePersistedAppTab(tab: AppTab): AppTab {

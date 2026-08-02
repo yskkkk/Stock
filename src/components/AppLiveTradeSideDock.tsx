@@ -38,21 +38,22 @@ import {
   LIVE_TRADE_DOCK_TOGGLE_EVENT,
   dispatchLiveTradeDockOpenForm,
 } from "../lib/liveTradeDockEvents";
-import { LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "../lib/liveTradeDockAccount";
-import {
-  dispatchLiveTradeDockProgramsPlain,
-  LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT,
-} from "../lib/liveTradePortfolioFocus";
 import {
   LIVE_TRADE_DOCK_ACCOUNT_PROVIDER_EVENT,
   LIVE_TRADE_DOCK_ACCOUNT_VIEW_EVENT,
   LIVE_TRADE_DOCK_OPEN_ACCOUNT_EVENT,
+  LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT,
   dispatchDockAccountProvider,
+  dispatchNavigateExpectedReturnCalcTab,
   readDockAccountProvider,
   readDockAccountProviderEvent,
   readDockAccountViewEvent,
   type LiveTradeTradesExchange,
 } from "../lib/liveTradeDockAccount";
+import {
+  dispatchLiveTradeDockProgramsPlain,
+  LIVE_TRADE_DOCK_OPEN_PORTFOLIO_EVENT,
+} from "../lib/liveTradePortfolioFocus";
 import {
   LIVE_TRADE_DOCK_PANEL_WIDTH_PREF,
   applyAppDockReserveRightPx,
@@ -254,6 +255,36 @@ function DockRailTradesIcon() {
   );
 }
 
+function DockRailCalcIcon() {
+  return (
+    <svg
+      className="app-live-trade-side-dock__rail-icon"
+      viewBox="0 0 24 24"
+      width={16}
+      height={16}
+      aria-hidden
+    >
+      <rect
+        x="5"
+        y="3"
+        width="14"
+        height="18"
+        rx="2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function DockRailWebsiteIcon() {
   return (
     <svg
@@ -333,6 +364,7 @@ export default function AppLiveTradeSideDock({
   portalSource = null,
   pageScrollRef = null,
   tradeHistoryMainActive = false,
+  expectedReturnCalcMainActive = false,
 }: {
   feedbackRef?: RefObject<FeedbackCornerHandle | null>;
   feedbackActive?: boolean;
@@ -342,6 +374,8 @@ export default function AppLiveTradeSideDock({
   pageScrollRef?: RefObject<HTMLDivElement | null> | null;
   /** 왼쪽 메인에 거래내역 표시 중 */
   tradeHistoryMainActive?: boolean;
+  /** 왼쪽 메인에 예상 수익률 계산기 표시 중 */
+  expectedReturnCalcMainActive?: boolean;
 }) {
   const { user, authChecked, registrationOpen } = useLiveTradeAuth();
   const [authPopoverOpen, setAuthPopoverOpen] = useState(false);
@@ -582,6 +616,11 @@ export default function AppLiveTradeSideDock({
       }),
     );
   }, [closePanel, accountRailProvider]);
+
+  const openExpectedReturnCalcInMain = useCallback(() => {
+    closePanel?.();
+    dispatchNavigateExpectedReturnCalcTab();
+  }, [closePanel]);
 
   useEffect(() => {
     const onProvider = (e: Event) => {
@@ -1047,6 +1086,28 @@ export default function AppLiveTradeSideDock({
         })}
       </div>
       <div className="app-live-trade-side-dock__rail-footer">
+        <button
+          type="button"
+          className={[
+            "app-live-trade-side-dock__rail-btn",
+            "app-live-trade-side-dock__rail-btn--calc",
+            expectedReturnCalcMainActive
+              ? "app-live-trade-side-dock__rail-btn--on"
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          aria-pressed={expectedReturnCalcMainActive}
+          title={ko.app.expectedReturnCalcTitle}
+          onClick={openExpectedReturnCalcInMain}
+        >
+          <span className="app-live-trade-side-dock__rail-glyph" aria-hidden>
+            <DockRailCalcIcon />
+          </span>
+          <span className="app-live-trade-side-dock__rail-label">
+            {ko.app.liveTradeSideDockRailCalc}
+          </span>
+        </button>
         {user ? (
           <LiveTradeDockApiRail
             user={user}
