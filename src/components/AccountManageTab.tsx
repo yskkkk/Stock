@@ -585,6 +585,22 @@ export default function AccountManageTab({
     [slices],
   );
 
+  const cashKrwWeightPct = useMemo(() => {
+    if (!(total > 0) || !(cashNativeKrw > 0)) return null;
+    return (cashNativeKrw / total) * 100;
+  }, [total, cashNativeKrw]);
+
+  const cashUsdWeightPct = useMemo(() => {
+    if (!(total > 0) || !(cashNativeUsd > 0)) return null;
+    if (!(usdKrwRate != null && usdKrwRate > 0)) return null;
+    return ((cashNativeUsd * usdKrwRate) / total) * 100;
+  }, [total, cashNativeUsd, usdKrwRate]);
+
+  const cashTotalWeightPct = useMemo(() => {
+    if (!(total > 0) || !(cashKrw > 0)) return null;
+    return (cashKrw / total) * 100;
+  }, [total, cashKrw]);
+
   const totalCostKrw = useMemo(() => {
     let sum = cashKrw;
     for (const r of visibleHoldingRows) {
@@ -1827,6 +1843,12 @@ export default function AccountManageTab({
                       formatPrice(cashNativeKrw, "KRW"),
                       balanceHidden,
                       summaryPending,
+                      !summaryPending && cashKrwWeightPct != null
+                        ? ko.app.accountManageCashWeight.replace(
+                            "{pct}",
+                            formatAllocPct(cashKrwWeightPct),
+                          )
+                        : undefined,
                     )}
                     data-vu="account-summary-cash-krw"
                   >
@@ -1842,6 +1864,14 @@ export default function AccountManageTab({
                           ? "…"
                           : formatPrice(cashNativeKrw, "KRW")}
                       </span>
+                      {!summaryPending && cashKrwWeightPct != null ? (
+                        <span className="account-manage-tab__stat-sub">
+                          {ko.app.accountManageCashWeight.replace(
+                            "{pct}",
+                            formatAllocPct(cashKrwWeightPct),
+                          )}
+                        </span>
+                      ) : null}
                     </span>
                   </div>
                   <div
@@ -1852,18 +1882,28 @@ export default function AccountManageTab({
                       formatPrice(cashNativeUsd, "USD"),
                       balanceHidden,
                       summaryPending,
-                      !summaryPending &&
+                      [
+                        !summaryPending &&
                         cashNativeUsd > 0 &&
                         usdKrwRate != null &&
                         usdKrwRate > 0
-                        ? ko.app.accountManageCashUsdKrwHint.replace(
-                            "{amount}",
-                            formatPrice(
-                              Math.round(cashNativeUsd * usdKrwRate),
-                              "KRW",
-                            ),
-                          )
-                        : undefined,
+                          ? ko.app.accountManageCashUsdKrwHint.replace(
+                              "{amount}",
+                              formatPrice(
+                                Math.round(cashNativeUsd * usdKrwRate),
+                                "KRW",
+                              ),
+                            )
+                          : null,
+                        !summaryPending && cashUsdWeightPct != null
+                          ? ko.app.accountManageCashWeight.replace(
+                              "{pct}",
+                              formatAllocPct(cashUsdWeightPct),
+                            )
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || undefined,
                     )}
                     data-vu="account-summary-cash-usd"
                   >
@@ -1879,6 +1919,14 @@ export default function AccountManageTab({
                           ? "…"
                           : formatPrice(cashNativeUsd, "USD")}
                       </span>
+                      {!summaryPending && cashUsdWeightPct != null ? (
+                        <span className="account-manage-tab__stat-sub">
+                          {ko.app.accountManageCashWeight.replace(
+                            "{pct}",
+                            formatAllocPct(cashUsdWeightPct),
+                          )}
+                        </span>
+                      ) : null}
                       {!summaryPending &&
                       cashNativeUsd > 0 &&
                       usdKrwRate != null &&
@@ -1908,6 +1956,14 @@ export default function AccountManageTab({
                     >
                       {summaryPending ? "…" : money(cashKrw)}
                     </span>
+                    {!summaryPending && cashTotalWeightPct != null ? (
+                      <span className="account-manage-tab__stat-sub">
+                        {ko.app.accountManageCashWeight.replace(
+                          "{pct}",
+                          formatAllocPct(cashTotalWeightPct),
+                        )}
+                      </span>
+                    ) : null}
                   </span>
                 </div>
               )}
