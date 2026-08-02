@@ -278,6 +278,8 @@ export const ko = {
     accountManageRebalanceNowRun: "정규장 · 실제 매수 실행",
     accountManageRebalanceNowRunning: "매수 중…",
     accountManageRebalanceNowRunSummaryLead: "미리보기와 동일 · {amountNote}",
+    accountManageRebalancePreviewRunSummaryLead: "미리보기 금액 · {amountNote}",
+    accountManageRebalanceSpendSummaryLead: "시장별 사용 금액 · {amountNote}",
     accountManageRebalanceNowConfirm:
       "미리보기와 동일하게 시장가 매수합니다.\n\n{summary}\n({amountNote})\n\n정규장(시간외·애프터 제외)만 실행됩니다. 실제 주문이 나갑니다. 계속할까요?",
     accountManageRebalanceNowConfirmGeneric:
@@ -299,6 +301,8 @@ export const ko = {
     accountManageSummaryMore: "손익·갱신",
     accountManageSliceCount: "{n}종목",
     accountManageSliceValue: "평가",
+    accountManageBubblePrincipal: "투자원금",
+    accountManageBubbleEval: "평가금",
     accountManageColWeight: "비중",
     accountManageRawSummary: "계좌 상세(잔고·주문)",
     accountManageNoExchange: "연동된 거래소 API가 없습니다. 실거래 탭에서 키를 연결하세요.",

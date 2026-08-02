@@ -43,6 +43,7 @@ import {
   buildRebalancePreviewSubLabel,
   buildRebalanceRunSummaryLead,
   buildRebalanceSpendSummaryInline,
+  buildRebalanceSpendSummaryLead,
   withRebalanceAmountNote,
 } from "../lib/rebalancePlanSummary";
 import { anySelectedMarketRegularOpen, isMarketRegularOpenClient } from "../lib/marketRegularHours";
@@ -793,12 +794,16 @@ export default function AccountManageTab({
     rebalancePreviewMarkets,
   );
   const buyNowToolbarSummaryLead = buildRebalanceRunSummaryLead();
+  const compactToolbarSpendLead = buildRebalanceSpendSummaryLead();
   const hasBuyNowToolbarSpendLines = rebalancePreviewMarkets.some((m) =>
     rebalancePreviewPlans.some((p) => p.market === m),
   );
 
   const renderRebalanceActionButtons = () => {
     const compact = true;
+    const showCompactSpendSummary =
+      compact && hasBuyNowToolbarSpendLines;
+    const repeatSummaryInButtonSub = compact && Boolean(buyNowToolbarSummaryInline) && !showCompactSpendSummary;
     return (
     <div
       className={[
@@ -808,6 +813,20 @@ export default function AccountManageTab({
         .filter(Boolean)
         .join(" ")}
     >
+      {showCompactSpendSummary ? (
+        <div
+          className="account-manage-tab__rebalance-compact-summary"
+          data-vu="account-rebalance-compact-summary"
+        >
+          <p className="account-manage-tab__rebalance-zone-summary-lead">
+            {compactToolbarSpendLead}
+          </p>
+          <RebalanceSpendSummaryList
+            plans={rebalancePreviewPlans}
+            enabledMarkets={rebalancePreviewMarkets}
+          />
+        </div>
+      ) : null}
       <div
         className={[
           "account-manage-tab__rebalance-zone",
@@ -845,7 +864,7 @@ export default function AccountManageTab({
           </span>
           <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--safe">
             {buildRebalancePreviewSubLabel(buyNowToolbarSummaryInline, {
-              repeatSummary: compact && Boolean(buyNowToolbarSummaryInline),
+              repeatSummary: repeatSummaryInButtonSub,
             })}
           </span>
         </button>
@@ -933,7 +952,7 @@ export default function AccountManageTab({
           {!buyingNow ? (
             <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--real">
               {buildRebalanceNowRunSubLabel(buyNowToolbarSummaryInline, {
-                repeatSummary: compact && Boolean(buyNowToolbarSummaryInline),
+                repeatSummary: repeatSummaryInButtonSub,
               })}
             </span>
           ) : null}
@@ -2560,38 +2579,66 @@ export default function AccountManageTab({
                     : hoverSlice.label}
                 </strong>
               </div>
-              <div className="account-manage-tab__bubble-row">
-                <span>{ko.app.accountManageSliceValue}</span>
-                <span
-                  className="account-manage-tab__money"
-                  aria-hidden={balanceHidden || undefined}
-                >
-                  {money(hoverSlice.valueKrw)}
-                  {hoverPnlKrw != null ? (
+              {hoverSlice.key === "__cash__" ? (
+                <div className="account-manage-tab__bubble-row">
+                  <span>{ko.app.accountManageBubbleEval}</span>
+                  <span
+                    className="account-manage-tab__money"
+                    aria-hidden={balanceHidden || undefined}
+                  >
+                    {money(hoverSlice.valueKrw)}
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className="account-manage-tab__bubble-row">
+                    <span>{ko.app.accountManageBubblePrincipal}</span>
                     <span
-                      className={[
-                        "account-manage-tab__bubble-eval-pnl",
-                        hoverPnlKrw > 0
-                          ? "is-up"
-                          : hoverPnlKrw < 0
-                            ? "is-down"
-                            : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
+                      className="account-manage-tab__money"
+                      aria-hidden={balanceHidden || undefined}
                     >
-                      {" "}
-                      {signedPnl(hoverPnlKrw)}
-                      {hoverReturnPct != null ? (
-                        <span className="account-manage-tab__bubble-eval-ret">
+                      {money(
+                        hoverPnlKrw != null &&
+                          Number.isFinite(hoverSlice.valueKrw)
+                          ? hoverSlice.valueKrw - hoverPnlKrw
+                          : hoverSlice.valueKrw,
+                      )}
+                    </span>
+                  </div>
+                  <div className="account-manage-tab__bubble-row">
+                    <span>{ko.app.accountManageBubbleEval}</span>
+                    <span
+                      className="account-manage-tab__money"
+                      aria-hidden={balanceHidden || undefined}
+                    >
+                      {money(hoverSlice.valueKrw)}
+                      {hoverPnlKrw != null ? (
+                        <span
+                          className={[
+                            "account-manage-tab__bubble-eval-pnl",
+                            hoverPnlKrw > 0
+                              ? "is-up"
+                              : hoverPnlKrw < 0
+                                ? "is-down"
+                                : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
                           {" "}
-                          ({formatPercent(hoverReturnPct)})
+                          {signedPnl(hoverPnlKrw)}
+                          {hoverReturnPct != null ? (
+                            <span className="account-manage-tab__bubble-eval-ret">
+                              {" "}
+                              ({formatPercent(hoverReturnPct)})
+                            </span>
+                          ) : null}
                         </span>
                       ) : null}
                     </span>
-                  ) : null}
-                </span>
-              </div>
+                  </div>
+                </>
+              )}
               <div className="account-manage-tab__bubble-row">
                 <span>
                   {hoverBubble.key === "__holdings__"
