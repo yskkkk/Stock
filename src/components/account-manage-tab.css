@@ -2076,6 +2076,59 @@ html[data-theme="light"] .account-manage-tab__bubble-sym-pnl.is-down {
   color: #ef4444;
 }
 
+.account-manage-tab__row--hidden {
+  opacity: 0.48;
+}
+
+.account-manage-tab__row--hidden td {
+  color: var(--muted);
+}
+
+.account-manage-tab__hide-row-btn {
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--surface) 55%, var(--card));
+  color: var(--text);
+  border-radius: 0.35rem;
+  padding: 0.22rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+.account-manage-tab__hide-row-btn.is-hidden {
+  border-color: rgba(148, 163, 184, 0.55);
+  color: var(--muted);
+}
+
+.account-manage-tab__hide-row-btn:hover {
+  background: color-mix(in srgb, var(--accent-dim) 35%, transparent);
+}
+
+.account-manage-tab__hidden-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.account-manage-tab__hidden-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.account-manage-tab__clear-hidden {
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .account-manage-tab__manage-btn {
   font-size: 0.7rem;
   padding: 0.15rem 0.4rem;

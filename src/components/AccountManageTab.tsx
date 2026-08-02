@@ -50,6 +50,7 @@ import {
 import { anySelectedMarketRegularOpen, isMarketRegularOpenClient } from "../lib/marketRegularHours";
 import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
+import { useAccountHiddenHoldings } from "../hooks/useAccountHiddenHoldings";
 import {
   useAccountManageDisplayCurrency,
   type AccountManageDisplayCurrency,
@@ -197,6 +198,8 @@ export default function AccountManageTab({
   const [displayCurrency, setDisplayCurrency] = useAccountManageDisplayCurrency(
     user?.id,
   );
+  const { hiddenTickers, isHidden, toggleHidden, clearHidden } =
+    useAccountHiddenHoldings(user?.id);
   const [rebalanceOpen, setRebalanceOpen] = useState(false);
   const [rebalancePreviewPlans, setRebalancePreviewPlans] = useState<
     TossRebalanceBuyPlan[]
@@ -512,6 +515,17 @@ export default function AccountManageTab({
     displayCurrency,
   ]);
 
+  const visibleHoldingRows = useMemo(
+    () => holdingRows.filter((r) => !isHidden(r.symbol)),
+    [holdingRows, isHidden],
+  );
+
+  const visibleTossHoldings = useMemo(() => {
+    if (provider !== "toss" || !activeToss) return [];
+    if (hiddenTickers.size === 0) return activeToss.holdings;
+    return activeToss.holdings.filter((h) => !isHidden(h.symbol));
+  }, [provider, activeToss, hiddenTickers, isHidden]);
+
   const cashNativeKrw = useMemo(() => {
     if (provider === "toss" && activeToss) {
       return Number(activeToss.cash.krw) || 0;
@@ -557,13 +571,13 @@ export default function AccountManageTab({
   const slices = useMemo(
     () =>
       buildAccountAllocationSlices(
-        holdingRows,
+        visibleHoldingRows,
         cashKrw,
         allocMode,
         labels,
         styleOverrides,
       ),
-    [holdingRows, cashKrw, allocMode, labels, styleOverrides],
+    [visibleHoldingRows, cashKrw, allocMode, labels, styleOverrides],
   );
 
   const { segments, total } = useMemo(
@@ -573,7 +587,7 @@ export default function AccountManageTab({
 
   const totalCostKrw = useMemo(() => {
     let sum = cashKrw;
-    for (const r of holdingRows) {
+    for (const r of visibleHoldingRows) {
       const c =
         r.costBasisKrw != null && Number.isFinite(r.costBasisKrw) && r.costBasisKrw > 0
           ? r.costBasisKrw
@@ -581,7 +595,7 @@ export default function AccountManageTab({
       if (Number.isFinite(c) && c > 0) sum += c;
     }
     return sum;
-  }, [holdingRows, cashKrw]);
+  }, [visibleHoldingRows, cashKrw]);
 
   const sliceShareChangePct = useCallback(
     (slice: { key: string; symbols: string[]; valueKrw: number } | undefined) => {
@@ -592,7 +606,7 @@ export default function AccountManageTab({
       } else {
         const set = new Set(slice.symbols.map((s) => s.toUpperCase()));
         let any = false;
-        for (const r of holdingRows) {
+        for (const r of visibleHoldingRows) {
           if (!set.has(r.symbol.toUpperCase())) continue;
           const c =
             r.costBasisKrw != null &&
@@ -613,19 +627,19 @@ export default function AccountManageTab({
         totalCostKrw,
       );
     },
-    [holdingRows, cashKrw, total, totalCostKrw],
+    [visibleHoldingRows, cashKrw, total, totalCostKrw],
   );
 
   const styleSlices = useMemo(
     () =>
       buildAccountAllocationSlices(
-        holdingRows,
+        visibleHoldingRows,
         cashKrw,
         "style",
         labels,
         styleOverrides,
       ),
-    [holdingRows, cashKrw, labels, styleOverrides],
+    [visibleHoldingRows, cashKrw, labels, styleOverrides],
   );
 
   const { segments: styleSegments } = useMemo(
@@ -641,7 +655,7 @@ export default function AccountManageTab({
       __growth__: { auto: 0, specified: 0 },
       __value__: { auto: 0, specified: 0 },
     };
-    for (const row of holdingRows) {
+    for (const row of visibleHoldingRows) {
       const ticker = normalizeAccountStyleTicker(row.symbol);
       const overrideStyle = styleOverrides[ticker];
       const resolved = resolveAccountHoldingStyle(row, styleOverrides);
@@ -650,7 +664,7 @@ export default function AccountManageTab({
       else counts[key].auto += 1;
     }
     return counts;
-  }, [holdingRows, styleOverrides]);
+  }, [visibleHoldingRows, styleOverrides]);
 
   const filteredRows = useMemo(() => {
     const key = styleFocusKey ?? focusKey;
@@ -666,30 +680,46 @@ export default function AccountManageTab({
   const netSummary = useMemo(() => {
     if (provider !== "toss" || !activeToss) return null;
     return computeTossAccountCombinedPnl(
-      activeToss.holdings,
-      activeToss.summary,
+      visibleTossHoldings,
+      hiddenTickers.size > 0 ? null : activeToss.summary,
       usdKrwRate,
       feeRates,
       purchaseFxBySymbol,
     );
-  }, [provider, activeToss, usdKrwRate, feeRates, purchaseFxBySymbol]);
+  }, [
+    provider,
+    activeToss,
+    visibleTossHoldings,
+    hiddenTickers.size,
+    usdKrwRate,
+    feeRates,
+    purchaseFxBySymbol,
+  ]);
 
   const holdingsTotalKrw = useMemo(() => {
     if (provider === "toss" && activeToss) {
       return tossHoldingsTotalNetMarketValueKrw(
-        activeToss.holdings,
-        activeToss.summary,
+        visibleTossHoldings,
+        hiddenTickers.size > 0 ? null : activeToss.summary,
         usdKrwRate,
         feeRates,
       );
     }
-    return holdingRows.reduce((s, r) => s + r.valueKrw, 0);
-  }, [provider, activeToss, usdKrwRate, feeRates, holdingRows]);
+    return visibleHoldingRows.reduce((s, r) => s + r.valueKrw, 0);
+  }, [
+    provider,
+    activeToss,
+    visibleTossHoldings,
+    hiddenTickers.size,
+    usdKrwRate,
+    feeRates,
+    visibleHoldingRows,
+  ]);
 
   const holdingsReturnPct = useMemo(() => {
     if (provider === "toss" && activeToss) {
       const d = computeTossHoldingsDisplayPnl(
-        activeToss.holdings,
+        visibleTossHoldings,
         usdKrwRate,
         feeRates,
         purchaseFxBySymbol,
@@ -697,12 +727,16 @@ export default function AccountManageTab({
       );
       if (d.returnPct != null && Number.isFinite(d.returnPct)) return d.returnPct;
     }
-    if (netSummary?.totalReturnPct != null && Number.isFinite(netSummary.totalReturnPct)) {
+    if (
+      hiddenTickers.size === 0 &&
+      netSummary?.totalReturnPct != null &&
+      Number.isFinite(netSummary.totalReturnPct)
+    ) {
       return netSummary.totalReturnPct;
     }
     let weighted = 0;
     let weightSum = 0;
-    for (const r of holdingRows) {
+    for (const r of visibleHoldingRows) {
       if (r.returnPercent == null || !Number.isFinite(r.returnPercent)) continue;
       const w = r.valueKrw > 0 ? r.valueKrw : 0;
       if (w <= 0) continue;
@@ -714,19 +748,21 @@ export default function AccountManageTab({
   }, [
     provider,
     activeToss,
+    visibleTossHoldings,
     usdKrwRate,
     feeRates,
     purchaseFxBySymbol,
     displayCurrency,
     netSummary,
-    holdingRows,
+    visibleHoldingRows,
+    hiddenTickers.size,
   ]);
 
   /** 표시 통화 단위 손익(원 모드=원, $ 모드=$) — signedMoney 환산 금지 */
   const holdingsPnlDisplay = useMemo(() => {
     if (provider === "toss" && activeToss) {
       const d = computeTossHoldingsDisplayPnl(
-        activeToss.holdings,
+        visibleTossHoldings,
         usdKrwRate,
         feeRates,
         purchaseFxBySymbol,
@@ -736,7 +772,11 @@ export default function AccountManageTab({
         return displayCurrency === "KRW" ? Math.round(d.pnl) : d.pnl;
       }
     }
-    if (netSummary?.profitLossKrw != null && Number.isFinite(netSummary.profitLossKrw)) {
+    if (
+      hiddenTickers.size === 0 &&
+      netSummary?.profitLossKrw != null &&
+      Number.isFinite(netSummary.profitLossKrw)
+    ) {
       if (displayCurrency === "KRW") return Math.round(netSummary.profitLossKrw);
       if (usdKrwRate != null && usdKrwRate > 0) {
         return netSummary.profitLossKrw / usdKrwRate;
@@ -744,7 +784,7 @@ export default function AccountManageTab({
     }
     let sum = 0;
     let any = false;
-    for (const r of holdingRows) {
+    for (const r of visibleHoldingRows) {
       if (r.unrealizedPnlKrw == null || !Number.isFinite(r.unrealizedPnlKrw)) continue;
       sum += r.unrealizedPnlKrw;
       any = true;
@@ -753,12 +793,14 @@ export default function AccountManageTab({
   }, [
     provider,
     activeToss,
+    visibleTossHoldings,
     usdKrwRate,
     feeRates,
     purchaseFxBySymbol,
     displayCurrency,
     netSummary,
-    holdingRows,
+    visibleHoldingRows,
+    hiddenTickers.size,
   ]);
 
   const totalPrincipalKrw = useMemo(() => {
@@ -1099,8 +1141,8 @@ export default function AccountManageTab({
         key: "__holdings__",
         label: ko.app.accountManageHoldings,
         valueKrw: holdingsTotalKrw ?? 0,
-        symbols: holdingRows.map((r) => r.symbol),
-        count: holdingRows.length,
+        symbols: visibleHoldingRows.map((r) => r.symbol),
+        count: visibleHoldingRows.length,
       };
     }
     return (
@@ -1113,7 +1155,7 @@ export default function AccountManageTab({
     styleSlices,
     slices,
     holdingsTotalKrw,
-    holdingRows,
+    visibleHoldingRows,
   ]);
 
   const hoverSeg = hoverBubble
@@ -1128,7 +1170,7 @@ export default function AccountManageTab({
               : 100,
           a0: 0,
           a1: 0,
-          count: holdingRows.length,
+          count: visibleHoldingRows.length,
         }
       : (styleSegments.find((s) => s.sector === hoverBubble.key) ??
         segments.find((s) => s.sector === hoverBubble.key) ??
@@ -1138,13 +1180,13 @@ export default function AccountManageTab({
   const hoverRows = useMemo(() => {
     if (!hoverSlice || hoverSlice.key === "__cash__") return [];
     if (hoverSlice.key === "__holdings__") {
-      return [...holdingRows].sort((a, b) => b.valueKrw - a.valueKrw);
+      return [...visibleHoldingRows].sort((a, b) => b.valueKrw - a.valueKrw);
     }
     const set = new Set(hoverSlice.symbols.map((s) => s.toUpperCase()));
-    return holdingRows
+    return visibleHoldingRows
       .filter((r) => set.has(r.symbol.toUpperCase()))
       .sort((a, b) => b.valueKrw - a.valueKrw);
-  }, [hoverSlice, holdingRows]);
+  }, [hoverSlice, visibleHoldingRows]);
 
   const hoverPnlKrw = useMemo(() => {
     if (!hoverSlice || hoverSlice.key === "__cash__") return null;
@@ -1209,7 +1251,7 @@ export default function AccountManageTab({
       const set = new Set(slice.symbols.map((s) => s.toUpperCase()));
       let pnlSumDisplay = 0;
       let any = false;
-      for (const r of holdingRows) {
+      for (const r of visibleHoldingRows) {
         if (!set.has(r.symbol.toUpperCase())) continue;
         if (r.unrealizedPnlKrw == null || !Number.isFinite(r.unrealizedPnlKrw)) {
           continue;
@@ -1230,7 +1272,7 @@ export default function AccountManageTab({
       if (!(cost > 0) || !Number.isFinite(cost)) return null;
       return (pnlSum / cost) * 100;
     },
-    [holdingRows, displayCurrency, usdKrwRate],
+    [visibleHoldingRows, displayCurrency, usdKrwRate],
   );
 
   const cx = 100;
@@ -1696,11 +1738,11 @@ export default function AccountManageTab({
               <div
                 className="account-manage-tab__stat account-manage-tab__stat--holdings"
                 onMouseEnter={(e) => {
-                  if (summaryPending || holdingRows.length === 0) return;
+                  if (summaryPending || visibleHoldingRows.length === 0) return;
                   showHoverBubble("__holdings__", e.clientX, e.clientY);
                 }}
                 onMouseMove={(e) => {
-                  if (summaryPending || holdingRows.length === 0) return;
+                  if (summaryPending || visibleHoldingRows.length === 0) return;
                   showHoverBubble("__holdings__", e.clientX, e.clientY);
                 }}
                 onMouseLeave={hideHoverBubble}
@@ -2488,6 +2530,23 @@ export default function AccountManageTab({
                 <h3 className="account-manage-tab__holdings-title">
                   {ko.app.accountManageTabList}
                 </h3>
+                {hiddenTickers.size > 0 ? (
+                  <div className="account-manage-tab__hidden-bar">
+                    <span className="account-manage-tab__hidden-count">
+                      {ko.app.accountManageHiddenCount.replace(
+                        "{n}",
+                        String(hiddenTickers.size),
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      className="account-manage-tab__clear-hidden"
+                      onClick={clearHidden}
+                    >
+                      {ko.app.accountManageClearHidden}
+                    </button>
+                  </div>
+                ) : null}
                 {renderChartFilterBar("account-manage-tab__filter-bar--holdings")}
               </div>
               {filteredRows.length === 0 ? (
@@ -2552,6 +2611,7 @@ export default function AccountManageTab({
                         <th>{ko.app.accountManageSliceValue}</th>
                         <th>{ko.app.liveTradePfReturn}</th>
                         <th>{ko.app.accountManageColWeight}</th>
+                        <th>{ko.app.accountManageColHide}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2570,8 +2630,16 @@ export default function AccountManageTab({
                           styleOverrides,
                         );
                         const selectVal = overrideStyle ?? "auto";
+                        const rowHidden = isHidden(row.symbol);
                         return (
-                          <tr key={`${row.market}:${row.symbol}`}>
+                          <tr
+                            key={`${row.market}:${row.symbol}`}
+                            className={
+                              rowHidden
+                                ? "account-manage-tab__row--hidden"
+                                : undefined
+                            }
+                          >
                             <td>
                               <button
                                 type="button"
@@ -2726,9 +2794,33 @@ export default function AccountManageTab({
                               )}
                             </td>
                             <td className="account-manage-tab__weight">
-                              {total > 0 && row.valueKrw > 0
-                                ? formatAllocPct((row.valueKrw / total) * 100)
-                                : "?"}
+                              {rowHidden
+                                ? "—"
+                                : total > 0 && row.valueKrw > 0
+                                  ? formatAllocPct((row.valueKrw / total) * 100)
+                                  : "?"}
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className={[
+                                  "account-manage-tab__hide-row-btn",
+                                  rowHidden ? "is-hidden" : "",
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ")}
+                                aria-pressed={rowHidden}
+                                title={
+                                  rowHidden
+                                    ? ko.app.accountManageUnhide
+                                    : ko.app.accountManageHide
+                                }
+                                onClick={() => toggleHidden(row.symbol)}
+                              >
+                                {rowHidden
+                                  ? ko.app.accountManageUnhide
+                                  : ko.app.accountManageHide}
+                              </button>
                             </td>
                           </tr>
                         );
