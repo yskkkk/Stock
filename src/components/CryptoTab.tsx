@@ -500,7 +500,10 @@ export default function CryptoTab({
         aria-label={ko.crypto.listAria}
       >
         <div className="panel-head crypto-panel__head">
-          <span className="panel-head__title">{ko.crypto.panelTitle}</span>
+          <div className="crypto-panel__head-text">
+            <span className="panel-head__title">{ko.crypto.panelTitle}</span>
+            <p className="crypto-panel__sub">{ko.crypto.panelSubtitle}</p>
+          </div>
           <QuoteCurrencyToggle
             inKrw={priceDisplay === "krw"}
             onToggle={() =>

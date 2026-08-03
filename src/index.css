@@ -3276,11 +3276,18 @@ html[data-theme="light"] .stock-search-analysis {
 .crypto-panel .panel-head,
 .crypto-panel .crypto-panel__head {
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.45rem;
   padding-bottom: 0.45rem;
   margin-bottom: 0.3rem;
   border-bottom: 1px solid var(--card-border);
+}
+
+.crypto-panel__head-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
 .crypto-panel .panel-head__title {
@@ -3290,6 +3297,13 @@ html[data-theme="light"] .stock-search-analysis {
   letter-spacing: -0.02em;
   line-height: 1.3;
   min-width: 0;
+}
+
+.crypto-panel__sub {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted, #9aa0a6);
+  line-height: 1.35;
 }
 
 .crypto-panel .crypto-pick-list {

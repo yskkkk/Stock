@@ -1484,7 +1484,10 @@ export default function AccountManageTab({
       data-vu={contentReady ? "account-manage-ready" : "account-manage-shell"}
     >
       <header className="account-manage-tab__head">
-        <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
+        <div className="account-manage-tab__head-copy">
+          <h2 className="account-manage-tab__title">{ko.app.accountManageTitle}</h2>
+          <p className="account-manage-tab__sub">{ko.app.accountManageSubtitle}</p>
+        </div>
         <div className="account-manage-tab__head-actions">
           <button
             type="button"

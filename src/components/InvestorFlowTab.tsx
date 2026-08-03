@@ -552,8 +552,8 @@ export default function InvestorFlowTab() {
       <header className="investor-flow-tab__head">
         <div>
           <h2 className="investor-flow-tab__title">{ko.investorFlow.title}</h2>
+          <p className="investor-flow-tab__sub">{ko.investorFlow.subtitle}</p>
           <p className="investor-flow-tab__meta">
-            {ko.investorFlow.subtitle} ·{" "}
             {ko.investorFlow.metaLine(
               data?.bizDate,
               data?.itemCount ?? 0,

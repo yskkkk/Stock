@@ -26,6 +26,13 @@
   font-weight: 700;
 }
 
+.investor-flow-tab__sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
 .investor-flow-tab__meta {
   margin: 0.15rem 0 0;
   font-size: 0.72rem;

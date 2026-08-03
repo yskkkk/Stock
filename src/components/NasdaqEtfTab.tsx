@@ -440,9 +440,7 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
       <header className="nasdaq-etf-tab__head">
         <div>
           <h2 className="nasdaq-etf-tab__title">{ko.app.nasdaqEtfTitle}</h2>
-          <p className="nasdaq-etf-tab__sub">
-            {ko.app.nasdaqEtfSubtitle} {ko.app.nasdaqEtfHoldingsHint}
-          </p>
+          <p className="nasdaq-etf-tab__sub">{ko.app.nasdaqEtfSubtitle}</p>
         </div>
         <button
           type="button"

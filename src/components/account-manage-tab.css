@@ -18,7 +18,7 @@
 .account-manage-tab__head {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
 }
@@ -43,7 +43,10 @@
 }
 
 .account-manage-tab__sub {
-  display: none;
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted, #6b7280);
+  line-height: 1.45;
 }
 
 .account-manage-tab__refresh {

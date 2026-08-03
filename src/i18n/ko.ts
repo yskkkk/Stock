@@ -85,8 +85,7 @@ export const ko = {
     tabRedditMentions: "레딧",
     redditMentionsTitle: "레딧 관심 종목",
     redditMentionsAria: "레딧에서 자주 언급되는 종목 순위",
-    redditMentionsSubtitle:
-      "Reddit(월스트리트베츠·stocks 등)에서 최근 자주 언급된 티커 순위입니다. ApeWisdom 집계 · 투자 조언이 아닙니다.",
+    redditMentionsSubtitle: "레딧에서 자주 언급된 종목을 봅니다.",
     redditMentionsLoading: "레딧 언급 순위 불러오는 중…",
     redditMentionsEmpty: "표시할 언급 종목이 없습니다.",
     redditMentionsError: "레딧 언급 순위를 불러오지 못했습니다.",
@@ -105,8 +104,7 @@ export const ko = {
     redditMentionsFilter: "커뮤니티",
     nasdaqEtfTitle: "미국 ETF",
     nasdaqEtfAria: "미국 주요 거래소 ETF 목록",
-    nasdaqEtfSubtitle:
-      "Yahoo Finance 기준 나스닥·Cboe·NYSE Arca 상장 ETF · 한글명·설명은 네이버 증권(가능 시). DRAM·RAM 등 신규 ETF도 검색으로 찾을 수 있습니다.",
+    nasdaqEtfSubtitle: "미국 ETF 목록과 구성 종목을 봅니다.",
     nasdaqEtfSearch: "심볼·영문·한글명·설명 검색",
     nasdaqEtfLoading: "ETF 목록 불러오는 중…",
     nasdaqEtfBuilding: "거래소별 목록 수집 중…",
@@ -147,13 +145,12 @@ export const ko = {
     nasdaqEtfAllocBond: "채권",
     nasdaqEtfAllocCash: "현금",
     nasdaqEtfAllocOther: "기타",
-    nasdaqEtfHoldingsHint: "행을 클릭하면 구성 종목을 볼 수 있습니다.",
+    nasdaqEtfHoldingsHint: "행을 누르면 구성 종목을 봅니다.",
     tabAccountManage: "계좌",
     accountManageTitle: "계좌관리",
     accountManageAria: "로그인 계좌 정보·보유 비중",
-    accountManageSubtitle:
-      "로그인된 계좌의 잔고·보유 종목을 조회하고, 원형 차트로 비중을 관리합니다.",
-    accountManageLoginHint: "계좌를 보려면 로그인하세요.",
+    accountManageSubtitle: "계좌 잔고와 보유 비중을 관리합니다.",
+    accountManageLoginHint: "로그인 후 계좌를 봅니다.",
     accountManageLoading: "계좌 정보를 불러오는 중…",
     accountManageEmpty: "표시할 보유·잔고가 없습니다.",
     accountManageChartTitle: "보유 비중",
@@ -437,8 +434,7 @@ export const ko = {
     liveTradeSideDockRailCalc: "수익계산",
     expectedReturnCalcTitle: "예상 투자 수익률",
     expectedReturnCalcAria: "PER·성장·배당 기반 예상 수익률 계산기",
-    expectedReturnCalcSubtitle:
-      "이익 성장·평균 PER·배당성향으로 N년 후 주가와 총배당을 합산해 연평균 수익률과 목표 수익률 기준 최대 매수가를 계산합니다.",
+    expectedReturnCalcSubtitle: "예상 수익률과 목표 매수가를 계산합니다.",
     expectedReturnCalcCurrencyAria: "계산 통화",
     expectedReturnCalcCurrencyKrw: "원화",
     expectedReturnCalcCurrencyUsd: "달러",
@@ -504,6 +500,7 @@ export const ko = {
     liveTradeSimStartOk: "시뮬 자동 매매를 시작했습니다. 텔레그램 알림 시 자동 매수합니다.",
     liveTradeDisarmed: "실매매를 중지했습니다.",
     liveTradeTitle: "실매매 프로그램",
+    liveTradeSubtitle: "실매매·시뮬 프로그램을 관리합니다.",
     liveTradeOpenRecModels: "추천 목록에서 모델 관리",
     liveTradeApiRowAria: "토스·빗썸 API 연동 상태",
     liveTradeTossTitle: "토스 API 연동",
@@ -718,8 +715,7 @@ export const ko = {
     liveTradeProgramsTabPrograms: "프로그램",
     liveTradeProgramsTabTrades: "거래내역",
     liveTradeProgramsTabBoxCatalog: "박스권(S&P500)",
-    boxRangeCatalogHint:
-      "30분마다 S&P500 전 종목 박스권을 탐지·저장합니다. 매매 미사용은 체크 해제.",
+    boxRangeCatalogHint: "탐지된 박스권 목록을 관리합니다.",
     boxRangeCatalogSearch: "종목 검색",
     boxRangeCatalogPickSymbol: "왼쪽에서 종목을 선택하세요.",
     boxRangeCatalogLoading: "불러오는 중…",
@@ -727,8 +723,7 @@ export const ko = {
     boxRangeCatalogColTrade: "매매 사용",
     boxRangeCatalogTradeOn: "사용",
     boxRangeCatalogTradeOff: "미사용",
-    boxRangeTabHint:
-      "상단 박스권 탭 — S&P500·국내 중 선택 후 로고를 누르면 매매 가능한 박스 가격을 카드로 봅니다.",
+    boxRangeTabHint: "유효 박스권 종목을 고르고 매매 가격을 봅니다.",
     boxRangeTabMarketLabel: "시장",
     boxRangeTabMarketUs: "S&P500",
     boxRangeTabMarketKr: "국내",
@@ -1169,7 +1164,7 @@ export const ko = {
     selectTitle: "종목을 선택하세요",
     selectDesc: "왼쪽 목록에서 종목을 누르면 차트가 표시됩니다",
     stockLookupSelectTitle: "종목을 검색하거나 선택하세요",
-    stockLookupSelectDesc: "Yahoo Finance 검색 결과에서 종목을 누르면 차트가 열립니다.",
+    stockLookupSelectDesc: "종목을 검색해 차트를 엽니다.",
     stockLookupPlaceholder: "이름 또는 심볼 (예: 삼성, AAPL, 005930)",
     stockLookupSelectedPin: "선택 종목",
     stockLookupAria: "종목 검색",
@@ -1239,7 +1234,7 @@ export const ko = {
   },
   macro: {
     title: "주요 지표 발표",
-    subtitle: "남은 시간 순 · 지표 및 기업 실적",
+    subtitle: "경제지표·실적 일정을 봅니다.",
     nasdaqEtfBtn: "ETF",
     nasdaqEtfBtnHint: "미국 주요 거래소 ETF 목록",
     live: "진행 중",
@@ -1260,7 +1255,7 @@ export const ko = {
     currentPending: "—",
     forecastHelp: "예상치는 시장 컨센서스(애널리스트 추정)입니다. 현재치는 직전 회차 발표값(previous)입니다. 서버에 FINNHUB_API_KEY가 있으면 Finnhub·Forex Factory 캘린더로 자동 채웁니다. 없으면 server/data/macro-releases.json 수동 값 또는 — 표시입니다.",
     sectorEarningsTitle: "주목 섹터 실적 (예정)",
-    sectorEarningsSubtitle: "Yahoo Finance 예정일 기준 · 행얰 3주 내 주요 섹터 대표종",
+    sectorEarningsSubtitle: "예정 실적 일정을 봅니다.",
     sectorEarningsCardHint: "실적 일정 · Yahoo 종목 페이지로 열기",
     earningsMetaLabel: "실적",
     earningsMetaPending: "일정만 확인",
@@ -1273,7 +1268,7 @@ export const ko = {
   },
   financials: {
     title: "재무 · 밸류에이션",
-    hint: "PER·EPS·BPS·PBR 등 주요 지표를 조회합니다. 데이터는 Yahoo Finance(TradingView와 동일 계열) 기준입니다.",
+    hint: "재무 지표와 재무제표를 봅니다.",
     sourceNote: "PER=주가÷EPS · PBR=주가÷BPS · 값 없음(—)은 해당 종목/시장에서 미제공일 수 있습니다.",
     searchAria: "종목 검색",
     searchLabel: "종목 검색",
@@ -1404,7 +1399,7 @@ export const ko = {
   },
   investorFlow: {
     title: "국내 수급",
-    subtitle: "시총300",
+    subtitle: "시총 상위 종목 수급을 봅니다.",
     loading: "불러오는 중…",
     empty: "표시할 수급 데이터가 없습니다. 장 마감 후 또는 첫 스캔 완료 후 다시 확인해 주세요.",
     refresh: "새로고침",
@@ -1471,8 +1466,7 @@ export const ko = {
   },
   tradingTechnique: {
     title: "매매기법",
-    selectDesc:
-      "매매기법을 선택하면 골든크로스·정배열·120선 근처 탐색 등 기존 보관함 화면으로 이동합니다.",
+    selectDesc: "매매기법을 고르면 탐지 종목을 봅니다.",
     loading: "매매기법 불러오는 중…",
     emptyModels: "등록된 매매기법이 없습니다.",
     emptyPicks: "현재 이 매매기법으로 발견된 종목이 없습니다.",
@@ -1481,9 +1475,8 @@ export const ko = {
   },
   stockVault: {
     title: "종목보관",
-    desc: "일봉·주봉 골든크로스·정배열·120선 근처·바닥 캔들 자동 탐지 종목과 즐겨찾기를 관리합니다.",
-    entryHint:
-      "【기본】 최신·전체·일봉·골든크로스 — 조건·즐겨찾기·시장은 아래 칩, 일자는 위에서 변경",
+    desc: "조건 탐지 종목과 즐겨찾기를 보관합니다.",
+    entryHint: "조건 탐지 종목과 즐겨찾기를 봅니다.",
     loading: "불러오는 중…",
     empty: "보관된 종목이 없습니다.",
     loadMoreRows: (shown: number, total: number) =>
@@ -1754,7 +1747,8 @@ export const ko = {
     inboxHintNoServer: "접수함은 공개 조회됩니다. 답글·삭제·IP 위임은 관리자만 가능합니다.",
   },
   crypto: {
-    panelTitle: "주요 코인 (Binance USDT · 24h 거래량 순)",
+    panelTitle: "주요 코인",
+    panelSubtitle: "주요 코인 시세·차트를 봅니다.",
     listAria: "코인 선택",
     listVolShort: "거래량",
     listVolTitle: "24h USDT 거래대금 (내림차순 정렬)",
@@ -1778,7 +1772,7 @@ export const ko = {
   },
   dart: {
     title: "기업 공시 (DART)",
-    hint: "금융감독원 전자공시를 검색·조회합니다. 국내 상장 회사만 지원합니다.",
+    hint: "기업 공시를 검색·조회합니다.",
     statusLoading: "DART 연결 확인 중…",
     statusDisabled: "DART API 키가 설정되지 않았습니다. 프로젝트 누에 OPENDART_API_KEY를 넣으면 공시가 표시됩니다.",
     statusReady: "DART 연결 완료 · 등록 회사 {n}개",
