@@ -11,6 +11,7 @@ export type AppTab =
   | "tradeHistory"
   | "boxRange"
   | "financials"
+  | "infoBoard"
   | "stockVault"
   | "investorFlow"
   | "sp500Sector"

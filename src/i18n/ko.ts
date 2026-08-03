@@ -78,6 +78,7 @@ export const ko = {
     tabTradeHistory: "거래내역",
     tabBoxRange: "박스권",
     tabFinancials: "재무",
+    tabInfoBoard: "정보 게시판",
     tabStockVault: "종목보관",
     tabInvestorFlow: "국내 수급",
     tabSp500Sector: "S&P",
@@ -1396,6 +1397,70 @@ export const ko = {
     warningsTitle: "참고",
     disclaimer:
       "실제 시장·재무 데이터 기반 추정이며 투자 권유가 아닙니다. 말풍선 값은 직접 수정해 시나리오를 바꿀 수 있습니다.",
+  },
+  infoBoard: {
+    title: "정보 게시판",
+    aria: "투자 참고 정보 게시판",
+    subtitle: "업종·지표 기준 등 참고 자료를 모아 둡니다.",
+    perEbitdaTitle: "업종별 PER vs EV/EBITDA 적정 기준치 비교표",
+    perEbitdaLead:
+      "업종 특성에 따라 PER·EV/EBITDA의 적정 구간이 다릅니다. 참고용이며 투자 권유가 아닙니다.",
+    colSector: "업종 분류",
+    colTraits: "특징 및 대표 사례",
+    colPer: "PER 기준치 (주가/순이익)",
+    colEvEbitda: "EV/EBITDA 기준치 (기업가치/현금창출력)",
+    perEbitdaRows: [
+      {
+        sector: "장치산업 / 소재",
+        examples: "철강, 정유, 화학, 유틸리티",
+        traits:
+          "공장 등 설비 투자가 막대하고 회계상 감가상각비가 많이 잡히는 업종",
+        per: "8배 ~ 12배",
+        perNote: "사이클 정점일 때는 3~5배로 왜곡됨",
+        evEbitda: "5배 ~ 8배",
+        evNote: "감가상각비를 걷어내어 가장 평가하기 정확함",
+      },
+      {
+        sector: "전통 제조업 / 자동차",
+        examples: "현대차, 전통 가전 등",
+        traits:
+          "실물 자산을 만들지만 사이클과 설비 투자가 함께 맞물리는 업종",
+        per: "8배 ~ 10배",
+        perNote: "",
+        evEbitda: "6배 ~ 9배",
+        evNote: "",
+      },
+      {
+        sector: "방어주 / 필수소비재 / 통신",
+        examples: "통신사, 음식료, 유통",
+        traits:
+          "경기 변동을 적게 타며 꾸준히 안정적인 실적과 배당을 주는 업종",
+        per: "10배 ~ 15배",
+        perNote: "",
+        evEbitda: "8배 ~ 12배",
+        evNote: "",
+      },
+      {
+        sector: "금융주 / 은행",
+        examples: "은행, 증권, 보험",
+        traits:
+          "부채가 자산인 특수한 구조로, 순이익과 자본 기준으로 평가함",
+        per: "7배 ~ 10배",
+        perNote: "EV/EBITDA는 부채 구조상 잘 안 씀",
+        evEbitda: "사용 안 함",
+        evNote: "대신 PBR 사용",
+      },
+      {
+        sector: "고성장 기술주 / IT",
+        examples: "소프트웨어, AI, 바이오 등",
+        traits:
+          "공장보다 무형 자산과 기술력으로 성장하며 이익 성장률이 가파른 업종",
+        per: "25배 ~ 50배 이상",
+        perNote: "성장 기대감이 높을수록 치솟음",
+        evEbitda: "15배 ~ 25배 이상",
+        evNote: "",
+      },
+    ],
   },
   investorFlow: {
     title: "국내 수급",

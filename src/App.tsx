@@ -73,6 +73,7 @@ const RecommendationsTab = lazyWithRetry(() => import("./components/Recommendati
 const TradeHistoryTab = lazyWithRetry(() => import("./components/TradeHistoryTab"));
 const BoxRangeTab = lazyWithRetry(() => import("./components/BoxRangeTab"));
 const FinancialsTab = lazyWithRetry(() => import("./components/FinancialsTab"));
+const InfoBoardTab = lazyWithRetry(() => import("./components/InfoBoardTab"));
 const StockVaultTab = lazyWithRetry(() => import("./components/StockVaultTab"));
 const InvestorFlowTab = lazyWithRetry(() => import("./components/InvestorFlowTab"));
 
@@ -814,6 +815,7 @@ export default function App() {
       appTab === "liveTrading" ||
       appTab === "boxRange" ||
       appTab === "financials" ||
+      appTab === "infoBoard" ||
       appTab === "stockVault" ||
       appTab === "investorFlow" ||
       appTab === "sp500Sector" ||
@@ -884,7 +886,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage" || appTab === "expectedReturnCalc") return;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "infoBoard" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage" || appTab === "expectedReturnCalc") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -1251,7 +1253,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage" || appTab === "expectedReturnCalc") return;
+    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "infoBoard" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage" || appTab === "expectedReturnCalc") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -1498,6 +1500,8 @@ export default function App() {
                 ? "app app--box-range"
                 : appTab === "financials"
                   ? "app app--financials"
+                : appTab === "infoBoard"
+                  ? "app app--info-board"
                 : appTab === "stockVault"
                   ? "app app--stock-vault"
                 : appTab === "investorFlow"
@@ -1851,6 +1855,16 @@ export default function App() {
               </button>
               <button
                 type="button"
+                className={mainTabClassName("infoBoard")}
+                data-vu="tab-infoBoard"
+                onClick={() => setAppTab("infoBoard")}
+                title={ko.infoBoard.title}
+                aria-label={ko.infoBoard.title}
+              >
+                {ko.app.tabInfoBoard}
+              </button>
+              <button
+                type="button"
                 className={mainTabClassName("stockVault")}
                 onClick={() => {
                   pinStockVaultSessionCache();
@@ -1943,6 +1957,10 @@ export default function App() {
             scrollToSection={financialsScrollTo}
             onScrollToSectionConsumed={handleFinancialsScrollConsumed}
           />
+        </TabSuspense>
+      ) : appTab === "infoBoard" ? (
+        <TabSuspense>
+          <InfoBoardTab />
         </TabSuspense>
       ) : appTab === "stockVault" ? (
         <TabSuspense>

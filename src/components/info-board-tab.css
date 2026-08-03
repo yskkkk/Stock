@@ -1,0 +1,144 @@
+.workspace.info-board-tab {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.25rem 0 1.25rem;
+  gap: var(--tab-stack-gap, 0.75rem);
+  align-self: stretch;
+  box-sizing: border-box;
+}
+
+.app.app--info-board .app__shell .info-board-tab {
+  width: 100%;
+  max-width: 100%;
+}
+
+.info-board-tab__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.info-board-tab__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.info-board-tab__sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 48rem;
+}
+
+.info-board-tab__article {
+  padding: 0.85rem 1rem 1rem;
+}
+
+.info-board-tab__article-title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.info-board-tab__article-lead {
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.info-board-tab__table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 0.5rem);
+}
+
+.info-board-tab__table {
+  width: 100%;
+  min-width: 52rem;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.info-board-tab__table th,
+.info-board-tab__table td {
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.info-board-tab__table thead th {
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, var(--surface) 88%, var(--card));
+  font-weight: 650;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.info-board-tab__table tbody th {
+  font-weight: 650;
+  min-width: 9.5rem;
+  background: color-mix(in srgb, var(--card) 92%, var(--surface));
+}
+
+.info-board-tab__table tbody tr:last-child th,
+.info-board-tab__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.info-board-tab__table tbody tr:hover td,
+.info-board-tab__table tbody tr:hover th {
+  background: color-mix(in srgb, var(--accent, #2563eb) 6%, var(--card));
+}
+
+.info-board-tab__sector {
+  display: block;
+}
+
+.info-board-tab__examples {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.info-board-tab__bench {
+  display: block;
+  font-weight: 650;
+}
+
+.info-board-tab__note {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+  .info-board-tab__article {
+    padding: 0.7rem 0.65rem 0.85rem;
+  }
+
+  .info-board-tab__table {
+    font-size: 0.78rem;
+    min-width: 44rem;
+  }
+
+  .info-board-tab__table th,
+  .info-board-tab__table td {
+    padding: 0.55rem 0.55rem;
+  }
+}
