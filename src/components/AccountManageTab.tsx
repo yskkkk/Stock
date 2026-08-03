@@ -1130,19 +1130,8 @@ export default function AccountManageTab({
   };
 
   const showHoverBubble = useCallback(
-    (key: string, clientX: number, clientY: number) => {
-      const pad = 14;
-      const approxW = 220;
-      const approxH = 280;
-      const x = Math.min(
-        Math.max(8, clientX + pad),
-        (typeof window !== "undefined" ? window.innerWidth : 800) - approxW,
-      );
-      const y = Math.min(
-        Math.max(8, clientY - 12),
-        (typeof window !== "undefined" ? window.innerHeight : 600) - approxH,
-      );
-      setHoverBubble({ key, x, y });
+    (_key: string, _clientX: number, _clientY: number) => {
+      /* 호버 말풍선 비활성 — 차트 조각 강조(hoveredKey)만 유지 */
     },
     [],
   );
@@ -1749,18 +1738,7 @@ export default function AccountManageTab({
                   </span>
                 </div>
               </div>
-              <div
-                className="account-manage-tab__stat account-manage-tab__stat--holdings"
-                onMouseEnter={(e) => {
-                  if (summaryPending || visibleHoldingRows.length === 0) return;
-                  showHoverBubble("__holdings__", e.clientX, e.clientY);
-                }}
-                onMouseMove={(e) => {
-                  if (summaryPending || visibleHoldingRows.length === 0) return;
-                  showHoverBubble("__holdings__", e.clientX, e.clientY);
-                }}
-                onMouseLeave={hideHoverBubble}
-              >
+              <div className="account-manage-tab__stat account-manage-tab__stat--holdings">
                 <span className="account-manage-tab__stat-label">
                   {ko.app.accountManageHoldings}
                 </span>
@@ -2336,7 +2314,7 @@ export default function AccountManageTab({
                 </p>
               ) : (
                 <p className="account-manage-tab__hint">
-                  {ko.app.accountManagePickHint} {ko.app.accountManageHoverHint}
+                  {ko.app.accountManagePickHint}
                 </p>
               )}
             </aside>

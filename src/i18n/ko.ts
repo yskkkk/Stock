@@ -221,7 +221,7 @@ export const ko = {
     accountManageMarketUs: "미국",
     accountManageMarketCrypto: "코인",
     accountManagePickHint: "차트에서 조각을 누르면 해당 비중만 목록에 표시합니다.",
-    accountManageHoverHint: "마우스 올리면 말풍선으로 상세가 보입니다.",
+    accountManageHoverHint: "",
     accountManageBubbleSymbols: "포함 종목",
     accountManageBubbleMore: "외 {n}개",
     accountManageClearFilter: "전체 보기",
