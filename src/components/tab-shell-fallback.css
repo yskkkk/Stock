@@ -35,13 +35,6 @@
   line-height: 1.45;
 }
 
-.tab-shell-fallback__hint {
-  flex: 0 0 auto;
-  font-size: 0.78rem;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
 .tab-shell-fallback__toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -142,10 +135,6 @@
   }
 
   .tab-shell-fallback__row .tab-shell-fallback__bone--cell:last-child {
-    display: none;
-  }
-
-  .tab-shell-fallback__hint {
     display: none;
   }
 }
