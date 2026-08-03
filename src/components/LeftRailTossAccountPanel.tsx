@@ -10,6 +10,7 @@ import { mergeTossFeeRates, tossFeeRatesFromStatus } from "../lib/tossHoldingFee
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import TossAccountTitle from "./TossAccountTitle";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
+import AccountSnapshotFreshness from "./AccountSnapshotFreshness";
 import {
   TOSS_LEDGER_POLL_MS,
   useTossAccountSnapshot,
@@ -34,6 +35,7 @@ export function TossAccountRailCore({
     tossFeeRatesByMarket,
     updatedAtMs,
     loading,
+    syncing,
     err,
     reload,
   } = useTossAccountSnapshot({ poll: true, pollIntervalMs: TOSS_LEDGER_POLL_MS });
@@ -82,16 +84,28 @@ export function TossAccountRailCore({
     !authChecked || (loading && !snapshot && !hadSnapshotRef.current);
 
   const head = (
-    <div className="bithumb-account-rail-wrap__head">
-      <button
-        type="button"
-        className="bithumb-account-rail-wrap__title-btn"
-        onClick={() => onOpenLiveTrading?.()}
-        title={layout === "rail-aside" ? ko.app.liveTradeLeftRailOpen : undefined}
-      >
-        <TossAccountTitle />
-      </button>
-    </div>
+    <>
+      <div className="bithumb-account-rail-wrap__head">
+        <button
+          type="button"
+          className="bithumb-account-rail-wrap__title-btn"
+          onClick={() => onOpenLiveTrading?.()}
+          title={layout === "rail-aside" ? ko.app.liveTradeLeftRailOpen : undefined}
+        >
+          <TossAccountTitle />
+        </button>
+      </div>
+      {snapshot ? (
+        <AccountSnapshotFreshness
+          syncing={syncing}
+          updatedAtMs={updatedAtMs}
+          err={err}
+          hasData
+          className="bithumb-account-rail-wrap__freshness panel-freshness"
+          staleHintClassName="bithumb-account-rail-wrap__stale-hint panel-freshness__stale-hint"
+        />
+      ) : null}
+    </>
   );
 
   const body = pending ? (

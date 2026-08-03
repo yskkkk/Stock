@@ -10,7 +10,7 @@ import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import { LiveTradeExchangePicker } from "./LiveTradeExchangePicker";
-import { formatTimeMsKst, formatUpdatedAt } from "../lib/format";
+import AccountSnapshotFreshness from "./AccountSnapshotFreshness";
 import {
   consumePendingDockAccountView,
   dispatchDockAccountProvider,
@@ -56,8 +56,6 @@ function DockLinkedAccountsPanelInner({
   const tossReady = Boolean(status?.toss?.ready);
 
   const [provider, setProvider] = useState<LinkedProvider>(readDockAccountProvider);
-  const [slowFetch, setSlowFetch] = useState(false);
-  const [freshnessTick, setFreshnessTick] = useState(0);
 
   const selectProvider = useCallback((next: LinkedProvider) => {
     setProvider(next);
@@ -130,20 +128,6 @@ function DockLinkedAccountsPanelInner({
   const panelErr = provider === "bithumb" ? bithumbErr : tossErr;
   const hasPanelData =
     provider === "bithumb" ? Boolean(snapshot) : Boolean(tossSnapshot);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setFreshnessTick((t) => t + 1), 10_000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    if (!panelSyncing) {
-      setSlowFetch(false);
-      return;
-    }
-    const id = window.setTimeout(() => setSlowFetch(true), 1200);
-    return () => window.clearTimeout(id);
-  }, [panelSyncing]);
 
   if (!authChecked) {
     return (
@@ -261,33 +245,14 @@ function DockLinkedAccountsPanelInner({
         onSelect={selectProvider}
       />
       {user && hasPanelData ? (
-        <p
-          className="dock-linked-accounts__freshness"
-          role="status"
-          aria-live="polite"
-          aria-busy={panelSyncing || undefined}
-          data-freshness-tick={freshnessTick}
-        >
-          {panelSyncing && slowFetch ? (
-            <span
-              className="dock-linked-accounts__freshness-spinner"
-              aria-hidden
-            />
-          ) : null}
-          {ko.app.accountManageUpdated}
-          {panelSyncing && slowFetch
-            ? ` · ${ko.app.accountManageRefreshing}`
-            : panelUpdatedAtMs
-              ? ` · ${formatUpdatedAt(panelUpdatedAtMs)} · ${formatTimeMsKst(panelUpdatedAtMs)}`
-              : panelSyncing
-                ? "…"
-                : ""}
-        </p>
-      ) : null}
-      {panelErr && hasPanelData ? (
-        <p className="dock-linked-accounts__stale-hint" role="status">
-          {panelErr}
-        </p>
+        <AccountSnapshotFreshness
+          syncing={panelSyncing}
+          updatedAtMs={panelUpdatedAtMs}
+          err={panelErr}
+          hasData={hasPanelData}
+          className="dock-linked-accounts__freshness panel-freshness"
+          staleHintClassName="dock-linked-accounts__stale-hint panel-freshness__stale-hint"
+        />
       ) : null}
       <div
         className="dock-linked-accounts__body"

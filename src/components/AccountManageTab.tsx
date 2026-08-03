@@ -57,6 +57,7 @@ import {
   type AccountManageDisplayCurrency,
 } from "../hooks/useAccountManageDisplayCurrency";
 import { useAccountStyleTargetWeights } from "../hooks/useAccountStyleTargetWeights";
+import { useSnapshotFreshness } from "./AccountSnapshotFreshness";
 import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
 import {
   TOSS_LEDGER_POLL_MS,
@@ -225,17 +226,10 @@ export default function AccountManageTab({
   const [rebalanceScheduleEnabled, setRebalanceScheduleEnabled] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [slowFetch, setSlowFetch] = useState(false);
   const [, setHoursTick] = useState(0);
-  const [freshnessTick, setFreshnessTick] = useState(0);
 
   useEffect(() => {
     const id = window.setInterval(() => setHoursTick((t) => t + 1), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setFreshnessTick((t) => t + 1), 10_000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -1419,15 +1413,7 @@ export default function AccountManageTab({
 
   const snapshotSyncing = provider === "toss" ? tossSyncing : bithumbSyncing;
   const fetchActivity = refreshing || snapshotSyncing;
-
-  useEffect(() => {
-    if (!fetchActivity) {
-      setSlowFetch(false);
-      return;
-    }
-    const id = window.setTimeout(() => setSlowFetch(true), 2500);
-    return () => window.clearTimeout(id);
-  }, [fetchActivity]);
+  const { slowFetch, freshnessTick } = useSnapshotFreshness(fetchActivity, 2500);
 
   if (!authChecked) {
     return (
