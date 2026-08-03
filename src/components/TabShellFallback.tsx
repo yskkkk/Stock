@@ -1,4 +1,3 @@
-import { ko } from "../i18n/ko";
 import "./tab-shell-fallback.css";
 
 type Props = {
@@ -52,9 +51,6 @@ export default function TabShellFallback({
         aria-live="polite"
         aria-busy="true"
       >
-        <span className="tab-shell-fallback__hint tab-shell-fallback__hint--inline">
-          {ko.app.tabShellLoadingHint}
-        </span>
         {body}
       </div>
     );
@@ -80,7 +76,6 @@ export default function TabShellFallback({
             <div className="tab-shell-fallback__bone tab-shell-fallback__bone--sub" />
           )}
         </div>
-        <span className="tab-shell-fallback__hint">{ko.app.tabShellLoadingHint}</span>
       </header>
       <div className="tab-shell-fallback__toolbar">
         <div className="tab-shell-fallback__bone tab-shell-fallback__bone--search" />

@@ -15,11 +15,6 @@
   padding-top: 0.15rem;
 }
 
-.tab-shell-fallback__hint--inline {
-  align-self: flex-start;
-  white-space: normal;
-}
-
 .tab-shell-fallback__head {
   display: flex;
   align-items: flex-start;
