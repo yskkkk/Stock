@@ -15,6 +15,7 @@ import {
 import { runVirtualUserSession } from "./virtual-user-runner.js";
 import {
   ensureVirtualUserAutoImproveOnBoot,
+  ensureVirtualUserContinuousAlwaysOn,
   hasCursorApiKey,
   pauseVirtualUserForApiExhaustion,
 } from "./virtual-user-api-guard.js";
@@ -130,6 +131,8 @@ function scheduleExploreSoon(delayMs = EXPLORE_GAP_MS) {
   exploreTimer = setTimeout(() => {
     exploreTimer = null;
     void (async () => {
+      // 상시가동: 꺼져 있으면 다시 켠다 (env=0만 완전 off)
+      ensureVirtualUserContinuousAlwaysOn();
       const cfg = getVirtualUserContinuousSync();
       if (!cfg.enabled) {
         scheduleExploreSoon(5_000);
@@ -227,14 +230,15 @@ export function startVirtualUserContinuousPoller() {
     appendServerEventLog("virtual-user", `narrative enrich fail ${msg}`);
   }
 
-  // intervalMs만 맞추고, enabled/autoImplement는 관리자 스위치(디스크) 존중
+  // 상시가동: 부팅 시 enabled·autoImplement 강제 on (env=0만 예외)
   patchVirtualUserContinuousSync({
     intervalMs: IMPLEMENT_SCAN_MS,
   });
+  ensureVirtualUserAutoImproveOnBoot();
   const after = getVirtualUserContinuousSync();
   appendServerEventLog(
     "virtual-user",
-    `explore=continuous(novelty) gap=${EXPLORE_GAP_MS}ms · implementScan=${after.intervalMs}ms enabled=${after.enabled} autoImplement=${after.autoImplement} boot=${boot.reason || "ok"}`,
+    `explore=always-on(novelty) gap=${EXPLORE_GAP_MS}ms · implementScan=${after.intervalMs}ms enabled=${after.enabled} autoImplement=${after.autoImplement} boot=${boot.reason || "ok"}`,
   );
   markPollerBootStarted(POLLER_ID);
 
