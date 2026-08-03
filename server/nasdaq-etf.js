@@ -81,6 +81,8 @@ const BRAND_KO = [
 let cached = null;
 /** @type {Promise<object> | null} */
 let inflightPayload = null;
+/** @type {number} */
+let buildGeneration = 0;
 /** @type {Map<string, string> | null} */
 let pinionKoByTicker = null;
 
@@ -157,8 +159,9 @@ async function fetchEtfScreenerPage(region, offset, size, exchange) {
  * @param {string} region
  * @param {string} exchange
  * @param {number} maxCount
+ * @param {(batch: object[]) => void | Promise<void>} [onBatch]
  */
-async function fetchExchangeEtfUniverse(region, exchange, maxCount) {
+async function fetchExchangeEtfUniverse(region, exchange, maxCount, onBatch) {
   const out = [];
   const seen = new Set();
   const ex = String(exchange ?? "").trim();
@@ -168,11 +171,17 @@ async function fetchExchangeEtfUniverse(region, exchange, maxCount) {
   for (let offset = 0; offset < Math.max(cap * 2, 8_000) && out.length < cap; offset += 250) {
     try {
       const page = await fetchEtfScreenerPage(region, offset, 250, ex);
+      /** @type {object[]} */
+      const fresh = [];
       for (const item of page) {
         if (!seen.has(item.symbol)) {
           seen.add(item.symbol);
           out.push(item);
+          fresh.push(item);
         }
+      }
+      if (fresh.length > 0 && typeof onBatch === "function") {
+        await onBatch(fresh);
       }
       // 페이지가 비면 종료. 짧아도 offset을 더 밀어 AUM 하위·신규 티커를 놓치지 않음
       if (page.length === 0) break;
@@ -423,31 +432,38 @@ function fallbackDescriptionKo(englishName, symbol) {
 
 /**
  * @param {Array<object>} etfs
- * @param {number} concurrency
  */
-async function enrichKoreanMeta(etfs, concurrency = 10) {
+async function enrichKoreanMetaFast(etfs) {
   const pinion = await loadPinionKoByTicker();
-  const supplemental = new Set(SUPPLEMENTAL_ETF_SYMBOLS);
-
   for (const row of etfs) {
     const sym = row.symbol;
     const pinionKo = pinion.get(sym) ?? pinion.get(sym.replace(/-/g, "."));
     if (pinionKo && hasHangul(pinionKo)) {
       row.nameKo = pinionKo;
-    } else {
+    } else if (!row.nameKo || !hasHangul(row.nameKo)) {
       const quick = buildNameKo(row.name || "", sym, null);
       if (quick && hasHangul(quick)) row.nameKo = quick;
     }
-    if (!row.description) {
-      row.description = fallbackDescriptionKo(row.name || "", sym);
+    if (!row.description || !hasHangul(row.description)) {
+      row.description = fallbackDescriptionKo(
+        row.nameKo || row.name || "",
+        sym,
+      );
+    }
+    if (!row.nameKo || !hasHangul(row.nameKo)) {
+      const built = buildNameKo(row.name || "", sym, null);
+      if (built) row.nameKo = built;
     }
   }
+}
 
-  // 네이버/야후 상세 보강은 상위 AUM + 강제 포함 티커만 (전체 5천+는 타임아웃·rate limit)
-  const NAVER_ENRICH_CAP = (() => {
-    const n = Number(process.env.STOCK_NASDAQ_ETF_NAVER_ENRICH ?? 900);
-    return Number.isFinite(n) && n >= 100 ? Math.min(n, 2500) : 900;
-  })();
+/**
+ * 네이버 상세 보강 — 상위 AUM + 강제 포함 티커만 (느림, 백그라운드)
+ * @param {Array<object>} etfs
+ * @param {number} concurrency
+ */
+async function enrichKoreanMetaNaver(etfs, concurrency = 10) {
+  const supplemental = new Set(SUPPLEMENTAL_ETF_SYMBOLS);
   const ranked = [...etfs].sort((a, b) => {
     const an = a.netAssets;
     const bn = b.netAssets;
@@ -481,19 +497,45 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
       }),
     );
   }
+}
 
-  for (const row of etfs) {
-    if (!row.description || !hasHangul(row.description)) {
-      row.description = fallbackDescriptionKo(
-        row.nameKo || row.name || "",
-        row.symbol,
-      );
-    }
-    if (!row.nameKo || !hasHangul(row.nameKo)) {
-      const built = buildNameKo(row.name || "", row.symbol, null);
-      if (built) row.nameKo = built;
-    }
-  }
+/** 네이버/야후 상세 보강 상한 */
+const NAVER_ENRICH_CAP = (() => {
+  const n = Number(process.env.STOCK_NASDAQ_ETF_NAVER_ENRICH ?? 900);
+  return Number.isFinite(n) && n >= 100 ? Math.min(n, 2500) : 900;
+})();
+
+/**
+ * @param {Array<object>} etfs
+ */
+function sortEtfsByAum(etfs) {
+  return [...etfs].sort((a, b) => {
+    const an = a.netAssets;
+    const bn = b.netAssets;
+    if (an != null && bn != null && an !== bn) return bn - an;
+    if (an != null && bn == null) return -1;
+    if (an == null && bn != null) return 1;
+    return String(a.symbol).localeCompare(String(b.symbol));
+  });
+}
+
+/**
+ * @param {Map<string, object>} bySym
+ * @param {{ building: boolean; enriching: boolean }} flags
+ */
+function publishEtfSnapshot(bySym, flags) {
+  let etfs = sortEtfsByAum([...bySym.values()]);
+  if (etfs.length > TARGET) etfs = etfs.slice(0, TARGET);
+  const data = {
+    etfs,
+    count: etfs.length,
+    updatedAt: Date.now(),
+    source: "yahoo-screener-etf-us-nasdaq-cboe-arca+naver",
+    building: Boolean(flags.building),
+    enriching: Boolean(flags.enriching),
+  };
+  cached = { data, at: Date.now() };
+  return data;
 }
 
 /**
@@ -503,81 +545,167 @@ async function enrichKoreanMeta(etfs, concurrency = 10) {
  *   count: number;
  *   updatedAt: number;
  *   source: string;
+ *   building?: boolean;
+ *   enriching?: boolean;
  * }>}
  */
 export async function fetchNasdaqEtfsPayload(opts = {}) {
   const force = Boolean(opts.force);
   const now = Date.now();
-  if (!force && cached && now - cached.at < CACHE_MS) {
+  if (
+    !force &&
+    cached &&
+    now - cached.at < CACHE_MS &&
+    !cached.data.building &&
+    !cached.data.enriching
+  ) {
     return cached.data;
   }
-  if (!force && inflightPayload) return inflightPayload;
+  /** 빌드/보강 중이면 최신 스냅샷을 즉시 반환(클라가 폴링으로 이어받음) */
+  if (
+    !force &&
+    cached?.data &&
+    (cached.data.building || cached.data.enriching) &&
+    Array.isArray(cached.data.etfs) &&
+    cached.data.etfs.length > 0
+  ) {
+    return cached.data;
+  }
+  if (!force && inflightPayload) {
+    if (
+      cached?.data &&
+      Array.isArray(cached.data.etfs) &&
+      cached.data.etfs.length > 0
+    ) {
+      return cached.data;
+    }
+    return inflightPayload;
+  }
+
+  if (force) {
+    cached = null;
+  }
+
+  let resolveFirst = /** @type {(() => void) | null} */ (null);
+  const firstSnapshotReady = new Promise((resolve) => {
+    resolveFirst = () => resolve(undefined);
+  });
+  let firstReleased = false;
+
+  const releaseFirst = () => {
+    if (firstReleased) return;
+    firstReleased = true;
+    resolveFirst?.();
+  };
+
+  const buildGen = ++buildGeneration;
 
   inflightPayload = (async () => {
-  await getYahooSession();
-  /** @type {Map<string, object>} */
-  const bySym = new Map();
+    await getYahooSession();
+    /** @type {Map<string, object>} */
+    const bySym = new Map();
 
-  // 거래소별 스크리너 병렬 — 순차 대비 첫 응답 크게 단축
-  const exchangeParts = await Promise.all(
-    US_ETF_EXCHANGES.map((ex) =>
-      fetchExchangeEtfUniverse("us", ex, PER_EXCHANGE_MAX).catch((e) => {
-        console.warn(
-          "[nasdaq-etf] exchange",
-          ex,
-          e instanceof Error ? e.message : e,
-        );
-        return [];
+    await Promise.all(
+      US_ETF_EXCHANGES.map(async (ex) => {
+        try {
+          await fetchExchangeEtfUniverse(
+            "us",
+            ex,
+            PER_EXCHANGE_MAX,
+            async (fresh) => {
+              if (buildGen !== buildGeneration) return;
+              let added = 0;
+              for (const row of fresh) {
+                if (!bySym.has(row.symbol)) {
+                  bySym.set(row.symbol, row);
+                  added += 1;
+                }
+              }
+              if (added <= 0) return;
+              await enrichKoreanMetaFast(fresh);
+              if (buildGen !== buildGeneration) return;
+              publishEtfSnapshot(bySym, { building: true, enriching: true });
+              releaseFirst();
+            },
+          );
+        } catch (e) {
+          console.warn(
+            "[nasdaq-etf] exchange",
+            ex,
+            e instanceof Error ? e.message : e,
+          );
+        }
       }),
-    ),
-  );
-  for (const part of exchangeParts) {
-    for (const row of part) {
-      if (!bySym.has(row.symbol)) bySym.set(row.symbol, row);
+    );
+
+    if (buildGen !== buildGeneration) {
+      return (
+        cached?.data ?? {
+          etfs: [],
+          count: 0,
+          updatedAt: Date.now(),
+          source: "stale",
+        }
+      );
     }
-  }
 
-  try {
-    await mergeSupplementalEtfs(bySym);
-  } catch (e) {
-    console.warn(
-      "[nasdaq-etf] supplemental:",
-      e instanceof Error ? e.message : e,
-    );
-  }
+    try {
+      await mergeSupplementalEtfs(bySym);
+    } catch (e) {
+      console.warn(
+        "[nasdaq-etf] supplemental:",
+        e instanceof Error ? e.message : e,
+      );
+    }
 
-  let etfs = [...bySym.values()].sort((a, b) => {
-    const an = a.netAssets;
-    const bn = b.netAssets;
-    if (an != null && bn != null && an !== bn) return bn - an;
-    if (an != null && bn == null) return -1;
-    if (an == null && bn != null) return 1;
-    return String(a.symbol).localeCompare(String(b.symbol));
-  });
+    await enrichKoreanMetaFast([...bySym.values()]);
+    if (buildGen !== buildGeneration) {
+      return (
+        cached?.data ?? {
+          etfs: [],
+          count: 0,
+          updatedAt: Date.now(),
+          source: "stale",
+        }
+      );
+    }
+    publishEtfSnapshot(bySym, { building: false, enriching: true });
+    releaseFirst();
 
-  if (etfs.length > TARGET) etfs = etfs.slice(0, TARGET);
+    try {
+      let etfs = sortEtfsByAum([...bySym.values()]);
+      if (etfs.length > TARGET) etfs = etfs.slice(0, TARGET);
+      await enrichKoreanMetaNaver(etfs);
+    } catch (e) {
+      console.warn(
+        "[nasdaq-etf] korean enrich:",
+        e instanceof Error ? e.message : e,
+      );
+    }
 
-  try {
-    await enrichKoreanMeta(etfs);
-  } catch (e) {
-    console.warn(
-      "[nasdaq-etf] korean enrich:",
-      e instanceof Error ? e.message : e,
-    );
-  }
-
-  const data = {
-    etfs,
-    count: etfs.length,
-    updatedAt: Date.now(),
-    source: "yahoo-screener-etf-us-nasdaq-cboe-arca+naver",
-  };
-  cached = { data, at: Date.now() };
-  return data;
+    if (buildGen !== buildGeneration) {
+      return (
+        cached?.data ?? {
+          etfs: [],
+          count: 0,
+          updatedAt: Date.now(),
+          source: "stale",
+        }
+      );
+    }
+    return publishEtfSnapshot(bySym, { building: false, enriching: false });
   })().finally(() => {
-    inflightPayload = null;
+    if (buildGen === buildGeneration) {
+      inflightPayload = null;
+    }
   });
 
+  await Promise.race([
+    firstSnapshotReady,
+    inflightPayload,
+    new Promise((r) => setTimeout(r, 12_000)),
+  ]);
+  if (cached?.data) return cached.data;
   return inflightPayload;
 }
 

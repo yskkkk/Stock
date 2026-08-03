@@ -296,6 +296,10 @@ export type NasdaqEtfsPayload = {
   count: number;
   updatedAt: number;
   source: string;
+  /** 거래소 스크리너 수집 중 — 목록이 계속 늘어날 수 있음 */
+  building?: boolean;
+  /** 한글·분류 보강 중 */
+  enriching?: boolean;
 };
 
 export function fetchNasdaqEtfs(opts?: { refresh?: boolean }) {

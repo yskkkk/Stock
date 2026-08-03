@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   Fragment,
   type MouseEvent,
 } from "react";
@@ -59,6 +60,8 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
   const [rows, setRows] = useState<NasdaqEtfRow[]>([]);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [building, setBuilding] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [expandedSym, setExpandedSym] = useState<string | null>(null);
@@ -68,18 +71,25 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
   );
   const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [holdingsError, setHoldingsError] = useState<string | null>(null);
+  const rowsLenRef = useRef(0);
+  rowsLenRef.current = rows.length;
 
   const load = useCallback(async (refresh = false) => {
-    setLoading(true);
+    const hadRows = rowsLenRef.current > 0;
+    if (!hadRows) setLoading(true);
     setError(null);
     try {
       const data = await fetchNasdaqEtfs({ refresh });
       setRows(Array.isArray(data.etfs) ? data.etfs : []);
       setUpdatedAt(data.updatedAt ?? Date.now());
-      setExpandedSym(null);
+      setBuilding(Boolean(data.building));
+      setEnriching(Boolean(data.enriching));
+      if (refresh) setExpandedSym(null);
     } catch {
       setError(ko.app.nasdaqEtfError);
-      setRows([]);
+      if (!hadRows) setRows([]);
+      setBuilding(false);
+      setEnriching(false);
     } finally {
       setLoading(false);
     }
@@ -88,6 +98,15 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
   useEffect(() => {
     void load(false);
   }, [load]);
+
+  useEffect(() => {
+    if (!building && !enriching) return;
+    const ms = building ? 700 : 1800;
+    const id = window.setTimeout(() => {
+      void load(false);
+    }, ms);
+    return () => window.clearTimeout(id);
+  }, [building, enriching, load]);
 
   useEffect(() => {
     if (!selected) {
@@ -429,7 +448,7 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
           type="button"
           className="btn btn--secondary"
           onClick={() => void load(true)}
-          disabled={loading}
+          disabled={loading && rows.length === 0}
         >
           {ko.app.nasdaqEtfRefresh}
         </button>
@@ -449,6 +468,11 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
           {updatedAt
             ? ` · ${new Date(updatedAt).toLocaleString("ko-KR")}`
             : null}
+          {building
+            ? ` · ${ko.app.nasdaqEtfBuilding}`
+            : enriching
+              ? ` · ${ko.app.nasdaqEtfEnriching}`
+              : null}
         </span>
       </div>
 
@@ -458,8 +482,10 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
         <p className="nasdaq-etf-tab__empty" role="alert">
           {error}
         </p>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && !building ? (
         <p className="nasdaq-etf-tab__empty">{ko.app.nasdaqEtfEmpty}</p>
+      ) : filtered.length === 0 && building ? (
+        <DockPanelCenterLoading label={ko.app.nasdaqEtfBuilding} />
       ) : (
         <div className="nasdaq-etf-tab__table-wrap card">
           <table className="nasdaq-etf-tab__table">

@@ -109,6 +109,8 @@ export const ko = {
       "Yahoo Finance 기준 나스닥·Cboe·NYSE Arca 상장 ETF · 한글명·설명은 네이버 증권(가능 시). DRAM·RAM 등 신규 ETF도 검색으로 찾을 수 있습니다.",
     nasdaqEtfSearch: "심볼·영문·한글명·설명 검색",
     nasdaqEtfLoading: "ETF 목록 불러오는 중…",
+    nasdaqEtfBuilding: "거래소별 목록 수집 중…",
+    nasdaqEtfEnriching: "한글·분류 정보 보강 중…",
     nasdaqEtfEmpty: "표시할 ETF가 없습니다.",
     nasdaqEtfError: "ETF 목록을 불러오지 못했습니다.",
     nasdaqEtfRefresh: "새로고침",
