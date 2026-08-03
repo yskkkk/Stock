@@ -14,6 +14,30 @@
 
 ## 열린 항목
 
+### [ERROR] auto-git — 2026-08-03 03:10:24.167 KST
+
+<!-- id:log-auto-git-ac97d62b77 -->
+
+**문제**: worktree: branch=main · untracked=1
+
+**개선 제안**: 해당 영역 코드·설정·로그를 따라가며 재발 방지 패치를 적용하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [ERROR] auto-git — 2026-08-03 03:10:23.975 KST
+
+<!-- id:log-auto-git-12314d7deb -->
+
+**문제**: pull failed: From github.com:yskkkk/Stock  * branch            main       -> FETCH_HEAD fatal: Not possible to fast-forward, aborting. — Command failed: git pull --ff-only origin main From github.com:yskkkk/Stock  * branch            main       -> FETCH_HEAD fatal: Not possible to fast-forward, aborting.
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
 ### [ERROR] auto-git — 2026-07-30 18:32:32.919 KST
 
 <!-- id:log-auto-git-2f32b6940f -->
@@ -156,6 +180,56 @@ _재발 17619회 (최초 2026-05-27 07:14:23.020 KST)_
 
 ---
 
+### [WARN] auto-git — 2026-08-03 19:58:11.106 KST
+
+<!-- id:log-auto-git-2d1b4b6a49 -->
+
+**문제**: resolve stash manually: git stash list → git stash apply → git stash drop
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+_재발 3회 (최초 2026-08-02 02:19:12.135 KST)_
+
+---
+
+### [WARN] auto-git — 2026-08-03 19:58:11.101 KST
+
+<!-- id:log-auto-git-068f08faf4 -->
+
+**문제**: stash apply conflict — worktree reset to pulled HEAD; local WIP kept in stash (Auto-merging src/components/AccountManageTab.tsx Auto-merging src/components/AccountRebalanceScheduleModal.tsx Auto-merging src/lib/rebalancePlanSummary.test.ts CONFLICT (content): Merge conflict in src/lib/rebalancePlanSummary.test.ts Auto)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] auto-git — 2026-08-03 19:58:06.688 KST
+
+<!-- id:log-auto-git-f5148a8365 -->
+
+**문제**: remote origin/main overlaps dirty: src/components/AccountManageTab.tsx, src/components/AccountRebalanceScheduleModal.tsx, src/lib/rebalancePlanSummary.test.ts, src/lib/rebalancePlanSummary.ts · branch=main · dirty=21 tracked · untracked=1 — stash then pull (VU/agent sync; pop may need manual resolve)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
+### [WARN] auto-git — 2026-08-03 03:10:18.664 KST
+
+<!-- id:log-auto-git-ad63d66f9e -->
+
+**문제**: remote origin/main overlaps dirty: src/components/AccountRebalanceScheduleModal.tsx, src/components/account-manage-tab.css, src/components/account-rebalance-schedule-modal.css, src/lib/rebalancePlanSummary.test.ts, src/lib/rebalancePlanSummary.ts · branch=main · dirty=20 tracked · untracked=1 — stash then pull (VU/agent sync; pop may need manual resolve)
+
+**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
+
+**근거**: server/.logs 접근 로그 INTERNAL auto-git
+
+---
+
 ### [WARN] virtual-user-manager — 2026-08-02 16:43:38.692 KST
 
 <!-- id:logfreq-af1073906a -->
@@ -167,20 +241,6 @@ _재발 17619회 (최초 2026-05-27 07:14:23.020 KST)_
 **근거**: server/.logs 오늘 INTERNAL 3회
 
 _재발 3회 (최초 2026-08-02 16:33:39.402 KST)_
-
----
-
-### [WARN] auto-git — 2026-08-02 15:17:59.781 KST
-
-<!-- id:log-auto-git-2d1b4b6a49 -->
-
-**문제**: resolve stash manually: git stash list → git stash apply → git stash drop
-
-**개선 제안**: 로컬 git 상태·네트워크·원격 브랜치를 확인하고 auto-git fetch/pull 재시도·오류 알림을 보강하세요.
-
-**근거**: server/.logs 접근 로그 INTERNAL auto-git
-
-_재발 2회 (최초 2026-08-02 02:19:12.135 KST)_
 
 ---
 
@@ -804,4 +864,4 @@ _재발 9회 (최초 2026-06-25 02:34:37.492 KST)_
 
 ## 최근 자동 점검
 
-2026-08-02 19:02:55.766 KST — probes 완료 · 열린 61건 · 이번 기록 0건
+2026-08-04 06:56:42.601 KST — probes 완료 · 열린 66건 · 이번 기록 0건

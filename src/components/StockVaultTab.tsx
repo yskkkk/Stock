@@ -27,6 +27,7 @@ import { resolveSymbolDisplayName } from "../lib/symbolDisplayName";
 import { pickChartInsight } from "../lib/stockVaultChartInsights";
 import {
   buildVaultActiveFilterLabels,
+  buildVaultEmptyStateLabels,
   buildVaultDisplayRows,
   countItemsByScanSource,
   countScanSourceTotals,
@@ -982,29 +983,29 @@ export default function StockVaultTab({
     filter !== "favorite" &&
     selectedScanSources.length === 0;
 
-  const activeFilterLabels = useMemo(
-    () =>
-      buildVaultActiveFilterLabels({
-        selectedScanDate,
-        filter,
-        selectedScanSources,
-        timeframeFilter,
-        marketFilter,
-        industryFilter,
-        ma120ApproachFilter,
-        scanSourceLabel: (source) => SCAN_SOURCE_LABEL[source],
-        labels: {
-          historyAll: ko.stockVault.historyAll,
-          scanDatePrefix: ko.stockVault.filterScanDatePrefix,
-          filterFavorite: ko.stockVault.filterFavorite,
-          marketKr: ko.app.marketKr,
-          marketUs: ko.app.marketUs,
-          ma120FromBelow: ko.stockVault.ma120ApproachFromBelow,
-          ma120FromAbove: ko.stockVault.ma120ApproachFromAbove,
-          timeframeWeekly: ko.stockVault.timeframeWeekly,
-          scanConditionNone: ko.stockVault.filterScanConditionNone,
-        },
-      }),
+  const vaultFilterLabelInput = useMemo(
+    () => ({
+      selectedScanDate,
+      filter,
+      selectedScanSources,
+      timeframeFilter,
+      marketFilter,
+      industryFilter,
+      ma120ApproachFilter,
+      scanSourceLabel: (source: StockVaultScanSource) =>
+        SCAN_SOURCE_LABEL[source],
+      labels: {
+        historyAll: ko.stockVault.historyAll,
+        scanDatePrefix: ko.stockVault.filterScanDatePrefix,
+        filterFavorite: ko.stockVault.filterFavorite,
+        marketKr: ko.app.marketKr,
+        marketUs: ko.app.marketUs,
+        ma120FromBelow: ko.stockVault.ma120ApproachFromBelow,
+        ma120FromAbove: ko.stockVault.ma120ApproachFromAbove,
+        timeframeWeekly: ko.stockVault.timeframeWeekly,
+        scanConditionNone: ko.stockVault.filterScanConditionNone,
+      },
+    }),
     [
       selectedScanDate,
       filter,
@@ -1016,12 +1017,21 @@ export default function StockVaultTab({
     ],
   );
 
+  const emptyStateFilterLabels = useMemo(
+    () =>
+      buildVaultEmptyStateLabels(vaultFilterLabelInput, {
+        includeEffectiveScanSources: displayItems.length > 0,
+      }),
+    [vaultFilterLabelInput, displayItems.length],
+  );
+
   const showFilterEmptyState =
     !loading &&
     !error &&
     !(isHistoricalView && snapshotLoading) &&
     filtered.length === 0 &&
-    (activeFilterLabels.length > 0 || showEmptyIntersection);
+    !needsScanCondition &&
+    (emptyStateFilterLabels.length > 0 || showEmptyIntersection);
 
   const showEntryHintInEmpty =
     !loading &&
@@ -1790,22 +1800,6 @@ export default function StockVaultTab({
           ) : null}
         </div>
 
-        {showFilterEmptyState ? (
-          <div className="stock-vault-tab__empty-filter" role="status">
-            <p className="stock-vault-tab__muted">
-              {ko.stockVault.emptyFilteredReason(activeFilterLabels.join(" · "))}
-            </p>
-            <button
-              type="button"
-              className="stock-vault-tab__filter-reset"
-              aria-label={ko.stockVault.filterResetAria}
-              onClick={resetVaultFilters}
-            >
-              {ko.stockVault.filterReset}
-            </button>
-          </div>
-        ) : null}
-
         <StockVaultRowBubblePortal actionsRef={rowBubbleActionsRef} tipId={rowBubbleTipId} />
 
         {(loading && displayItems.length === 0 && !isHistoricalView) ||
@@ -1816,7 +1810,26 @@ export default function StockVaultTab({
             {error}
           </p>
         ) : filtered.length === 0 ? (
-          showFilterEmptyState ? null : showEntryHintInEmpty ? (
+          showFilterEmptyState ? (
+            <div
+              className="stock-vault-tab__empty-filter stock-vault-tab__empty-filter--list"
+              role="status"
+            >
+              <p className="stock-vault-tab__muted">
+                {ko.stockVault.emptyFilteredReason(
+                  emptyStateFilterLabels.join(" · "),
+                )}
+              </p>
+              <button
+                type="button"
+                className="stock-vault-tab__filter-reset"
+                aria-label={ko.stockVault.filterResetAria}
+                onClick={resetVaultFilters}
+              >
+                {ko.stockVault.filterReset}
+              </button>
+            </div>
+          ) : showEntryHintInEmpty ? (
             <p className="stock-vault-tab__entry-hint stock-vault-tab__entry-hint--empty">
               {ko.stockVault.entryHint}
             </p>

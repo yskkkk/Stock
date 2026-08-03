@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildVaultActiveFilterLabels,
+  buildVaultEmptyStateLabels,
   buildVaultDisplayRows,
   countVaultIntersection,
   visibleStockVaultScanSources,
@@ -224,6 +225,62 @@ describe("stockVaultFilter", () => {
       },
     });
     expect(labels).toEqual(["탐색 조건 미선택", "국내"]);
+  });
+
+  it("buildVaultEmptyStateLabels — 데이터는 있으나 기본 탐색 조건만 0건", () => {
+    const labels = buildVaultEmptyStateLabels(
+      {
+        selectedScanDate: null,
+        filter: "all",
+        selectedScanSources: ["golden_cross"],
+        timeframeFilter: "1d",
+        marketFilter: "all",
+        industryFilter: "all",
+        ma120ApproachFilter: null,
+        scanSourceLabel: () => "골든크로스",
+        labels: {
+          historyAll: "전체",
+          scanDatePrefix: "일자",
+          filterFavorite: "즐겨찾기",
+          marketKr: "국내",
+          marketUs: "미국",
+          ma120FromBelow: "하단접근",
+          ma120FromAbove: "상단접근",
+          timeframeWeekly: "주봉",
+          scanConditionNone: "탐색 조건 미선택",
+        },
+      },
+      { includeEffectiveScanSources: true },
+    );
+    expect(labels).toEqual(["골든크로스"]);
+  });
+
+  it("buildVaultEmptyStateLabels — 보관 데이터 없으면 기본 탐색 조건 미포함", () => {
+    const labels = buildVaultEmptyStateLabels(
+      {
+        selectedScanDate: null,
+        filter: "all",
+        selectedScanSources: ["golden_cross"],
+        timeframeFilter: "1d",
+        marketFilter: "all",
+        industryFilter: "all",
+        ma120ApproachFilter: null,
+        scanSourceLabel: () => "골든크로스",
+        labels: {
+          historyAll: "전체",
+          scanDatePrefix: "일자",
+          filterFavorite: "즐겨찾기",
+          marketKr: "국내",
+          marketUs: "미국",
+          ma120FromBelow: "하단접근",
+          ma120FromAbove: "상단접근",
+          timeframeWeekly: "주봉",
+          scanConditionNone: "탐색 조건 미선택",
+        },
+      },
+      { includeEffectiveScanSources: false },
+    );
+    expect(labels).toEqual([]);
   });
 
   it("buildVaultActiveFilterLabels — 기본값이면 빈 배열", () => {

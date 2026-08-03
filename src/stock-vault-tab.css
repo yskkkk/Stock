@@ -272,9 +272,17 @@
   overflow-wrap: anywhere;
 }
 
+.stock-vault-tab__empty-filter--list {
+  margin: 0.55rem 0 0.35rem;
+  padding: 0.55rem 0.35rem 0.45rem;
+  padding-bottom: max(0.45rem, env(safe-area-inset-bottom, 0px));
+}
+
 .stock-vault-tab__filter-reset {
   margin: 0;
-  padding: 0.28rem 0.65rem;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0.45rem 0.85rem;
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm, 6px);
   background: transparent;
@@ -283,6 +291,7 @@
   font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .stock-vault-tab__filter-reset:hover {

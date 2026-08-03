@@ -86,6 +86,36 @@ export function buildVaultActiveFilterLabels(
   return parts;
 }
 
+export type VaultEmptyStateLabelsOptions = {
+  /** 보관 데이터는 있으나 현재 탐색 조건으로 0건일 때 탐색 조건 라벨 포함 */
+  includeEffectiveScanSources?: boolean;
+};
+
+/** 빈 목록 안내 문구용 — 비기본 필터 + (선택) 현재 탐색 조건 */
+export function buildVaultEmptyStateLabels(
+  input: VaultActiveFilterLabelsInput,
+  options?: VaultEmptyStateLabelsOptions,
+): string[] {
+  const active = buildVaultActiveFilterLabels(input);
+  if (active.length > 0) return active;
+  if (!options?.includeEffectiveScanSources) return [];
+
+  const parts: string[] = [];
+  const sources = input.selectedScanSources;
+
+  if (input.filter === "favorite") {
+    parts.push(input.labels.filterFavorite);
+  }
+
+  if (sources.length >= 2) {
+    parts.push(sources.map(input.scanSourceLabel).join("+"));
+  } else if (sources.length === 1) {
+    parts.push(input.scanSourceLabel(sources[0]!));
+  }
+
+  return parts;
+}
+
 /** 자동 탐색 조건 — 새 유형 추가 시 여기만 확장 */
 export const STOCK_VAULT_SCAN_SOURCES: readonly StockVaultScanSource[] = [
   "golden_cross",
