@@ -20,6 +20,7 @@ import {
   releaseOpsDevNotifySchedule,
   unmarkOpsDevNotifySent,
 } from "./ops-dev-notify-dedup.js";
+import { unwrapOpsOperatorRequest } from "./ops-ide-prompt-match.js";
 import { isIdeCompletionNotified } from "./ops-ide-completion-notify.js";
 import {
   getRepoHeadRev,
@@ -205,17 +206,29 @@ function trimBlock(text, max) {
 function stripOpsTelegramNoise(text) {
   let t = String(text ?? "").trim();
   if (!t) return "";
-  const markers = ["\n\n[반영]", "\n\n[후처리]", "\n\n---\n"];
+  const markers = [
+    "\n\n[반영]",
+    "\n\n[후처리]",
+    "\n\n【반영 요약】",
+    "\n\n【실행 정보】",
+    "\n\n---\n",
+  ];
   for (const m of markers) {
     const i = t.indexOf(m);
     if (i >= 0) t = t.slice(0, i).trim();
   }
-  if (t.startsWith("[반영]") || t.startsWith("[후처리]")) return "";
+  if (
+    t.startsWith("[반영]") ||
+    t.startsWith("[후처리]") ||
+    t.startsWith("【반영 요약】")
+  ) {
+    return "";
+  }
   return t;
 }
 
 /**
- * 개발자 텔레그램: 입력 프롬프트 + 답변만 (제목·git·부가정보 제외)
+ * 개발 관련 텔레그램: 사용자 입력 + 결과 반영만 (중간·부가 정보 없음)
  * @param {string} userRequest
  * @param {string} answer
  * @param {{ requestMax?: number; answerMax?: number }} [opts]
@@ -229,10 +242,11 @@ export function formatOpsDevTelegramBody(userRequest, answer, opts = {}) {
     Number.isFinite(opts.answerMax) && opts.answerMax > 200
       ? Math.min(3200, Math.floor(opts.answerMax))
       : COMPLETION_MAX;
-  const req = trimBlock(userRequest, reqMax) || "(요청 없음)";
+  const req =
+    trimBlock(unwrapOpsOperatorRequest(userRequest), reqMax) || "(요청 없음)";
   const ans =
-    trimBlock(stripOpsTelegramNoise(answer), ansMax) || "(응답 없음)";
-  return `입력 프롬프트:\n${escHtml(req)}\n\n너의 답변:\n${escHtml(ans)}`;
+    trimBlock(stripOpsTelegramNoise(answer), ansMax) || "(결과 없음)";
+  return `사용자 입력 프롬프트:\n${escHtml(req)}\n\n결과 반영:\n${escHtml(ans)}`;
 }
 
 /**
@@ -299,7 +313,7 @@ export function scheduleOpsDevCompletionTelegram(opts) {
 
   const priority = Number(opts.priority) || 1;
   const userRequest = trimBlock(
-    opts.userRequest ?? opts.title ?? "",
+    unwrapOpsOperatorRequest(opts.userRequest ?? opts.title ?? ""),
     REQUEST_MAX,
   );
   let completion = "";
@@ -372,7 +386,7 @@ async function flushOpsDevCompletionNow(opts, dedupKey) {
     // dedupKey가 전달된 경우 호출자(scheduleOpsDevCompletionTelegram)가 이미 예약 완료
     if (!dedupKey && !tryReserveOpsDevNotifySchedule(key)) return;
     const userRequest = trimBlock(
-      opts.userRequest ?? opts.title ?? "",
+      unwrapOpsOperatorRequest(opts.userRequest ?? opts.title ?? ""),
       REQUEST_MAX,
     );
     let completion = "";

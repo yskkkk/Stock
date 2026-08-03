@@ -1,6 +1,7 @@
 /**
- * 개발 변경·웹 에이전트 텔레그램 알림 본문 — 요청 + 응답 + Git 요약
+ * 개발 변경·웹 에이전트 텔레그램 알림 본문 — 사용자 입력 + 결과 반영만
  */
+import { unwrapOpsOperatorRequest } from "./ops-ide-prompt-match.js";
 
 const BODY_MAX = 3800;
 const REQUEST_MAX = 1000;
@@ -32,37 +33,27 @@ export function buildOpsDevChangeTelegramBody(opts) {
   const state = opts.state ?? "ok";
   const parts = [];
 
-  const req = trimSection(opts.userRequest, REQUEST_MAX);
+  const req = trimSection(unwrapOpsOperatorRequest(opts.userRequest), REQUEST_MAX);
   if (req) {
-    parts.push(`【개발 요청】\n${req}`);
+    parts.push(`사용자 입력 프롬프트:\n${req}`);
   }
 
   if (state === "cancelled") {
-    parts.push("【에이전트 응답】\n사용자가 요청을 중단했습니다.");
+    parts.push("결과 반영:\n사용자가 요청을 중단했습니다.");
   } else if (state === "error") {
     const err =
       trimSection(
         opts.errorText ?? opts.agentResponse,
         RESPONSE_MAX,
       ) || "알 수 없는 오류";
-    parts.push(`【에이전트 응답】\n${err}`);
+    parts.push(`결과 반영:\n${err}`);
   } else {
     const res =
-      trimSection(opts.agentResponse, RESPONSE_MAX) || "(응답 없음)";
-    parts.push(`【에이전트 응답】\n${res}`);
+      trimSection(opts.agentResponse, RESPONSE_MAX) || "(결과 없음)";
+    parts.push(`결과 반영:\n${res}`);
   }
 
-  const git = String(opts.gitSummary ?? "").trim();
-  if (git) {
-    parts.push(`【반영 요약】\n${git}`);
-  }
-
-  const meta = [];
-  if (opts.runtimeLabel) meta.push(`실행: ${opts.runtimeLabel}`);
-  if (opts.durationMs != null && Number.isFinite(opts.durationMs)) {
-    meta.push(`소요: ${Math.round(opts.durationMs / 1000)}초`);
-  }
-  if (meta.length) parts.push(`【실행 정보】\n${meta.join("\n")}`);
+  // git·실행 메타는 개발 알림에 넣지 않음 (입력·결과만)
 
   let body = parts.join("\n\n");
   if (body.length > BODY_MAX) {

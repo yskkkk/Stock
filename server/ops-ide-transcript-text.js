@@ -7,6 +7,7 @@ import path from "node:path";
 import {
   opsIdePromptFingerprint,
   opsIdePromptsMatch,
+  unwrapOpsOperatorRequest,
 } from "./ops-ide-prompt-match.js";
 
 function resolveTranscriptRoot() {
@@ -26,8 +27,8 @@ function extractUserPromptText(text) {
   if (t.includes("<system_notification>")) return "";
   if (/Briefly inform the user about the task result/i.test(t)) return "";
   const m = t.match(/<user_query>\s*([\s\S]*?)\s*<\/user_query>/i);
-  if (m) return m[1].trim();
-  return t.trim();
+  const raw = m ? m[1].trim() : t.trim();
+  return unwrapOpsOperatorRequest(raw);
 }
 
 /** @param {string} text */

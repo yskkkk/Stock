@@ -183,10 +183,10 @@ export function summarizeGitReflectionForNotify(mode) {
 
     const via =
       mode === "cloud"
-        ? "클라우드 에이전트가 GitHub에 올린 뒤, 이 서버가 원격과 맞춘"
-        : "이 서버(웹 에이전트 후처리)에서 커밋·푸시한";
+        ? "클라우드에서 GitHub에 올린 뒤, 이 PC/서버가 원격과 맞춘"
+        : "이 PC에서 커밋·푸시한";
 
-    const intro = `${via} 최신 작업이 ${branch}에 반영되었습니다.`;
+    const intro = `${via} 최신 작업이 ${branch} 브랜치에 반영되었습니다.`;
     let scale = "";
     try {
       const stat = gitOut(["show", "-1", "--shortstat", "--pretty=format:"]).trim();

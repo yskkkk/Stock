@@ -56,8 +56,10 @@ export function notifyOpsAutoGitPulled(opts) {
   if (hasOpsDevCompletionPending()) return;
   scheduleOpsDevCompletionTelegram({
     title: "서버 반영",
-    userRequest: `${opts.remote}/${opts.branch} pull`,
-    agentResponse: opts.gitSummary,
+    userRequest: "원격(GitHub)에서 최신 코드를 받아 이 PC/서버에 맞춥니다.",
+    agentResponse:
+      String(opts.gitSummary ?? "").trim() ||
+      `${opts.remote}/${opts.branch} 반영 완료`,
     priority: 1,
   });
 }
