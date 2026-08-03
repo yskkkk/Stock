@@ -866,7 +866,10 @@ export default function AccountRebalanceScheduleModal({
                 </span>
                 {!buyingNow ? (
                   <span className="account-rebalance-modal__btn-real-sub">
-                    {buildRebalanceNowRunSubLabel(null, { repeatSummary: false })}
+                    {buildRebalanceNowRunSubLabel(null, {
+                      repeatSummary: false,
+                      skipAmountNote: hasBuyNowSpendLines,
+                    })}
                   </span>
                 ) : null}
               </button>

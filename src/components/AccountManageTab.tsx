@@ -1036,6 +1036,7 @@ export default function AccountManageTab({
           <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--safe">
             {buildRebalancePreviewSubLabel(buyNowToolbarSummaryInline, {
               repeatSummary: repeatSummaryInButtonSub,
+              skipAmountNote: showCompactSpendSummary,
             })}
           </span>
         </button>
@@ -1124,6 +1125,7 @@ export default function AccountManageTab({
             <span className="account-manage-tab__rebalance-btn-sub account-manage-tab__rebalance-btn-sub--real">
               {buildRebalanceNowRunSubLabel(buyNowToolbarSummaryInline, {
                 repeatSummary: repeatSummaryInButtonSub,
+                skipAmountNote: showCompactSpendSummary,
               })}
             </span>
           ) : null}
