@@ -703,9 +703,32 @@ export function appendVirtualFeedbackSync(input) {
     managerNotes: "",
     managerReviewedAtMs: null,
   };
-  store.feedback = [item, ...store.feedback].slice(0, MAX_FEEDBACK);
+  store.feedback = trimVirtualFeedbackList([item, ...store.feedback]);
   writeVirtualUserStoreSync(store);
   return { ok: true, item, store };
+}
+
+/**
+ * 한도 초과 시 approved/queued를 보존하고, 오래된 pending/new·dismissed부터 버림
+ * @param {VirtualFeedback[]} list
+ */
+export function trimVirtualFeedbackList(list) {
+  const arr = Array.isArray(list) ? [...list] : [];
+  if (arr.length <= MAX_FEEDBACK) return arr;
+  const keep = new Set(["approved", "queued"]);
+  /** @type {VirtualFeedback[]} */
+  const protectedItems = [];
+  /** @type {VirtualFeedback[]} */
+  const rest = [];
+  for (const f of arr) {
+    if (keep.has(f.status)) protectedItems.push(f);
+    else rest.push(f);
+  }
+  const room = Math.max(0, MAX_FEEDBACK - protectedItems.length);
+  // rest: 최신 우선(앞에 있음) 유지하되 한도 맞춤
+  const keptRest = rest.slice(0, room);
+  // protected가 앞에 오면 구현 후보가 안 밀림 — approved 먼저, 그다음 최신 rest
+  return [...protectedItems, ...keptRest].slice(0, MAX_FEEDBACK);
 }
 
 /**

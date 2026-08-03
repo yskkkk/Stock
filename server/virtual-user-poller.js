@@ -11,6 +11,7 @@ import {
   getVirtualUserContinuousSync,
   patchVirtualUserContinuousSync,
   ensureDefaultPersonasPresentSync,
+  listVirtualFeedbackSync,
 } from "./virtual-user-store.js";
 import { runVirtualUserSession } from "./virtual-user-runner.js";
 import {
@@ -22,15 +23,21 @@ import {
 import { enrichVirtualFeedbackNarrativesSync } from "./virtual-user-feedback-enrich.js";
 import { dispatchNextVirtualUserImplement } from "./virtual-user-auto-implement.js";
 import { reviewPendingVirtualFeedbackBatchSync } from "./virtual-user-manager.js";
-import { isOpsAgentJobRunning } from "./ops-agent-job-queue.js";
+import {
+  getOpsAgentQueueMemorySnapshot,
+  isOpsAgentJobRunning,
+} from "./ops-agent-job-queue.js";
 
 const POLLER_ID = "virtual-user-continuous";
 /** 에이전트 전송 스캔 주기 */
 const IMPLEMENT_SCAN_MS = 3 * 60_000;
 /** 매니저 검토 스캔 (프롬프트 게이트) */
-const MANAGER_SCAN_MS = 45_000;
+const MANAGER_SCAN_MS = 20_000;
 /** 백엔드 전용 연속 탐색 세션 간격 */
 const EXPLORE_GAP_MS = 5_000;
+/** pending 백로그가 이보다 크면 탐색 속도 완화 */
+const EXPLORE_BACKLOG_SOFT = 40;
+const EXPLORE_BACKLOG_HARD = 120;
 
 let started = false;
 let running = false;
@@ -49,14 +56,49 @@ export function isVirtualUserContinuousBusy() {
   return running;
 }
 
-/** 서버에서 코딩 에이전트가 돌고 있으면 true (VU·IDE·기록모드 공통 ops 큐) */
+/**
+ * 웹/기록모드 에이전트가 돌 때만 VU 구현을 막는다.
+ * IDE 큐(이 채팅)가 잡혀 있으면 예전엔 수시간 스킵돼 VU가 멈춘 것처럼 보였음.
+ */
 export function isServerDevelopingSync() {
   try {
-    if (isOpsAgentJobRunning()) return true;
+    if (!isOpsAgentJobRunning()) return false;
+    const entries = getOpsAgentQueueMemorySnapshot()?.entries ?? [];
+    const runningEntry = entries.find((e) => e.status === "running");
+    if (!runningEntry) return true;
+    if (runningEntry.source === "ide" || runningEntry.requestIp === "cursor-ide") {
+      return false;
+    }
+    return true;
   } catch {
-    /* optional */
+    return false;
   }
-  return false;
+}
+
+function countFeedbackBacklog() {
+  try {
+    const list = listVirtualFeedbackSync();
+    let pending = 0;
+    let approved = 0;
+    for (const f of list) {
+      if (f.status === "pending_review" || f.status === "new") pending += 1;
+      else if (f.status === "approved") approved += 1;
+    }
+    return { pending, approved, total: list.length };
+  } catch {
+    return { pending: 0, approved: 0, total: 0 };
+  }
+}
+
+function exploreGapForBacklog() {
+  const { pending, approved } = countFeedbackBacklog();
+  if (pending >= EXPLORE_BACKLOG_HARD || approved >= 25) {
+    return 60_000;
+  }
+  if (pending >= EXPLORE_BACKLOG_SOFT || approved >= 8) {
+    return 20_000;
+  }
+  return EXPLORE_GAP_MS;
 }
 
 export async function tickVirtualUserContinuousOnce() {
@@ -64,6 +106,23 @@ export async function tickVirtualUserContinuousOnce() {
   return pollerGuardAsync(POLLER_ID, async () => {
     const cfg = getVirtualUserContinuousSync();
     if (!cfg.enabled) return { ok: false, reason: "disabled" };
+
+    const backlog = countFeedbackBacklog();
+    if (backlog.pending >= EXPLORE_BACKLOG_HARD) {
+      // 매니저·구현이 따라잡을 때까지 탐색만 잠시 쉼 (상시가동 유지)
+      tickManagerReviewOnce();
+      patchVirtualUserContinuousSync({
+        lastTickAtMs: Date.now(),
+        lastError: null,
+        lastCreatedCount: 0,
+        emptyExploreStreak: Math.max(0, Number(cfg.emptyExploreStreak) || 0) + 1,
+      });
+      appendServerEventLog(
+        "virtual-user",
+        `explore pause backlog pending=${backlog.pending} approved=${backlog.approved} (drain first)`,
+      );
+      return { ok: true, createdCount: 0, pausedForBacklog: true };
+    }
 
     if (cfg.autoImplement !== false && !hasCursorApiKey()) {
       pauseVirtualUserForApiExhaustion(
@@ -83,9 +142,9 @@ export async function tickVirtualUserContinuousOnce() {
         notifyTelegram: cfg.notifyTelegram === true,
         useBrowser: false,
         continuous: true,
-        maxPerPersona: 5,
+        maxPerPersona: backlog.pending >= EXPLORE_BACKLOG_SOFT ? 2 : 5,
         personaOffset,
-        maxPersonasPerTick: 2,
+        maxPersonasPerTick: backlog.pending >= EXPLORE_BACKLOG_SOFT ? 1 : 2,
         noveltyAngleOffset: angleOffset,
       });
       const created = Number(result.createdCount) || 0;
@@ -143,7 +202,7 @@ function scheduleExploreSoon(delayMs = EXPLORE_GAP_MS) {
       } catch {
         /* continue loop */
       }
-      scheduleExploreSoon(EXPLORE_GAP_MS);
+      scheduleExploreSoon(exploreGapForBacklog());
     })();
   }, delayMs);
 }
@@ -153,7 +212,9 @@ function scheduleExploreSoon(delayMs = EXPLORE_GAP_MS) {
  */
 function tickManagerReviewOnce() {
   try {
-    const r = reviewPendingVirtualFeedbackBatchSync({ limit: 8 });
+    const { pending } = countFeedbackBacklog();
+    const limit = pending >= EXPLORE_BACKLOG_SOFT ? 20 : 8;
+    const r = reviewPendingVirtualFeedbackBatchSync({ limit });
     if (r.reviewed > 0) {
       appendServerEventLog(
         "virtual-user-manager",
