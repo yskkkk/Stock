@@ -9,6 +9,7 @@ import {
   readVirtualUserStoreSync,
   writeVirtualUserStoreSync,
 } from "./virtual-user-store.js";
+import { buildVirtualFeedbackPrompt } from "./virtual-user-runner.js";
 
 /**
  * @param {import("./virtual-user-store.js").VirtualFeedback} item
@@ -16,19 +17,34 @@ import {
  * @param {string} discomfort
  */
 function rebuildPromptFallback(item, persona, discomfort) {
-  const sat = persona?.satisfactionLevel ?? 1;
+  if (persona) {
+    return buildVirtualFeedbackPrompt(
+      item.id,
+      persona,
+      {
+        severity: item.severity || "minor",
+        area: item.area || "navigation",
+        title: item.title || "UI 불편",
+        detail: discomfort,
+        suggestion:
+          String(item.suggestion || "").trim() ||
+          "기존 UI 패턴 안에서 최소 diff로 고친다. PC·모바일·아이콘 크기를 함께 확인한다.",
+      },
+      item.sessionId || "legacy",
+    );
+  }
+  const sat = 3;
   return [
     "# 가상 사용자 피드백 구현 요청",
     "",
     "당신은 Stock 앱(React+Vite+Express) 코딩 에이전트다. 아래 UX 피드백을 **최소 diff**로 반영하라.",
     "관련 없는 리팩터·좌측 열 레이아웃 변경 금지. 실주문/돈이 나가는 동작은 추가하지 말 것. 끝나면 git commit 후 git push.",
+    "UI는 **PC와 모바일을 항상 함께** 맞춘다. 아이콘·터치 크기까지 깐깐히 본다.",
     "",
     "## 메타",
     `- feedbackId: ${item.id}`,
     `- sessionId: ${item.sessionId || "legacy"}`,
-    `- persona: ${persona?.name || item.personaName || "?"} (${item.personaId || "?"})`,
-    `- skill: ${persona?.skill || "?"}`,
-    `- device: ${persona?.device || "?"}`,
+    `- persona: ${item.personaName || "?"} (${item.personaId || "?"})`,
     `- satisfaction: ${sat}`,
     `- severity: ${item.severity}`,
     `- area: ${item.area}`,
@@ -42,6 +58,8 @@ function rebuildPromptFallback(item, persona, discomfort) {
     "## 구현 체크",
     "- [ ] 문제 재현 경로를 코드에서 확인했다",
     "- [ ] UI/카피/동작 중 필요한 것만 고쳤다",
+    "- [ ] PC와 모바일을 동시에 맞췄다",
+    "- [ ] 아이콘·터치 크기를 PC·모바일에서 확인했다",
     "- [ ] 실주문·출금 등 돈이 나가는 경로를 늘리지 않았다",
     "- [ ] 커밋·푸시까지 완료했다",
   ].join("\n");
@@ -209,6 +227,9 @@ export function enrichVirtualFeedbackNarrativesSync() {
     store.feedback = nextFeedback;
     writeVirtualUserStoreSync(store);
   }
+
+  // silence unused in some builds
+  void findActivityMessageForJob;
 
   return { ok: true, updated, total: store.feedback.length };
 }

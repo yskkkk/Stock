@@ -22,6 +22,9 @@ export const NOVELTY_ANGLES = [
   { id: "first", label: "첫방문", suffix: "발견성·온보딩" },
   { id: "power", label: "파워유저", suffix: "반복·단축·일괄 작업" },
   { id: "mobile", label: "모바일", suffix: "좁은 화면·터치" },
+  { id: "desktop", label: "PC", suffix: "넓은 뷰·밀도·호버" },
+  { id: "icon", label: "아이콘", suffix: "크기·잘림·겹침·대비" },
+  { id: "visual", label: "시각정렬", suffix: "간격·정렬·구역 구분" },
   { id: "i18n", label: "표시품질", suffix: "깨진 글자·잘림·정렬" },
 ];
 
@@ -134,6 +137,49 @@ export const GENERATIVE_DISCOMFORT_BANK = [
     devices: ["mobile"],
     skills: ["beginner", "intermediate", "power"],
     minSatisfaction: 4,
+  },
+  {
+    area: "navigation",
+    areaLabel: "탐색·아이콘",
+    severity: "minor",
+    baseTitle: "브랜드·탭 아이콘이 너무 작아 한눈에 안 들어온다",
+    detail:
+      "YS·탭·거래소 아이콘이 작거나 대비가 약하면 PC·모바일 모두에서 위치를 헤맨다.",
+    suggestion:
+      "아이콘 표시 크기·여백·대비만 보강한다. 흰 사각 매트·제거 금지. PC·모바일 함께 확인.",
+    skills: ["beginner", "intermediate", "power"],
+    minSatisfaction: 3,
+  },
+  {
+    area: "navigation",
+    areaLabel: "탐색·아이콘",
+    severity: "nit",
+    baseTitle: "라이트 모드에서 아이콘이 배경에 묻힌다",
+    detail: "다크에서만 보이면 라이트 사용자는 마크가 사라진 것처럼 느낀다.",
+    suggestion: "라이트/다크 대비를 점검하고 투명 매트·색만 조정한다.",
+    skills: ["beginner", "intermediate", "power"],
+    minSatisfaction: 3,
+  },
+  {
+    area: "mobile",
+    areaLabel: "모바일·아이콘",
+    severity: "major",
+    baseTitle: "아이콘 hit area가 44px 미만이라 오탭이 반복된다",
+    detail: "그림은 보여도 누르는 영역이 작으면 인접 컨트롤을 누른다.",
+    suggestion: "패딩으로 터치 영역만 ~44px 확보한다. 골격·위치는 유지.",
+    devices: ["mobile"],
+    skills: ["beginner", "intermediate", "power"],
+    minSatisfaction: 3,
+  },
+  {
+    area: "navigation",
+    areaLabel: "탐색",
+    severity: "minor",
+    baseTitle: "PC에서 고친 간격이 모바일에서 다시 밀집된다",
+    detail: "한쪽만 검증하면 다른 기기에서 아이콘·칩이 다시 붙는다.",
+    suggestion: "미디어쿼리로 환경별 간격만 조정하고 PC·모바일을 함께 확인한다.",
+    skills: ["beginner", "intermediate", "power"],
+    minSatisfaction: 3,
   },
 ];
 

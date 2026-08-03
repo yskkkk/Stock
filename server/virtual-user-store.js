@@ -227,10 +227,12 @@ function defaultPersonas() {
       goals: [
         "계좌관리에서 내 보유 비중을 이해한다",
         "스케줄·즉시 매수 버튼이 무엇인지 파악한다",
+        "아이콘·탭이 PC에서 읽히는지, 모바일에서도 깨지지 않는지 본다",
       ],
-      focusAreas: ["account-manage", "rebalance", "auth"],
-      traits: "용어에 약하고, 켜짐/꺼짐·원화/달러 구분이 안 보이면 바로 막힌다.",
-      satisfactionLevel: 1,
+      focusAreas: ["account-manage", "rebalance", "auth", "navigation"],
+      traits:
+        "용어에 약하고 켜짐/꺼짐·원화/달러 구분이 안 보이면 바로 막힌다. PC·모바일 둘 다 보고 아이콘 크기·간격·가독성을 계속 지적한다.",
+      satisfactionLevel: 3,
       lastEscalatedAtMs: null,
       createdAtMs: now,
       updatedAtMs: now,
@@ -244,10 +246,12 @@ function defaultPersonas() {
       goals: [
         "달러 현금으로만 미국 종목이 매수되는지 확인한다",
         "정규장이 아닐 때 즉시 매수가 막히는지 확인한다",
+        "탭·브랜드 아이콘 크기와 PC 밀도·모바일 터치가 동시에 맞는지 본다",
       ],
-      focusAreas: ["account-manage", "rebalance", "orders"],
-      traits: "통화 혼동·애프터장 주문을 싫어한다. 짧은 안내 문구를 중시한다.",
-      satisfactionLevel: 1,
+      focusAreas: ["account-manage", "rebalance", "orders", "navigation"],
+      traits:
+        "통화 혼동·애프터장 주문을 싫어한다. PC에서 맞춘 UI가 모바일에서 깨지면 다시 피드백한다. 아이콘·칩 크기에도 깐깐하다.",
+      satisfactionLevel: 3,
       lastEscalatedAtMs: null,
       createdAtMs: now,
       updatedAtMs: now,
@@ -261,11 +265,13 @@ function defaultPersonas() {
       goals: [
         "좁은 화면에서 관리자·계좌·스케줄 진입 경로를 찾는다",
         "중요 액션(즉시 매수)이 실수로 눌리지 않는지 본다",
-        "가로 넘침·작은 터치·모달 footer 가림을 찾는다",
+        "가로 넘침·작은 터치(~44px)·아이콘 잘림·모달 footer 가림을 찾는다",
+        "같은 이슈가 PC에서는 괜찮은지 교차 확인한다",
       ],
       focusAreas: ["account-manage", "rebalance", "navigation", "mobile"],
-      traits: "터치 타깃·확인 다이얼로그·스크롤 깊이에 민감하다. 레이아웃 틀을 바꾸라는 말은 하지 않고 쓰면서 불편한 점만 지적한다.",
-      satisfactionLevel: 1,
+      traits:
+        "터치 타깃·아이콘 크기·확인 다이얼로그·스크롤에 민감하다. 레이아웃 틀을 바꾸라는 말은 하지 않고, PC·모바일을 함께 보며 UI/UX를 계속 깐깐히 지적한다.",
+      satisfactionLevel: 3,
       lastEscalatedAtMs: null,
       createdAtMs: now,
       updatedAtMs: now,
@@ -278,11 +284,13 @@ function defaultPersonas() {
       device: "mobile",
       goals: [
         "한 손으로 계좌관리·탭 이동이 되는지 본다",
-        "글자·버튼이 잘리거나 너무 작아 못 누르는 곳을 찾는다",
+        "글자·버튼·아이콘이 잘리거나 너무 작아 못 누르는 곳을 찾는다",
+        "PC 화면과 느낌이 너무 다르면 불편하다고 말한다",
       ],
       focusAreas: ["account-manage", "navigation", "mobile"],
-      traits: "용어에 약하고 엄지로 누르기 어려운 UI에 바로 막힌다. 화면 구조를 바꾸기보다 누르기·읽기만 편해지길 원한다.",
-      satisfactionLevel: 1,
+      traits:
+        "용어에 약하고 엄지로 누르기 어려운 UI·작은 아이콘에 바로 막힌다. 화면 구조보다 누르기·읽기·아이콘 크기를 PC·모바일 기준으로 계속 피드백한다.",
+      satisfactionLevel: 3,
       lastEscalatedAtMs: null,
       createdAtMs: now,
       updatedAtMs: now,
@@ -514,20 +522,63 @@ export function listVirtualPersonasSync() {
 }
 
 /**
- * 기본 페르소나 중 저장소에 없는 id만 추가 (기존 설정·만족도는 유지)
+ * 기본 페르소나 중 저장소에 없는 id만 추가하고,
+ * 기존 기본 페르소나는 만족도 하한(3)·UI 깐깐 기준 traits/goals를 보강한다.
  * @returns {{ ok: true; added: string[] }}
  */
 export function ensureDefaultPersonasPresentSync() {
   const store = readVirtualUserStoreSync();
-  const have = new Set(store.personas.map((p) => p.id));
+  const byId = new Map(store.personas.map((p) => [p.id, p]));
   /** @type {string[]} */
   const added = [];
-  for (const p of defaultPersonas()) {
-    if (have.has(p.id)) continue;
-    store.personas.push(p);
-    added.push(p.id);
+  let changed = false;
+  const STRICT_FLOOR = 3;
+  const UI_TRAIT_MARK = "PC·모바일";
+
+  for (const def of defaultPersonas()) {
+    const cur = byId.get(def.id);
+    if (!cur) {
+      store.personas.push(def);
+      byId.set(def.id, def);
+      added.push(def.id);
+      changed = true;
+      continue;
+    }
+    /** @type {Record<string, unknown>} */
+    const patch = { ...cur };
+    let local = false;
+    if ((cur.satisfactionLevel || 1) < STRICT_FLOOR) {
+      patch.satisfactionLevel = STRICT_FLOOR;
+      local = true;
+    }
+    const traits = String(cur.traits || "");
+    if (!traits.includes(UI_TRAIT_MARK)) {
+      patch.traits = `${traits} ${def.traits}`.trim().slice(0, 400);
+      local = true;
+    }
+    const goals = Array.isArray(cur.goals) ? [...cur.goals] : [];
+    for (const g of def.goals || []) {
+      if (!goals.some((x) => String(x).includes(String(g).slice(0, 18)))) {
+        goals.push(g);
+        local = true;
+      }
+    }
+    if (local) {
+      patch.goals = goals.slice(0, 8);
+      patch.focusAreas = Array.from(
+        new Set([...(cur.focusAreas || []), ...(def.focusAreas || [])]),
+      ).slice(0, 8);
+      patch.updatedAtMs = Date.now();
+      const next = normalizePersona(patch);
+      if (next) {
+        const idx = store.personas.findIndex((p) => p.id === def.id);
+        if (idx >= 0) store.personas[idx] = next;
+        changed = true;
+      }
+    }
   }
-  if (added.length) writeVirtualUserStoreSync(store);
+
+  if (changed) writeVirtualUserStoreSync(store);
   return { ok: true, added };
 }
 

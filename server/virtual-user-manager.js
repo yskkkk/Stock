@@ -107,6 +107,17 @@ export function evaluateVirtualFeedbackSync(item) {
       score -= 8;
       notes.push("UI 방향 SSOT 블록 누락 — 재작성");
     }
+    if (
+      !/PC.*모바일|모바일.*PC|넓은 뷰|좁은 폭/.test(prompt) ||
+      !prompt.includes("동시에")
+    ) {
+      score -= 10;
+      notes.push("PC·모바일 동시 검증 지침 부족 — 보강");
+    }
+    if (!/아이콘|터치|44/.test(prompt)) {
+      score -= 8;
+      notes.push("아이콘·터치 크기 점검 지침 부족 — 보강");
+    }
     if (prompt.length < 400) {
       score -= 10;
       notes.push("프롬프트가 너무 짧음");
@@ -114,6 +125,18 @@ export function evaluateVirtualFeedbackSync(item) {
     if (/force push|히스토리 재작성|--no-verify/i.test(prompt)) {
       score -= 20;
       notes.push("위험한 git 지시 포함 — 제거");
+    }
+  }
+
+  const uiArea =
+    /navigation|mobile|account-manage|rebalance|stock-vault|탐색|아이콘/.test(
+      `${area}\n${title}\n${detail}`,
+    );
+  if (uiArea) {
+    const blob = `${title}\n${detail}\n${suggestion}`;
+    if (!/PC|모바|desktop|mobile|뷰포트|좁은|넓은/.test(blob)) {
+      score -= 8;
+      notes.push("UI 피드백에 PC·모바일 관점 명시 부족");
     }
   }
 
@@ -174,7 +197,7 @@ export function evaluateVirtualFeedbackSync(item) {
   if (score < 55) {
     personaTweaks = {
       traitsAppend:
-        " 매니저 피드백: 관찰은 ‘어디·무엇을·왜’를 한 문장에 넣고, 제안은 기존 패턴 최소 수정으로 적을 것.",
+        " 매니저 피드백: 관찰은 ‘어디·무엇을·왜’를 한 문장에 넣고, PC·모바일·아이콘/터치 크기까지 명시한다. 제안은 기존 패턴 최소 수정으로 적을 것.",
     };
     notes.push("페르소나 traits에 구체성 지침 추가");
   }
@@ -183,7 +206,7 @@ export function evaluateVirtualFeedbackSync(item) {
     decision = "reject";
     notes.push("품질 미달 — 기각(dismissed)");
   } else if (
-    score < 72 ||
+    score < 78 ||
     revisedTitle ||
     revisedDetail ||
     revisedSuggestion ||

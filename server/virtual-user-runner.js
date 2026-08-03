@@ -280,6 +280,53 @@ const SCENARIO_SEEDS = [
     skills: ["beginner", "intermediate", "power"],
     minSatisfaction: 3,
   },
+  {
+    area: "navigation",
+    areaLabel: "탐색·아이콘",
+    severity: "minor",
+    title: "탭·브랜드 아이콘 크기가 PC·모바일에서 들쭉날쭉하다",
+    detail:
+      "YS 마크·탭 아이콘·거래소 마크가 한쪽에서는 작고 다른 쪽에서는 잘리거나 여백이 과하면 제품감이 떨어진다.",
+    suggestion:
+      "아이콘 표시 크기·패딩·대비를 PC·모바일 각각에서 맞춘다. 흰 사각 매트·제거 금지. 골격은 유지.",
+    skills: ["beginner", "intermediate", "power"],
+    minSatisfaction: 3,
+  },
+  {
+    area: "navigation",
+    areaLabel: "탐색·아이콘",
+    severity: "nit",
+    title: "아이콘이 레일·벨트·탭과 겹쳐 꼬여 보인다",
+    detail: "단축 아이콘이 지수 벨트나 탭 줄에 끼면 무엇을 누르는지 헷갈린다.",
+    suggestion:
+      "단축 아이콘은 관련 섹션에만 두고 간격·정렬만 고친다. 레일/벨트에 끼워 넣지 않는다.",
+    skills: ["beginner", "intermediate", "power"],
+    minSatisfaction: 3,
+  },
+  {
+    area: "mobile",
+    areaLabel: "모바일·아이콘",
+    severity: "major",
+    title: "아이콘 버튼이 44px 미만이라 오탭이 난다",
+    detail: "작은 아이콘만 보이는 버튼은 엄지로 정확히 누르기 어렵다.",
+    suggestion:
+      "아이콘 버튼 hit area를 ~44px까지 패딩으로 키운다. 아이콘 그림 자체만 키워 레이아웃을 깨지 않는다.",
+    devices: ["mobile"],
+    skills: ["power", "intermediate", "beginner"],
+    minSatisfaction: 3,
+  },
+  {
+    area: "navigation",
+    areaLabel: "탐색",
+    severity: "minor",
+    title: "PC에서 맞춘 UI가 모바일에서 깨지거나 그 반대다",
+    detail:
+      "한쪽 기기만 보고 고치면 다른 기기에서 간격·아이콘·줄바꿈이 다시 불편해진다.",
+    suggestion:
+      "같은 수정에 대해 PC 넓은 뷰와 모바일(≤900px)을 함께 검증하고, 미디어쿼리로 환경별만 조정한다.",
+    skills: ["beginner", "intermediate", "power"],
+    minSatisfaction: 3,
+  },
 ];
 
 /**
@@ -346,9 +393,10 @@ export function buildVirtualFeedbackPrompt(
     "- [ ] UI/카피/동작 중 필요한 것만 고쳤다",
     "- [ ] 기존 화면 톤(색·간격·BEM·버튼/칩)을 유지했고, 랜딩식 리디자인을 하지 않았다",
     "- [ ] PC(넓은 뷰)와 모바일(좁은 폭·터치)을 **동시에** 맞췄고, 단순 통일로 한쪽을 희생하지 않았다",
+    "- [ ] 아이콘·마크·칩 크기/여백/대비를 PC·모바일에서 확인했고, 잘림·겹침·흰 사각 매트가 없다",
     mobile
-      ? "- [ ] 레이아웃 틀(3열·좌측 열·탭 골격)을 바꾸지 않고 터치/간격/줄바꿈만 고쳤다"
-      : "- [ ] 좌측 열·3열 그리드 레이아웃을 깨지 않았다",
+      ? "- [ ] 레이아웃 틀(3열·좌측 열·탭 골격)을 바꾸지 않고 터치(~44px)/간격/줄바꿈만 고쳤다"
+      : "- [ ] 좌측 열·3열 그리드 레이아웃을 깨지 않았고, 좁은 폭에서도 아이콘·탭이 읽힌다",
     "- [ ] 단축 버튼·아이콘이 다른 레일/벨트/목록과 섞이거나 겹치지 않고, 눈에 보이는 정렬·구역으로 배치됐다",
     "- [ ] YS·거래소·레일 아이콘이 라이트/다크에서 보이며 제거되지 않았다",
     "- [ ] 실주문·출금 등 돈이 나가는 경로를 늘리지 않았다",

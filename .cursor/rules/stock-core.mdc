@@ -12,6 +12,6 @@ alwaysApply: true
 - **품질**: 추측 보고 금지, 확인 후 완료라고 말하기. 더 촘촘한 원칙은 `@zero-mistakes`.
 - **단일 개발 큐**: 실행 SSOT=메모리 FIFO, 표시=`ops-dev-queue-display.json`( **100ms 미러** ). 답 끝 → 훅 release 또는 transcript 12s+텍스트-only. 상세 `@dev-queue`.
 - **모바일 앱**: Capacitor(Android·iOS) = 동일 `src/`. 기능 수정 시 `@mobile-app` 체크. 웹 다운로드 `/mobile-app.html`.
-- **UI(PC·모바일)**: 가상 사용자·에이전트 UI 수정 시 PC·모바일을 **동시에** 맞추되 단순 통일 금지(`shared/virtual-user-ui-direction.js`).
+- **UI(PC·모바일)**: 가상 사용자·에이전트 UI 수정 시 PC·모바일을 **동시에** 맞추되 단순 통일 금지. 아이콘·터치 크기까지 깐깐히·계속 피드백(`shared/virtual-user-ui-direction.js`).
 - **메일·PC 재부팅**: 기본 **영구 금지**. 이번 요청에서 명시할 때만 1회(`@agent-email-delivery`, `@agent-no-pc-reboot`).
 - **아이콘**: 교체 요청 시 `@icon-assets` — 흰·밝은 회색 매트 투명(`npm run icons:gen`), `?v=` bump.

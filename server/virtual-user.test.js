@@ -128,6 +128,8 @@ describe("virtual-user-runner", () => {
     expect(prompt).toContain("최소 diff");
     expect(prompt).toContain("PC와 모바일");
     expect(prompt).toContain("단순 통일");
+    expect(prompt).toContain("아이콘");
+    expect(prompt).toMatch(/44/);
   });
 
   it("mobile prompt forbids changing layout frame", () => {

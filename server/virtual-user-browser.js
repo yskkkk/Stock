@@ -9,7 +9,7 @@ import { isAbortLikeError } from "./fetch-abort-guard.js";
 import {
   shouldBlockVirtualUserMoneyRequest,
 } from "./virtual-user-order-guard.js";
-import { probeMobileUiDiscomfort } from "./virtual-user-mobile-probe.js";
+import { probeViewportUiDiscomfort } from "./virtual-user-mobile-probe.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCREENSHOT_DIR = path.join(__dirname, ".data", "virtual-user-screenshots");
@@ -543,9 +543,29 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
         id: "mobile-ui-probe",
         run: async () => {
           if (!mobile) return;
-          const mobileObs = await probeMobileUiDiscomfort(page, persona.id);
+          const mobileObs = await probeViewportUiDiscomfort(page, {
+            device: "mobile",
+            personaId: persona.id,
+          });
           const shotPath = await shot(page, `${persona.id}_mobile_ui`);
           for (const o of mobileObs) {
+            observations.push({
+              ...o,
+              screenshot: o.screenshot ?? shotPath,
+            });
+          }
+        },
+      },
+      {
+        id: "desktop-ui-probe",
+        run: async () => {
+          if (mobile) return;
+          const desktopObs = await probeViewportUiDiscomfort(page, {
+            device: "desktop",
+            personaId: persona.id,
+          });
+          const shotPath = await shot(page, `${persona.id}_desktop_ui`);
+          for (const o of desktopObs) {
             observations.push({
               ...o,
               screenshot: o.screenshot ?? shotPath,
@@ -594,6 +614,8 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
     ]);
     if (mobile) {
       coreIds.add("mobile-ui-probe");
+    } else {
+      coreIds.add("desktop-ui-probe");
     }
     if (satisfactionLevel >= 2) {
       coreIds.add("tab-reddit");
@@ -604,6 +626,7 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
       coreIds.add("tab-recommendations");
       coreIds.add("tab-stock-vault");
       if (mobile) coreIds.add("mobile-ui-probe");
+      else coreIds.add("desktop-ui-probe");
     }
     let stepsForLevel =
       satisfactionLevel >= 4
@@ -616,6 +639,9 @@ export async function runVirtualUserBrowserJourney(persona, sessionId, opts = {}
         const probe = steps.find((s) => s.id === "mobile-ui-probe");
         if (probe) stepsForLevel = [...stepsForLevel, probe];
       }
+    } else if (!stepsForLevel.some((s) => s.id === "desktop-ui-probe")) {
+      const probe = steps.find((s) => s.id === "desktop-ui-probe");
+      if (probe) stepsForLevel = [...stepsForLevel, probe];
     }
 
     const focus = new Set(persona.focusAreas || []);
