@@ -552,11 +552,9 @@ export function startBackgroundTabPrefetch(): void {
 
   scheduleIdle(() => {
     void prefetchSectorEarnings().catch(() => {});
-    void prefetchRecommendationsTracker().catch(() => {});
     void prefetchCryptoTabData().catch(() => {});
     void prefetchLiveTradingTab().catch(() => {});
     prefetchLiveTradingPortfolio();
-    void prefetchPicksDailyHistory().catch(() => {});
     void prefetchStockSearchHotTabs().catch(() => {});
   });
 }

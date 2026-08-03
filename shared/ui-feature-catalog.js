@@ -46,6 +46,18 @@ export const UI_FEATURE_CATALOG = [
     description: "사이트 하단 내비게이션의 「S&P500 섹터」 링크",
     defaultEnabled: false,
   },
+  {
+    id: "screenerTab",
+    label: "스크리너 탭",
+    description: "상단 「스크리너」 탭 · 픽 폴링 · 재스캔 · 신호 필터",
+    defaultEnabled: false,
+  },
+  {
+    id: "recommendationsTab",
+    label: "주식 추천목록 탭",
+    description: "상단 「주식 추천목록」 탭 · 추천 실적 프리페치",
+    defaultEnabled: false,
+  },
 ];
 
 /** @type {Record<string, (typeof UI_FEATURE_CATALOG)[number]>} */

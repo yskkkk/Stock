@@ -242,6 +242,8 @@ export default function App() {
   const showProfitModelButton = useUiFeature("profitModelButton");
   const enableThemeModeToggle = useUiFeature("themeModeToggle");
   const showOpsDevQueueUi = useUiFeature("opsDevQueueUi");
+  const showScreenerTab = useUiFeature("screenerTab");
+  const showRecommendationsTab = useUiFeature("recommendationsTab");
   const [picks, setPicks] = useState<PicksResponse | null>(null);
   const [picksError, setPicksError] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
@@ -590,14 +592,21 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (appTab !== "screener") return;
+    if (appTab === "screener" && !showScreenerTab) setAppTab("stockLookup");
+    else if (appTab === "recommendations" && !showRecommendationsTab) {
+      setAppTab("stockLookup");
+    }
+  }, [appTab, showScreenerTab, showRecommendationsTab, setAppTab]);
+
+  useEffect(() => {
+    if (!showScreenerTab || appTab !== "screener") return;
     void pollPicks();
     const ms = picks?.running ? 4_000 : 10_000;
     const id = window.setInterval(() => {
       if (document.visibilityState !== "hidden") void pollPicks();
     }, ms);
     return () => window.clearInterval(id);
-  }, [pollPicks, picks?.running, appTab]);
+  }, [pollPicks, picks?.running, appTab, showScreenerTab]);
 
   /** IP 허용이 해제되면 API 403 외에도 상태 폴링으로 즉시 게이트로 보낸다 */
   useEffect(() => {
@@ -714,12 +723,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (appTab !== "screener") return;
+    if (!showScreenerTab || appTab !== "screener") return;
     if (!picks || picks.running) return;
     if (resolveNextScanAt(picks) == null) return;
     const id = window.setInterval(() => setRescanClockMs(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [
+    showScreenerTab,
     appTab,
     picks?.running,
     picks?.nextScanAt,
@@ -751,7 +761,10 @@ export default function App() {
 
   const browserUserId = useMemo(() => getBrowserUserId(), []);
 
-  const listLiveQuotes = usePicksLiveQuotes(picks, appTab === "screener");
+  const listLiveQuotes = usePicksLiveQuotes(
+    picks,
+    showScreenerTab && appTab === "screener",
+  );
   const picksForList = useMemo(
     () => (picks ? mergeQuotesIntoPicks(picks, listLiveQuotes) : null),
     [picks, listLiveQuotes],
@@ -1441,7 +1454,9 @@ export default function App() {
     picks?.failedCount && picks.failedCount > 0
       ? failedCountLabel(picks.failedCount)
       : "";
-  const showTopScanStrip = Boolean(picks && appTab === "screener");
+  const showTopScanStrip = Boolean(
+    showScreenerTab && picks && appTab === "screener",
+  );
   const { user: liveTradeUser } = useLiveTradeAuth();
   const showSideDock = appTab !== "ops";
   const showDesktopSideDock = desktopDockLayout && showSideDock;
@@ -1798,22 +1813,26 @@ export default function App() {
                   {ko.app.tabAccountManage}
                 </button>
               </div>
-              <button
-                type="button"
-                className={mainTabClassName("screener")}
-                data-vu="tab-screener"
-                onClick={() => setAppTab("screener")}
-              >
-                {ko.app.tabScreener}
-              </button>
-              <button
-                type="button"
-                className={mainTabClassName("recommendations")}
-                data-vu="tab-recommendations"
-                onClick={() => setAppTab("recommendations")}
-              >
-                {ko.app.tabRecommendations}
-              </button>
+              {showScreenerTab ? (
+                <button
+                  type="button"
+                  className={mainTabClassName("screener")}
+                  data-vu="tab-screener"
+                  onClick={() => setAppTab("screener")}
+                >
+                  {ko.app.tabScreener}
+                </button>
+              ) : null}
+              {showRecommendationsTab ? (
+                <button
+                  type="button"
+                  className={mainTabClassName("recommendations")}
+                  data-vu="tab-recommendations"
+                  onClick={() => setAppTab("recommendations")}
+                >
+                  {ko.app.tabRecommendations}
+                </button>
+              ) : null}
               {liveTradeUser && !showLiveTradeDockPortals ? (
                 <button
                   type="button"
@@ -1858,16 +1877,18 @@ export default function App() {
             </nav>
 
             <div className="top-bar__tools">
-              <button
-                type="button"
-                className="btn btn--secondary top-bar__rescan"
-                disabled={
-                  appTab !== "screener" || rescanning || picks?.running
-                }
-                onClick={handleRescan}
-              >
-                {rescanning ? ko.app.rescanning : ko.app.rescan}
-              </button>
+              {showScreenerTab ? (
+                <button
+                  type="button"
+                  className="btn btn--secondary top-bar__rescan"
+                  disabled={
+                    appTab !== "screener" || rescanning || picks?.running
+                  }
+                  onClick={handleRescan}
+                >
+                  {rescanning ? ko.app.rescanning : ko.app.rescan}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -1883,7 +1904,7 @@ export default function App() {
         </div>
       ) : null}
 
-      {appTab === "screener" && (
+      {showScreenerTab && appTab === "screener" && (
         <section className="filter-bar card">
           <SignalFilter
             selected={signalFilters}
@@ -1902,7 +1923,7 @@ export default function App() {
             onFocusSymbolConsumed={handleCryptoFocusConsumed}
           />
         </TabSuspense>
-      ) : appTab === "recommendations" ? (
+      ) : showRecommendationsTab && appTab === "recommendations" ? (
         <TabSuspense>
           <RecommendationsTab onOpenPick={handleSelect} />
         </TabSuspense>
@@ -1956,7 +1977,11 @@ export default function App() {
           <div className="live-trade-tab-root">
             <LiveTradingTab
               hideCardDock={showLiveTradeDockPortals}
-              onOpenRecommendations={() => setAppTab("recommendations")}
+              onOpenRecommendations={
+                showRecommendationsTab
+                  ? () => setAppTab("recommendations")
+                  : undefined
+              }
               onOpenHoldingChart={handleLiveTradeChart}
               adminView={liveTradeAdminView}
               onClearAdminView={() => setLiveTradeAdminView(null)}
@@ -2082,7 +2107,7 @@ export default function App() {
             </div>
           </div>
 
-          {appTab === "screener" ? (
+          {showScreenerTab && appTab === "screener" ? (
             <div className="picks-panel-stack">
               <PickToolbar
                 search={searchQuery}
@@ -2638,7 +2663,11 @@ export default function App() {
                   <Suspense fallback={null}>
                     <LiveTradingTab
                       portalSourceOnly
-                      onOpenRecommendations={() => setAppTab("recommendations")}
+                      onOpenRecommendations={
+                showRecommendationsTab
+                  ? () => setAppTab("recommendations")
+                  : undefined
+              }
                       onOpenHoldingChart={handleLiveTradeChart}
                       adminView={liveTradeAdminView}
                       onClearAdminView={() => setLiveTradeAdminView(null)}
