@@ -1402,8 +1402,24 @@ export const ko = {
   infoBoard: {
     title: "정보 게시판",
     aria: "투자 참고 정보 게시판",
-    subtitle: "업종·지표 기준 등 참고 자료를 모아 둡니다.",
-    perEbitdaTitle: "업종별 PER vs EV/EBITDA 적정 기준치 비교표",
+    subtitle: "커뮤니티 글처럼 참고 자료를 모아 둡니다. 글을 눌러 본문을 봅니다.",
+    listAria: "게시글 목록",
+    postCount: (n: number) => `${n}개의 글`,
+    empty: "등록된 글이 없습니다.",
+    backToList: "목록으로",
+    openPostAria: (title: string) => `${title} 글 열기`,
+    categoryLabel: "분류",
+    posts: [
+      {
+        id: "per-ebitda",
+        category: "지표 기준",
+        title: "업종별 PER vs EV/EBITDA 적정 기준치 비교표",
+        excerpt:
+          "업종 특성에 따라 PER·EV/EBITDA의 적정 구간이 다릅니다. 참고용이며 투자 권유가 아닙니다.",
+        publishedAt: "2026-08-03",
+        author: "운영",
+      },
+    ],
     perEbitdaLead:
       "업종 특성에 따라 PER·EV/EBITDA의 적정 구간이 다릅니다. 참고용이며 투자 권유가 아닙니다.",
     colSector: "업종 분류",
