@@ -16,8 +16,6 @@ import {
   type LiveTradeHolding,
   type TossTestHolding,
 } from "./api";
-import BullishReasonModal from "./components/BullishReasonModal";
-import AccessAdminModal from "./components/AccessAdminModal";
 import AppSiteFooter from "./components/AppSiteFooter";
 import { Sp500SectorProvider } from "./contexts/Sp500SectorContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -36,11 +34,6 @@ import LiveTradingHeaderStrip from "./components/LiveTradingHeaderStrip";
 import TelegramNotifyIconButton from "./components/TelegramNotifyIconButton";
 import LiveTradingLeftRailPanel from "./components/LiveTradingLeftRailPanel";
 import MarketIndicesBelt from "./components/MarketIndicesBelt";
-import NewsModal from "./components/NewsModal";
-import PicksHistoryModal from "./components/PicksHistoryModal";
-import ProfitModelModal from "./components/ProfitModelModal";
-import ScreenFailuresModal from "./components/ScreenFailuresModal";
-import TelegramSentModal from "./components/TelegramSentModal";
 import PickList from "./components/PickList";
 import PickQuoteStrip from "./components/PickQuoteStrip";
 import QuoteCurrencyToggle from "./components/QuoteCurrencyToggle";
@@ -50,13 +43,11 @@ import type { ChartDrawMode, ChartDrawToolbarApi } from "./chartDrawTypes";
 import ChartDrawToolbarButtons from "./components/ChartDrawToolbarButtons";
 import OpsGlobalQueueStrip from "./components/OpsGlobalQueueStrip";
 import type { LiveTradeAdminViewState } from "./components/LiveTradingTab";
-import AppLiveTradeSideDock from "./components/AppLiveTradeSideDock";
-import AppRightDockRailPanels from "./components/AppRightDockRailPanels";
 import {
   useLiveTradeAuth,
   LIVE_TRADE_AUTH_CHANGE,
 } from "./components/LiveTradeAuthAndCredentials";
-import { prefetchRedditMentions } from "./components/RedditMentionsTab";
+import { prefetchRedditMentions } from "./lib/prefetchRedditMentions";
 import { LIVE_TRADE_NAVIGATE_EXPECTED_RETURN_CALC_TAB_EVENT, LIVE_TRADE_NAVIGATE_TRADE_HISTORY_TAB_EVENT } from "./lib/liveTradeDockAccount";
 import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTradesMain";
 import { OPEN_FINANCIALS_TAB_EVENT, type OpenFinancialsTabDetail } from "./lib/openFinancialsTab";
@@ -85,6 +76,20 @@ const FinancialsTab = lazyWithRetry(() => import("./components/FinancialsTab"));
 const StockVaultTab = lazyWithRetry(() => import("./components/StockVaultTab"));
 const InvestorFlowTab = lazyWithRetry(() => import("./components/InvestorFlowTab"));
 
+const NewsModal = lazyWithRetry(() => import("./components/NewsModal"));
+const PicksHistoryModal = lazyWithRetry(() => import("./components/PicksHistoryModal"));
+const BullishReasonModal = lazyWithRetry(() => import("./components/BullishReasonModal"));
+const ProfitModelModal = lazyWithRetry(() => import("./components/ProfitModelModal"));
+const ScreenFailuresModal = lazyWithRetry(() => import("./components/ScreenFailuresModal"));
+const TelegramSentModal = lazyWithRetry(() => import("./components/TelegramSentModal"));
+const AccessAdminModal = lazyWithRetry(() => import("./components/AccessAdminModal"));
+const AppLiveTradeSideDock = lazyWithRetry(
+  () => import("./components/AppLiveTradeSideDock"),
+);
+const AppRightDockRailPanels = lazyWithRetry(
+  () => import("./components/AppRightDockRailPanels"),
+);
+
 function TabSuspense({ children }: { children: ReactNode }) {
   return (
     <Suspense
@@ -97,6 +102,10 @@ function TabSuspense({ children }: { children: ReactNode }) {
       {children}
     </Suspense>
   );
+}
+
+function ModalSuspense({ children }: { children: ReactNode }) {
+  return <Suspense fallback={null}>{children}</Suspense>;
 }
 import { CHART_TIMEFRAMES } from "./constants/timeframes";
 import type { SignalId } from "./constants/signals";
@@ -2461,121 +2470,139 @@ export default function App() {
       )}
 
       {newsPick && (
-        <NewsModal
-          key={newsPick.symbol}
-          pick={newsPick}
-          items={newsItems}
-          loading={newsLoading}
-          error={newsError}
-          onClose={closeNews}
-        />
+        <ModalSuspense>
+          <NewsModal
+            key={newsPick.symbol}
+            pick={newsPick}
+            items={newsItems}
+            loading={newsLoading}
+            error={newsError}
+            onClose={closeNews}
+          />
+        </ModalSuspense>
       )}
 
-      <PicksHistoryModal
-        open={picksHistoryOpen}
-        onClose={() => setPicksHistoryOpen(false)}
-      />
+      {picksHistoryOpen ? (
+        <ModalSuspense>
+          <PicksHistoryModal
+            open={picksHistoryOpen}
+            onClose={() => setPicksHistoryOpen(false)}
+          />
+        </ModalSuspense>
+      ) : null}
 
       {reasonPick && (
-        <BullishReasonModal
-          pick={reasonPick}
-          onClose={() => setReasonPick(null)}
-        />
+        <ModalSuspense>
+          <BullishReasonModal
+            pick={reasonPick}
+            onClose={() => setReasonPick(null)}
+          />
+        </ModalSuspense>
       )}
 
       {showScreenFailures && picks && (picks.failedCount ?? 0) > 0 && (
-        <ScreenFailuresModal
-          failures={picks.failures ?? []}
-          onClose={() => setShowScreenFailures(false)}
-        />
+        <ModalSuspense>
+          <ScreenFailuresModal
+            failures={picks.failures ?? []}
+            onClose={() => setShowScreenFailures(false)}
+          />
+        </ModalSuspense>
       )}
 
       {showTelegramSent && telegramNotify && (
-        <TelegramSentModal
-          items={telegramSentItems}
-          loading={telegramSentLoading}
-          error={telegramSentError}
-          onClose={() => setShowTelegramSent(false)}
-          onOpenStock={(item) => {
-            setShowTelegramSent(false);
-            if (item.market === "crypto") {
-              setAppTab("crypto");
-              setCryptoFocusSymbol(item.symbol.trim());
-              return;
-            }
-            const pick: StockPick = {
-              symbol: item.symbol,
-              name: item.name,
-              market: item.market,
-              score: item.score,
-              signals: [],
-            };
-            skipLookupResetRef.current = true;
-            setLookupSeedQuery(item.symbol);
-            setLookupSelected(pick);
-            setLookupMarketTab(pick.market);
-            setAppTab("stockLookup");
-          }}
-        />
+        <ModalSuspense>
+          <TelegramSentModal
+            items={telegramSentItems}
+            loading={telegramSentLoading}
+            error={telegramSentError}
+            onClose={() => setShowTelegramSent(false)}
+            onOpenStock={(item) => {
+              setShowTelegramSent(false);
+              if (item.market === "crypto") {
+                setAppTab("crypto");
+                setCryptoFocusSymbol(item.symbol.trim());
+                return;
+              }
+              const pick: StockPick = {
+                symbol: item.symbol,
+                name: item.name,
+                market: item.market,
+                score: item.score,
+                signals: [],
+              };
+              skipLookupResetRef.current = true;
+              setLookupSeedQuery(item.symbol);
+              setLookupSelected(pick);
+              setLookupMarketTab(pick.market);
+              setAppTab("stockLookup");
+            }}
+          />
+        </ModalSuspense>
       )}
 
       {showProfitModelButton && profitModalOpen && workspacePick && (
-        <ProfitModelModal
-          open={profitModalOpen}
-          browserUserId={browserUserId}
-          currentPrice={(stripQuotePx ?? nativeQuotePx) ?? workspacePick.price}
-          currency={stripQuoteCur ?? workspacePick.currency}
-          entry={profitEntry}
-          entryAtMs={profitRow?.entryAtMs ?? null}
-          exit={profitRow?.exit ?? null}
-          onClose={() => setProfitModalOpen(false)}
-          onApply={(n, entryAtMs) => {
-            persistProfitEntry(workspacePick.symbol, n, { entryAtMs });
-            setProfitPersistTick((x) => x + 1);
-          }}
-          onClear={() => {
-            persistProfitEntry(workspacePick.symbol, null);
-            setProfitPersistTick((x) => x + 1);
-            setProfitModalOpen(false);
-          }}
-          onRecordSell={() => {
-            if (
-              nativeQuotePx == null ||
-              !Number.isFinite(nativeQuotePx) ||
-              nativeQuotePx <= 0
-            ) {
-              return;
-            }
-            persistProfitSell(workspacePick.symbol, nativeQuotePx);
-            setProfitPersistTick((x) => x + 1);
-          }}
-        />
+        <ModalSuspense>
+          <ProfitModelModal
+            open={profitModalOpen}
+            browserUserId={browserUserId}
+            currentPrice={(stripQuotePx ?? nativeQuotePx) ?? workspacePick.price}
+            currency={stripQuoteCur ?? workspacePick.currency}
+            entry={profitEntry}
+            entryAtMs={profitRow?.entryAtMs ?? null}
+            exit={profitRow?.exit ?? null}
+            onClose={() => setProfitModalOpen(false)}
+            onApply={(n, entryAtMs) => {
+              persistProfitEntry(workspacePick.symbol, n, { entryAtMs });
+              setProfitPersistTick((x) => x + 1);
+            }}
+            onClear={() => {
+              persistProfitEntry(workspacePick.symbol, null);
+              setProfitPersistTick((x) => x + 1);
+              setProfitModalOpen(false);
+            }}
+            onRecordSell={() => {
+              if (
+                nativeQuotePx == null ||
+                !Number.isFinite(nativeQuotePx) ||
+                nativeQuotePx <= 0
+              ) {
+                return;
+              }
+              persistProfitSell(workspacePick.symbol, nativeQuotePx);
+              setProfitPersistTick((x) => x + 1);
+            }}
+          />
+        </ModalSuspense>
       )}
 
-      <AccessAdminModal
-        open={showAccessAdmin}
-        onViewLiveTradePortfolio={(p) => openAdminLiveTradeView(p)}
-        onViewLiveTradeTab={(p) => openAdminLiveTradeView(p)}
-        onClose={() => {
-          setShowAccessAdmin(false);
-          void fetchConfig()
-            .then((cfg) => {
-              setAccessAdmin(cfg.accessAdmin ?? false);
-              setAdminIpConsole(cfg.adminIpConsole ?? false);
-              setOpsCursorAgentAvailable(cfg.opsCursorAgentAvailable ?? false);
-            })
-            .catch(() => {});
-        }}
-        adminIpBypassPassword={adminIpConsole}
-        telegramNotify={telegramNotify}
-        telegramSentCount={telegramSentCount}
-        onOpenTelegramSent={() => {
-          setShowAccessAdmin(false);
-          void handleOpenTelegramSent();
-        }}
-        onResetTelegram={() => void handleResetTelegramSent()}
-        resettingTelegram={resettingTelegram}
-      />
+      {showAccessAdmin ? (
+        <ModalSuspense>
+          <AccessAdminModal
+            open={showAccessAdmin}
+            onViewLiveTradePortfolio={(p) => openAdminLiveTradeView(p)}
+            onViewLiveTradeTab={(p) => openAdminLiveTradeView(p)}
+            onClose={() => {
+              setShowAccessAdmin(false);
+              void fetchConfig()
+                .then((cfg) => {
+                  setAccessAdmin(cfg.accessAdmin ?? false);
+                  setAdminIpConsole(cfg.adminIpConsole ?? false);
+                  setOpsCursorAgentAvailable(cfg.opsCursorAgentAvailable ?? false);
+                })
+                .catch(() => {});
+            }}
+            adminIpBypassPassword={adminIpConsole}
+            telegramNotify={telegramNotify}
+            telegramSentCount={telegramSentCount}
+            onOpenTelegramSent={() => {
+              setShowAccessAdmin(false);
+              void handleOpenTelegramSent();
+            }}
+            onResetTelegram={() => void handleResetTelegramSent()}
+            resettingTelegram={resettingTelegram}
+          />
+        </ModalSuspense>
+      ) : null}
 
       <FeedbackCorner
         ref={feedbackRef}
@@ -2595,7 +2622,7 @@ export default function App() {
         aria-hidden={showSideDock ? undefined : true}
       >
         {showSideDock ? (
-          <>
+          <ModalSuspense>
             <AppRightDockRailPanels
               onOpenLiveTrading={openLiveTradingProgram}
               onOpenHoldingChart={handleTossHoldingChart}
@@ -2621,7 +2648,7 @@ export default function App() {
                 ) : null
               }
             />
-          </>
+          </ModalSuspense>
         ) : null}
       </div>
       </Sp500SectorProvider>

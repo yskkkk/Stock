@@ -49,12 +49,27 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: ["es2020", "safari14"],
+    cssCodeSplit: true,
+    modulePreload: { polyfill: true },
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (id.includes("node_modules/lightweight-charts")) return "charts";
           if (id.includes("node_modules/react-dom")) return "react-vendor";
           if (id.includes("node_modules/react/")) return "react-vendor";
+          if (id.includes("node_modules/@capacitor")) return "capacitor";
+          if (
+            id.includes("/src/components/AccessAdminModal") ||
+            id.includes("/src/components/VirtualUsersAdminPanel")
+          ) {
+            return "admin";
+          }
+          if (
+            id.includes("/src/components/AppLiveTradeSideDock") ||
+            id.includes("/src/components/AppRightDockRailPanels")
+          ) {
+            return "live-dock";
+          }
         },
       },
     },

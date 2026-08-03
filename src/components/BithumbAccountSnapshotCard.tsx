@@ -3,6 +3,7 @@ import { ko } from "../i18n/ko";
 import { useBithumbBalanceHidden } from "../hooks/useBithumbBalanceHidden";
 import { formatLiveTradeQuantity, formatPercent, formatPrice } from "../lib/format";
 import CryptoCoinIcon from "./CryptoCoinIcon";
+import "../account-snapshot.css";
 
 export type BithumbTradingFeesDisplay = {
   bidFee: number;

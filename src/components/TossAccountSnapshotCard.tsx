@@ -28,6 +28,7 @@ import {
   formatPrice,
   formatSignedMoney,
 } from "../lib/format";
+import "../account-snapshot.css";
 
 function formatUpdatedHmSs(ms: number): string {
   if (!ms || !Number.isFinite(ms)) return "—";

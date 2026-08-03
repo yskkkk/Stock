@@ -1,4 +1,3 @@
-import { App } from "@capacitor/app";
 import type { ChartTimeframe } from "../constants/timeframes";
 import { isMobilePhoneEnv } from "./isMobilePhone";
 import { isNativeApp } from "./isNativeApp";
@@ -40,6 +39,7 @@ function parseTvChartWebUrl(
 async function launchTradingViewUrl(url: string): Promise<void> {
   if (isNativeApp()) {
     try {
+      const { App } = await import("@capacitor/app");
       await App.openUrl({ url });
       return;
     } catch {

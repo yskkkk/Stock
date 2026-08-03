@@ -1,46 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  fetchRedditMentions,
-  type RedditMentionRow,
-  type RedditMentionsPayload,
-} from "../api";
+import { type RedditMentionRow, type RedditMentionsPayload } from "../api";
 import { ko } from "../i18n/ko";
 import type { StockPick } from "../types";
+import {
+  getRedditMentionsMemory,
+  prefetchRedditMentions,
+} from "../lib/prefetchRedditMentions";
 import DockPanelCenterLoading from "./DockPanelCenterLoading";
 import "./reddit-mentions-tab.css";
 
 type Props = {
   onOpenSymbol?: (pick: StockPick) => void;
 };
-
-/** 탭 전환 체감용 — 직전 성공 응답 재사용 */
-let redditMentionsMemory: {
-  filter: string;
-  payload: RedditMentionsPayload;
-} | null = null;
-
-const inflight = new Map<string, Promise<RedditMentionsPayload>>();
-
-export function prefetchRedditMentions(filter = "all-stocks") {
-  const key = `${filter}:1:1`;
-  if (inflight.has(key)) return inflight.get(key)!;
-  if (
-    redditMentionsMemory?.filter === filter &&
-    Date.now() - (redditMentionsMemory.payload.updatedAt ?? 0) < 4 * 60 * 1000
-  ) {
-    return Promise.resolve(redditMentionsMemory.payload);
-  }
-  const p = fetchRedditMentions({ filter, page: 1, pages: 1 })
-    .then((data) => {
-      redditMentionsMemory = { filter, payload: data };
-      return data;
-    })
-    .finally(() => {
-      inflight.delete(key);
-    });
-  inflight.set(key, p);
-  return p;
-}
 
 function formatDelta(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
@@ -50,12 +21,11 @@ function formatDelta(n: number | null | undefined): string {
 
 export default function RedditMentionsTab({ onOpenSymbol }: Props) {
   const [filter, setFilter] = useState("all-stocks");
-  const [payload, setPayload] = useState<RedditMentionsPayload | null>(() =>
-    redditMentionsMemory?.filter === "all-stocks"
-      ? redditMentionsMemory.payload
-      : null,
-  );
-  const [loading, setLoading] = useState(() => !redditMentionsMemory?.payload);
+  const [payload, setPayload] = useState<RedditMentionsPayload | null>(() => {
+    const mem = getRedditMentionsMemory();
+    return mem?.filter === "all-stocks" ? mem.payload : null;
+  });
+  const [loading, setLoading] = useState(() => !getRedditMentionsMemory()?.payload);
   const [error, setError] = useState<string | null>(null);
   const reqSeq = useRef(0);
 
@@ -67,7 +37,6 @@ export default function RedditMentionsTab({ onOpenSymbol }: Props) {
       const data = await prefetchRedditMentions(nextFilter);
       if (seq !== reqSeq.current) return;
       setPayload(data);
-      redditMentionsMemory = { filter: nextFilter, payload: data };
     } catch {
       if (seq !== reqSeq.current) return;
       setError(ko.app.redditMentionsError);

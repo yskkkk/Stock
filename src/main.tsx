@@ -23,7 +23,7 @@ import "./ui-nowrap-lines.css";
 import "./app-theme-corner.css";
 import "./stock-lookup-flat.css";
 import "./bubble-opaque.css";
-import "./account-snapshot.css";
+/* account-snapshot.css — 스냅샷 카드 마운트 시 로드 */
 /* 탭·모달 CSS는 해당 컴포넌트에서 import — 첫 페인트 번들 축소 */
 
 declare global {
