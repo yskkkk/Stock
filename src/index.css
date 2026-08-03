@@ -132,11 +132,12 @@
   height: 0;
 }
 .app-tab-suspense {
-  margin: 1.25rem auto;
-  padding: 1.5rem 1rem;
-  text-align: center;
-  color: var(--muted);
-  font-size: 0.9rem;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font-size: inherit;
+  width: 100%;
 }
 
 .macro-card {

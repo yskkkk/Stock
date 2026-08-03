@@ -53,6 +53,9 @@ import { LIVE_TRADE_PROGRAM_TRADES_MAIN_EVENT } from "./lib/liveTradeProgramTrad
 import { OPEN_FINANCIALS_TAB_EVENT, type OpenFinancialsTabDetail } from "./lib/openFinancialsTab";
 import StockSearchTab from "./components/StockSearchTab";
 import { lazyWithRetry } from "./lib/lazyWithRetry";
+import { prefetchLazyModule } from "./lib/prefetchLazyModule";
+import TabShellFallback from "./components/TabShellFallback";
+import InfoBoardTab from "./components/InfoBoardTab";
 
 const StockChart = lazyWithRetry(() => import("./components/StockChart"));
 const TradingViewAdvancedChart = lazyWithRetry(
@@ -73,7 +76,6 @@ const RecommendationsTab = lazyWithRetry(() => import("./components/Recommendati
 const TradeHistoryTab = lazyWithRetry(() => import("./components/TradeHistoryTab"));
 const BoxRangeTab = lazyWithRetry(() => import("./components/BoxRangeTab"));
 const FinancialsTab = lazyWithRetry(() => import("./components/FinancialsTab"));
-const InfoBoardTab = lazyWithRetry(() => import("./components/InfoBoardTab"));
 const StockVaultTab = lazyWithRetry(() => import("./components/StockVaultTab"));
 const InvestorFlowTab = lazyWithRetry(() => import("./components/InvestorFlowTab"));
 
@@ -91,12 +93,20 @@ const AppRightDockRailPanels = lazyWithRetry(
   () => import("./components/AppRightDockRailPanels"),
 );
 
-function TabSuspense({ children }: { children: ReactNode }) {
+function TabSuspense({
+  children,
+  title,
+  subtitle,
+}: {
+  children: ReactNode;
+  title?: string;
+  subtitle?: string;
+}) {
   return (
     <Suspense
       fallback={
-        <div className="app-tab-suspense" role="status" aria-live="polite">
-          불러오는 중…
+        <div className="app-tab-suspense">
+          <TabShellFallback title={title} subtitle={subtitle} />
         </div>
       }
     >
@@ -259,6 +269,41 @@ export default function App() {
     mainTabsNavRef,
   } = useMainTabWithPreview("stockLookup");
   const prevAppTabRef = useRef<AppTab>("stockLookup");
+
+  /** 유휴 시 메인 탭 청크를 미리 받아, 클릭 후 빈 「불러오는 중」을 줄인다 */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const run = () => {
+      prefetchLazyModule(() => import("./components/CryptoTab"));
+      prefetchLazyModule(() => import("./components/Sp500SectorTab"));
+      prefetchLazyModule(() => import("./components/NasdaqEtfTab"));
+      prefetchLazyModule(() => import("./components/RedditMentionsTab"));
+      prefetchLazyModule(() => import("./components/AccountManageTab"));
+      prefetchLazyModule(() => import("./components/FinancialsTab"));
+      prefetchLazyModule(() => import("./components/StockVaultTab"));
+      prefetchLazyModule(() => import("./components/InvestorFlowTab"));
+      prefetchLazyModule(() => import("./components/BoxRangeTab"));
+      prefetchLazyModule(() => import("./components/ExpectedReturnCalcTab"));
+      prefetchLazyModule(() => import("./components/LiveTradingTab"));
+      prefetchLazyModule(() => import("./components/TradeHistoryTab"));
+    };
+    const ric = (
+      window as Window & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      }
+    ).requestIdleCallback;
+    if (typeof ric === "function") {
+      const id = ric(run, { timeout: 2500 });
+      return () => {
+        (
+          window as Window & { cancelIdleCallback?: (id: number) => void }
+        ).cancelIdleCallback?.(id);
+      };
+    }
+    const t = window.setTimeout(run, 1200);
+    return () => window.clearTimeout(t);
+  }, []);
+
   /** 실거래 보유 → 종목검색: 탭 진입 시 lookupSelected 초기화 effect 건너뜀 */
   const skipLookupResetRef = useRef(false);
   /** 실거래에서 넘어온 심볼 — 종목검색 탭에서 자동 검색 */
@@ -1762,6 +1807,12 @@ export default function App() {
                 className={mainTabClassName("crypto")}
                 data-vu="tab-crypto"
                 onClick={() => setAppTab("crypto")}
+                onMouseEnter={() =>
+                  prefetchLazyModule(() => import("./components/CryptoTab"))
+                }
+                onFocus={() =>
+                  prefetchLazyModule(() => import("./components/CryptoTab"))
+                }
               >
                 {ko.app.tabCrypto}
               </button>
@@ -1777,6 +1828,12 @@ export default function App() {
                   onClick={() => setAppTab("sp500Sector")}
                   title={ko.app.sp500SectorTitle}
                   aria-label={ko.app.sp500SectorTitle}
+                  onMouseEnter={() =>
+                    prefetchLazyModule(() => import("./components/Sp500SectorTab"))
+                  }
+                  onFocus={() =>
+                    prefetchLazyModule(() => import("./components/Sp500SectorTab"))
+                  }
                 >
                   {ko.app.tabSp500Sector}
                 </button>
@@ -1787,6 +1844,12 @@ export default function App() {
                   onClick={() => setAppTab("nasdaqEtf")}
                   title={ko.app.nasdaqEtfTitle}
                   aria-label={ko.app.nasdaqEtfTitle}
+                  onMouseEnter={() =>
+                    prefetchLazyModule(() => import("./components/NasdaqEtfTab"))
+                  }
+                  onFocus={() =>
+                    prefetchLazyModule(() => import("./components/NasdaqEtfTab"))
+                  }
                 >
                   {ko.app.tabNasdaqEtf}
                 </button>
@@ -1799,9 +1862,11 @@ export default function App() {
                   aria-label={ko.app.redditMentionsTitle}
                   onMouseEnter={() => {
                     void prefetchRedditMentions("all-stocks");
+                    prefetchLazyModule(() => import("./components/RedditMentionsTab"));
                   }}
                   onFocus={() => {
                     void prefetchRedditMentions("all-stocks");
+                    prefetchLazyModule(() => import("./components/RedditMentionsTab"));
                   }}
                 >
                   {ko.app.tabRedditMentions}
@@ -1813,6 +1878,12 @@ export default function App() {
                   onClick={() => setAppTab("accountManage")}
                   title={ko.app.accountManageTitle}
                   aria-label={ko.app.accountManageTitle}
+                  onMouseEnter={() =>
+                    prefetchLazyModule(() => import("./components/AccountManageTab"))
+                  }
+                  onFocus={() =>
+                    prefetchLazyModule(() => import("./components/AccountManageTab"))
+                  }
                 >
                   {ko.app.tabAccountManage}
                 </button>
@@ -1838,18 +1909,30 @@ export default function App() {
                 </button>
               ) : null}
               {liveTradeUser && !showLiveTradeDockPortals ? (
-                <button
-                  type="button"
-                  className={mainTabClassName("tradeHistory")}
-                  onClick={() => setAppTab("tradeHistory")}
-                >
-                  {ko.app.tabTradeHistory}
-                </button>
+              <button
+                type="button"
+                className={mainTabClassName("tradeHistory")}
+                onClick={() => setAppTab("tradeHistory")}
+                onMouseEnter={() =>
+                  prefetchLazyModule(() => import("./components/TradeHistoryTab"))
+                }
+                onFocus={() =>
+                  prefetchLazyModule(() => import("./components/TradeHistoryTab"))
+                }
+              >
+                {ko.app.tabTradeHistory}
+              </button>
               ) : null}
               <button
                 type="button"
                 className={mainTabClassName("financials")}
                 onClick={() => setAppTab("financials")}
+                onMouseEnter={() =>
+                  prefetchLazyModule(() => import("./components/FinancialsTab"))
+                }
+                onFocus={() =>
+                  prefetchLazyModule(() => import("./components/FinancialsTab"))
+                }
               >
                 {ko.app.tabFinancials}
               </button>
@@ -1871,6 +1954,14 @@ export default function App() {
                   void prefetchStockVaultTab().catch(() => {});
                   setAppTab("stockVault");
                 }}
+                onMouseEnter={() => {
+                  prefetchLazyModule(() => import("./components/StockVaultTab"));
+                  void prefetchStockVaultTab().catch(() => {});
+                }}
+                onFocus={() => {
+                  prefetchLazyModule(() => import("./components/StockVaultTab"));
+                  void prefetchStockVaultTab().catch(() => {});
+                }}
               >
                 {ko.app.tabStockVault}
               </button>
@@ -1878,6 +1969,12 @@ export default function App() {
                 type="button"
                 className={mainTabClassName("investorFlow")}
                 onClick={() => setAppTab("investorFlow")}
+                onMouseEnter={() =>
+                  prefetchLazyModule(() => import("./components/InvestorFlowTab"))
+                }
+                onFocus={() =>
+                  prefetchLazyModule(() => import("./components/InvestorFlowTab"))
+                }
               >
                 {ko.app.tabInvestorFlow}
               </button>
@@ -1885,6 +1982,12 @@ export default function App() {
                 type="button"
                 className={mainTabClassName("boxRange")}
                 onClick={() => setAppTab("boxRange")}
+                onMouseEnter={() =>
+                  prefetchLazyModule(() => import("./components/BoxRangeTab"))
+                }
+                onFocus={() =>
+                  prefetchLazyModule(() => import("./components/BoxRangeTab"))
+                }
               >
                 {ko.app.tabBoxRange}
               </button>
@@ -1930,7 +2033,7 @@ export default function App() {
       )}
 
       {appTab === "crypto" ? (
-        <TabSuspense>
+        <TabSuspense title={ko.app.tabCrypto}>
           <CryptoTab
             colorMode={colorMode}
             focusSymbol={cryptoFocusSymbol}
@@ -1938,19 +2041,19 @@ export default function App() {
           />
         </TabSuspense>
       ) : showRecommendationsTab && appTab === "recommendations" ? (
-        <TabSuspense>
+        <TabSuspense title={ko.app.tabRecommendations}>
           <RecommendationsTab onOpenPick={handleSelect} />
         </TabSuspense>
       ) : appTab === "tradeHistory" ? (
-        <TabSuspense>
+        <TabSuspense title={ko.app.tabTradeHistory}>
           <TradeHistoryTab onOpenHoldingChart={handleLiveTradeChart} />
         </TabSuspense>
       ) : appTab === "boxRange" ? (
-        <TabSuspense>
+        <TabSuspense title={ko.app.tabBoxRange}>
           <BoxRangeTab />
         </TabSuspense>
       ) : appTab === "financials" ? (
-        <TabSuspense>
+        <TabSuspense title={ko.app.tabFinancials} subtitle={ko.financials.hint}>
           <FinancialsTab
             focusPick={financialsFocusPick}
             onFocusPickConsumed={handleFinancialsFocusConsumed}
@@ -1959,39 +2062,55 @@ export default function App() {
           />
         </TabSuspense>
       ) : appTab === "infoBoard" ? (
-        <TabSuspense>
-          <InfoBoardTab />
-        </TabSuspense>
+        <InfoBoardTab />
       ) : appTab === "stockVault" ? (
-        <TabSuspense>
+        <TabSuspense title={ko.stockVault.title} subtitle={ko.stockVault.entryHint}>
           <StockVaultTabGate onVaultChange={syncVaultFromResponse} />
         </TabSuspense>
       ) : appTab === "investorFlow" ? (
-        <TabSuspense>
+        <TabSuspense
+          title={ko.investorFlow.title}
+          subtitle={ko.investorFlow.subtitle}
+        >
           <InvestorFlowTab />
         </TabSuspense>
       ) : appTab === "sp500Sector" ? (
-        <TabSuspense>
+        <TabSuspense title={ko.app.sp500SectorTitle}>
           <Sp500SectorTab />
         </TabSuspense>
       ) : appTab === "nasdaqEtf" ? (
-        <TabSuspense>
+        <TabSuspense
+          title={ko.app.nasdaqEtfTitle}
+          subtitle={ko.app.nasdaqEtfSubtitle}
+        >
           <NasdaqEtfTab onOpenSymbol={handleOpenNasdaqEtfSymbol} />
         </TabSuspense>
       ) : appTab === "redditMentions" ? (
-        <TabSuspense>
+        <TabSuspense
+          title={ko.app.redditMentionsTitle}
+          subtitle={ko.app.redditMentionsSubtitle}
+        >
           <RedditMentionsTab onOpenSymbol={handleOpenNasdaqEtfSymbol} />
         </TabSuspense>
       ) : appTab === "accountManage" ? (
-        <TabSuspense>
+        <TabSuspense
+          title={ko.app.accountManageTitle}
+          subtitle={ko.app.accountManageSubtitle}
+        >
           <AccountManageTab onOpenHoldingChart={handleTossHoldingChart} />
         </TabSuspense>
       ) : appTab === "expectedReturnCalc" ? (
-        <TabSuspense>
+        <TabSuspense
+          title={ko.app.expectedReturnCalcTitle}
+          subtitle={ko.app.expectedReturnCalcSubtitle}
+        >
           <ExpectedReturnCalcTab />
         </TabSuspense>
       ) : appTab === "liveTrading" ? (
-        <TabSuspense>
+        <TabSuspense
+          title={ko.app.liveTradeTitle}
+          subtitle={ko.app.liveTradeSubtitle}
+        >
           <div className="live-trade-tab-root">
             <LiveTradingTab
               hideCardDock={showLiveTradeDockPortals}
@@ -2008,7 +2127,7 @@ export default function App() {
           </div>
         </TabSuspense>
       ) : appTab === "ops" ? (
-        <TabSuspense>
+        <TabSuspense title={ko.app.tabOps}>
           <div className="workspace ops-workspace">
             <section
               className="ops-management-wrap card ops-management-main"

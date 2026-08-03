@@ -111,6 +111,7 @@ import type {
   VaultScanProgress,
 } from "../types";
 import StockVaultRow from "./StockVaultRow";
+import TabShellFallback from "./TabShellFallback";
 import {
   StockVaultRowBubblePortal,
   type StockVaultRowBubbleActions,
@@ -1809,7 +1810,7 @@ export default function StockVaultTab({
 
         {(loading && displayItems.length === 0 && !isHistoricalView) ||
         (isHistoricalView && snapshotLoading) ? (
-          <p className="stock-vault-tab__muted">{ko.stockVault.loading}</p>
+          <TabShellFallback variant="body" rows={8} />
         ) : error ? (
           <p className="stock-vault-tab__error" role="alert">
             {error}
@@ -1829,7 +1830,7 @@ export default function StockVaultTab({
             </p>
           )
         ) : !listPaintReady ? (
-          <p className="stock-vault-tab__muted">{ko.stockVault.loading}</p>
+          <TabShellFallback variant="body" rows={8} />
         ) : (
           <>
           <ul className="stock-vault-tab__list">

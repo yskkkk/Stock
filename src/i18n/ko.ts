@@ -79,6 +79,7 @@ export const ko = {
     tabBoxRange: "박스권",
     tabFinancials: "재무",
     tabInfoBoard: "정보 게시판",
+    tabShellLoadingHint: "화면 준비 중 · 데이터는 도착하는 대로 채웁니다",
     tabStockVault: "종목보관",
     tabInvestorFlow: "국내 수급",
     tabSp500Sector: "S&P",

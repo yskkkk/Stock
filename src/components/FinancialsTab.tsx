@@ -32,6 +32,7 @@ import type {
 } from "../types";
 import BuffettIntrinsicPanel from "./BuffettIntrinsicPanel";
 import StockSearchHotRow, { rowToStockPick } from "./StockSearchHotRow";
+import TabShellFallback from "./TabShellFallback";
 import "../financials-tab.css";
 
 const HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
@@ -643,7 +644,7 @@ export default function FinancialsTab({
           {!selected ? (
             <p className="financials-tab__muted financials-tab__idle">{ko.financials.idle}</p>
           ) : periodsLoading && periods.length === 0 ? (
-            <p className="financials-tab__muted">{ko.financials.loading}</p>
+            <TabShellFallback variant="body" rows={6} />
           ) : (
             <div className="financials-tab__detail-inner">
               <header className="financials-tab__head">

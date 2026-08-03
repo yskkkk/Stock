@@ -23,6 +23,7 @@ import InvestorFlowHoldBubble, {
   positionInvestorFlowHoldBubble,
   type InvestorFlowHoldBubbleState,
 } from "./InvestorFlowHoldBubble";
+import TabShellFallback from "./TabShellFallback";
 
 type RankKey = "foreign" | "institution" | "individual";
 type FlowDir = "buy" | "sell";
@@ -705,7 +706,7 @@ export default function InvestorFlowTab() {
       ) : null}
 
       {loading && !data?.items?.length ? (
-        <p className="investor-flow-tab__muted">{ko.investorFlow.loading}</p>
+        <TabShellFallback variant="body" rows={10} />
       ) : rows.length === 0 ? (
         <p className="investor-flow-tab__muted">{ko.investorFlow.empty}</p>
       ) : viewMode === "sector" ? (

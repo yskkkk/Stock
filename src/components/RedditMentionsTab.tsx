@@ -6,7 +6,7 @@ import {
   getRedditMentionsMemory,
   prefetchRedditMentions,
 } from "../lib/prefetchRedditMentions";
-import DockPanelCenterLoading from "./DockPanelCenterLoading";
+import TabShellFallback from "./TabShellFallback";
 import "./reddit-mentions-tab.css";
 
 type Props = {
@@ -135,7 +135,7 @@ export default function RedditMentionsTab({ onOpenSymbol }: Props) {
       ) : null}
 
       {showInitialLoading ? (
-        <DockPanelCenterLoading label={ko.app.redditMentionsLoading} />
+        <TabShellFallback variant="body" rows={10} />
       ) : error && rows.length === 0 ? (
         <p className="reddit-mentions-tab__empty" role="alert">
           {error}

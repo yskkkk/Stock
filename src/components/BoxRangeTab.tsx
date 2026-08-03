@@ -18,7 +18,7 @@ import { coerceBoxUnixTime } from "../lib/boxRangeChartPrimitive";
 import { cryptoCoinIconUrl, cryptoIconSlug } from "../lib/cryptoCoinIcon";
 import { krStockLogoUrl, usStockLogoUrl } from "../lib/stockLogoUrl";
 import { ko } from "../i18n/ko";
-import DockPanelCenterLoading from "./DockPanelCenterLoading";
+import TabShellFallback from "./TabShellFallback";
 import LiveTradeAuthPanel, {
   useLiveTradeAuth,
 } from "./LiveTradeAuthAndCredentials";
@@ -546,7 +546,11 @@ export default function BoxRangeTab() {
   if (!authChecked) {
     return (
       <div className="workspace box-range-tab">
-        <DockPanelCenterLoading label={ko.app.marketIndicesLoading} />
+        <TabShellFallback
+          title={ko.app.tabBoxRange}
+          subtitle={ko.app.boxRangeTabLogin}
+          rows={6}
+        />
       </div>
     );
   }
@@ -659,7 +663,7 @@ export default function BoxRangeTab() {
             />
           </label>
           {!index ? (
-            <DockPanelCenterLoading label={ko.app.boxRangeCatalogLoading} />
+            <TabShellFallback variant="body" rows={8} />
           ) : logoRows.length === 0 ? (
             <p className="box-range-tab__empty">{ko.app.boxRangeTabNoSymbols}</p>
           ) : (
@@ -697,7 +701,7 @@ export default function BoxRangeTab() {
           {!selected ? (
             null
           ) : !detail ? (
-            <DockPanelCenterLoading label={ko.app.boxRangeCatalogLoading} />
+            <TabShellFallback variant="body" rows={6} />
           ) : (
             <>
               {nativeUi ? (

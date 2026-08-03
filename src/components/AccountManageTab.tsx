@@ -76,7 +76,7 @@ import TossAccountSnapshotCard from "./TossAccountSnapshotCard";
 import BithumbAccountSnapshotCard from "./BithumbAccountSnapshotCard";
 import AccountRebalanceScheduleModal from "./AccountRebalanceScheduleModal";
 import RebalanceSpendSummaryList from "./RebalanceSpendSummaryList";
-import DockPanelCenterLoading from "./DockPanelCenterLoading";
+import TabShellFallback from "./TabShellFallback";
 import AccountCurrencySlideToggle from "./AccountCurrencySlideToggle";
 import type { LiveTradeTradesExchange } from "../lib/liveTradeTradesWorkspace";
 import { syncTossPurchaseFxLedger } from "../lib/tossPurchaseFxLedger";
@@ -1425,7 +1425,11 @@ export default function AccountManageTab({
         aria-label={ko.app.accountManageAria}
         data-vu="account-manage-loading"
       >
-        <DockPanelCenterLoading label={ko.app.accountManageLoading} />
+        <TabShellFallback
+          title={ko.app.accountManageTitle}
+          subtitle={ko.app.accountManageSubtitle}
+          rows={6}
+        />
       </div>
     );
   }
@@ -1518,7 +1522,7 @@ export default function AccountManageTab({
 
       {!canShowAccount ? (
         statusPending || loading ? (
-          <DockPanelCenterLoading label={ko.app.accountManageLoading} />
+          <TabShellFallback variant="body" rows={6} />
         ) : (
           <LiveTradeApiNotConnectedNotice exchange={provider} />
         )
@@ -2030,7 +2034,7 @@ export default function AccountManageTab({
           </div>
 
           {summaryPending ? (
-            <DockPanelCenterLoading label={ko.app.accountManageLoading} />
+            <TabShellFallback variant="body" rows={6} />
           ) : err ? (
             <p className="account-manage-tab__error" role="alert">
               {err}

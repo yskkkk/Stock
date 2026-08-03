@@ -15,7 +15,7 @@ import {
 } from "../api";
 import { ko } from "../i18n/ko";
 import type { StockPick } from "../types";
-import DockPanelCenterLoading from "./DockPanelCenterLoading";
+import TabShellFallback from "./TabShellFallback";
 import "./nasdaq-etf-tab.css";
 
 function formatUsd(n: number | null | undefined): string {
@@ -245,7 +245,7 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
         ) : null}
 
         {holdingsLoading ? (
-          <DockPanelCenterLoading label={ko.app.nasdaqEtfHoldingsLoading} />
+          <TabShellFallback variant="body" rows={6} />
         ) : holdingsError ? (
           <p className="nasdaq-etf-tab__empty" role="alert">
             {holdingsError}
@@ -475,7 +475,7 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
       </div>
 
       {loading && rows.length === 0 ? (
-        <DockPanelCenterLoading label={ko.app.nasdaqEtfLoading} />
+        <TabShellFallback variant="body" rows={10} />
       ) : error && rows.length === 0 ? (
         <p className="nasdaq-etf-tab__empty" role="alert">
           {error}
@@ -483,7 +483,7 @@ export default function NasdaqEtfTab({ onOpenSymbol }: Props) {
       ) : filtered.length === 0 && !building ? (
         <p className="nasdaq-etf-tab__empty">{ko.app.nasdaqEtfEmpty}</p>
       ) : filtered.length === 0 && building ? (
-        <DockPanelCenterLoading label={ko.app.nasdaqEtfBuilding} />
+        <TabShellFallback variant="body" rows={8} />
       ) : (
         <div className="nasdaq-etf-tab__table-wrap card">
           <table className="nasdaq-etf-tab__table">
