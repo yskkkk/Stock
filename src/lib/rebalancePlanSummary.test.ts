@@ -5,6 +5,7 @@ import {
   buildRebalancePreviewRunSummaryLead,
   buildRebalancePreviewSubLabel,
   buildRebalanceRunSummaryLead,
+  buildRebalanceSharedSpendLead,
   buildRebalanceSpendLines,
   buildRebalanceSpendSummary,
   buildRebalanceSpendSummaryInline,
@@ -176,21 +177,38 @@ describe("rebalancePlanSummary", () => {
     expect(bare).not.toContain("돈이 나갑니다");
   });
 
+  it("uses bare role label when spend summary block already shows amountNote", () => {
+    expect(
+      buildRebalanceNowRunSubLabel(null, {
+        repeatSummary: false,
+        skipAmountNote: true,
+      }),
+    ).toBe("돈이 나갑니다");
+    expect(
+      buildRebalancePreviewSubLabel(null, {
+        repeatSummary: false,
+        skipAmountNote: true,
+      }),
+    ).toBe("주문 없음");
+  });
+
   it("builds run summary lead with shared amount note", () => {
     const line = buildRebalanceRunSummaryLead();
     expect(line).toContain("수수료·세금 미포함");
-    expect(line).toContain("미리보기와 동일");
+    expect(line).toContain("미리보기·즉시 매수 동일");
   });
 
-  it("builds shared spend summary lead for compact toolbar", () => {
+  it("builds shared spend summary lead for compact toolbar and modal", () => {
     const line = buildRebalanceSpendSummaryLead();
     expect(line).toContain("수수료·세금 미포함");
-    expect(line).toContain("시장별 사용 금액");
+    expect(line).toContain("미리보기·즉시 매수 동일");
+    expect(line).toBe(buildRebalanceSharedSpendLead());
   });
 
-  it("builds preview run summary lead matching modal preview block", () => {
-    const line = buildRebalancePreviewRunSummaryLead();
-    expect(line).toContain("수수료·세금 미포함");
-    expect(line).toContain("미리보기 금액");
+  it("builds preview run summary lead matching buy-now footer", () => {
+    const preview = buildRebalancePreviewRunSummaryLead();
+    const buyNow = buildRebalanceRunSummaryLead();
+    expect(preview).toBe(buyNow);
+    expect(preview).toContain("미리보기·즉시 매수 동일");
   });
 });

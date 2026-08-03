@@ -92,26 +92,29 @@ export function summarizeRebalancePlanTotals(
   return buildRebalanceSpendSummary(plans, enabledMarkets);
 }
 
-/** 미리보기·compact 툴바 공통 — 시장별 금액 목록 위 lead */
+/** 미리보기·즉시 매수 spend 목록 위 공통 lead (통화·수수료 동일 포맷) */
+export function buildRebalanceSharedSpendLead(): string {
+  return withRebalanceAmountNote(ko.app.accountManageRebalanceSharedSpendLead);
+}
+
+/** @deprecated buildRebalanceSharedSpendLead — compact 툴바·모달 공통 */
 export function buildRebalanceSpendSummaryLead(): string {
-  return withRebalanceAmountNote(ko.app.accountManageRebalanceSpendSummaryLead);
+  return buildRebalanceSharedSpendLead();
 }
 
-/** 모달 미리보기 섹션 — spend 목록 위 lead (즉시매수 foot lead와 쌍) */
+/** @deprecated buildRebalanceSharedSpendLead — 모달 미리보기 섹션 */
 export function buildRebalancePreviewRunSummaryLead(): string {
-  return withRebalanceAmountNote(
-    ko.app.accountManageRebalancePreviewRunSummaryLead,
-  );
+  return buildRebalanceSharedSpendLead();
 }
 
-/** 실행 버튼 위 안내 — 시장별 금액은 buildRebalanceSpendLines로 분리 표시 */
+/** @deprecated buildRebalanceSharedSpendLead — 즉시 매수 foot */
 export function buildRebalanceRunSummaryLead(): string {
-  return withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSummaryLead);
+  return buildRebalanceSharedSpendLead();
 }
 
-/** 미리보기 푸터·공통 합계 블록 — amountNote를 즉시매수와 동일 포맷으로 */
+/** @deprecated buildRebalanceSharedSpendLead */
 export function buildRebalancePreviewSummaryLead(): string {
-  return withRebalanceAmountNote(ko.app.accountManageRebalancePreviewRunSummaryLead);
+  return buildRebalanceSharedSpendLead();
 }
 
 export function buildRebalanceNowConfirmMessage(
@@ -131,11 +134,20 @@ export function buildRebalanceNowConfirmMessage(
   );
 }
 
+type RebalanceSubLabelOpts = {
+  repeatSummary?: boolean;
+  /** spend 합계 블록에 amountNote가 이미 있으면 버튼 부제는 역할만 */
+  skipAmountNote?: boolean;
+};
+
 /** 실행 버튼 부제 — 미리보기 합계·amountNote를 동일 포맷으로 (합계는 별도 줄이 있으면 생략) */
 export function buildRebalanceNowRunSubLabel(
   summary?: string | null,
-  opts?: { repeatSummary?: boolean },
+  opts?: RebalanceSubLabelOpts,
 ): string {
+  if (opts?.skipAmountNote) {
+    return ko.app.accountManageRebalanceNowRunSubBare;
+  }
   if (summary && opts?.repeatSummary !== false) {
     return withRebalanceAmountNote(ko.app.accountManageRebalanceNowRunSubAmount, {
       summary,
@@ -150,8 +162,11 @@ export function buildRebalanceNowRunSubLabel(
  */
 export function buildRebalancePreviewSubLabel(
   summary?: string | null,
-  opts?: { repeatSummary?: boolean },
+  opts?: RebalanceSubLabelOpts,
 ): string {
+  if (opts?.skipAmountNote) {
+    return ko.app.accountManageRebalancePreviewSubBare;
+  }
   const s = typeof summary === "string" ? summary.trim() : "";
   if (s && opts?.repeatSummary !== false) {
     return withRebalanceAmountNote(
