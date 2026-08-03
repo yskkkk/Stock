@@ -778,6 +778,17 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   .account-manage-tab__summary-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .account-manage-tab__cash-group {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
+
+  .account-manage-tab__stat--cash .account-manage-tab__stat-value {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
 }
 
 .account-manage-tab__summary-row > .account-manage-tab__summary--primary,
@@ -897,10 +908,16 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
 }
 
 .account-manage-tab__cash-group {
-  display: contents;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  grid-column: span 2;
+  align-self: stretch;
+  min-width: 0;
 }
 
 .account-manage-tab__cash-group-hint {
+  grid-column: 1 / -1;
   margin: 0;
   font-size: 0.68rem;
   font-weight: 600;

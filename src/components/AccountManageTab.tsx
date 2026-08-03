@@ -1945,6 +1945,12 @@ export default function AccountManageTab({
                       ) : null}
                     </span>
                   </div>
+                  <p
+                    className="account-manage-tab__cash-group-hint"
+                    id="account-summary-cash-hint"
+                  >
+                    {ko.app.accountManageCashSplitHint}
+                  </p>
                 </div>
               ) : (
                 <div className="account-manage-tab__stat">
@@ -2760,9 +2766,32 @@ export default function AccountManageTab({
                                       "{amount}",
                                       money(need),
                                     )
-                                  : ko.app.accountManageStyleTargetCashShort
-                                      .replace("{amount}", money(need - cashKrw))
-                                      .replace("{cash}", moneyCash(cashKrw))}
+                                  : provider === "toss"
+                                    ? ko.app.accountManageStyleTargetCashShortSplit
+                                        .replace("{amount}", money(need - cashKrw))
+                                        .replace(
+                                          "{krw}",
+                                          formatPrice(
+                                            applyRoundTripFeeToAmount(
+                                              cashNativeKrw,
+                                              "KRW",
+                                            ),
+                                            "KRW",
+                                          ),
+                                        )
+                                        .replace(
+                                          "{usd}",
+                                          formatPrice(
+                                            applyRoundTripFeeToAmount(
+                                              cashNativeUsd,
+                                              "USD",
+                                            ),
+                                            "USD",
+                                          ),
+                                        )
+                                    : ko.app.accountManageStyleTargetCashShort
+                                        .replace("{amount}", money(need - cashKrw))
+                                        .replace("{cash}", moneyCash(cashKrw))}
                               </p>
                             ) : null}
                           </>

@@ -201,6 +201,8 @@ export const ko = {
       "목표 비중(전량)에는 매수만으로 맞출 수 없습니다. 반대 슬리브 축소가 필요합니다.",
     accountManageStyleTargetCashCover: "보유 현금으로 충당 가능 {amount}",
     accountManageStyleTargetCashShort: "현금 부족 {amount} (보유 {cash})",
+    accountManageStyleTargetCashShortSplit:
+      "현금 부족 {amount} (원화 {krw} · 달러 {usd})",
     accountManageStyleTargetPresetAria: "목표 비중 빠른 설정 {ratio}",
     accountManageTabChart: "원형 차트",
     accountManageTabList: "보유 목록",
