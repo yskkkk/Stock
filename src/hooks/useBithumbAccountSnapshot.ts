@@ -47,11 +47,9 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
 
   const reload = useCallback(
     async (refresh = false, silent = false) => {
-      if (!silent) {
-        syncingRef.current += 1;
-        setSyncing(true);
-        if (!snapshotRef.current) setLoading(true);
-      }
+      syncingRef.current += 1;
+      setSyncing(true);
+      if (!silent && !snapshotRef.current) setLoading(true);
       try {
         const me = await fetchAuthMe();
         setUser(me.user);
@@ -69,12 +67,10 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
         setUpdatedAtMs(null);
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
-        if (!silent) {
-          syncingRef.current = Math.max(0, syncingRef.current - 1);
-          setSyncing(syncingRef.current > 0);
-          setLoading(false);
-        }
+        syncingRef.current = Math.max(0, syncingRef.current - 1);
+        setSyncing(syncingRef.current > 0);
         setAuthChecked(true);
+        if (!silent) setLoading(false);
       }
     },
     [applySnapshotResponse],

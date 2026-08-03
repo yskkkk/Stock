@@ -11839,9 +11839,10 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   box-sizing: border-box;
 }
 
-.dock-linked-accounts__freshness {
+.panel-freshness {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.35rem;
   margin: 0;
   font-size: 0.72rem;
@@ -11849,6 +11850,7 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   color: var(--muted);
 }
 
+.panel-freshness__spinner,
 .dock-linked-accounts__freshness-spinner {
   display: inline-block;
   box-sizing: border-box;
@@ -11861,6 +11863,7 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   flex: none;
 }
 
+.panel-freshness__stale-hint,
 .dock-linked-accounts__stale-hint {
   margin: 0;
   padding: 0.35rem 0.5rem;
@@ -11869,6 +11872,14 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
   color: var(--warn, #d97706);
   background: color-mix(in srgb, var(--warn, #d97706) 8%, transparent);
   border-radius: 4px;
+}
+
+.bithumb-account-rail-wrap__freshness {
+  margin: 0 0 0.35rem;
+}
+
+.bithumb-account-rail-wrap__stale-hint {
+  margin: 0 0 0.35rem;
 }
 
 .dock-linked-accounts__block {

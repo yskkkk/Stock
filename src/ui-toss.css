@@ -5231,6 +5231,26 @@ html[data-theme="light"] .live-trading-tab__program-actions .btn:hover:not(:disa
   border-bottom: 1px solid var(--border, rgba(15, 23, 42, 0.08));
 }
 
+.trade-history-main-workspace__freshness {
+  margin-top: 0.35rem;
+}
+
+.trade-history-main-workspace__stale-hint {
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 900px) {
+  .trade-history-main-workspace__freshness {
+    font-size: 0.7rem;
+    line-height: 1.4;
+  }
+
+  .bithumb-account-rail-wrap__freshness {
+    font-size: 0.68rem;
+    line-height: 1.4;
+  }
+}
+
 .trade-history-main-workspace__subhead {
   padding: 0.65rem 0 0;
   margin: 0.15rem 0 0;

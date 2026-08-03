@@ -19,16 +19,19 @@ vi.mock("../hooks/useBithumbAccountSnapshot", () => ({
     feeLabelKo: null,
     updatedAtMs: null,
     loading: false,
+    syncing: false,
     err: null,
   })),
 }));
 
 vi.mock("../hooks/useTossAccountSnapshot", () => ({
+  TOSS_LEDGER_POLL_MS: 5000,
   useTossAccountSnapshot: vi.fn(() => ({
     snapshot: null,
     feeLabelKo: null,
     updatedAtMs: null,
     loading: false,
+    syncing: false,
     err: null,
   })),
 }));

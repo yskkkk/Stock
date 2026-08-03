@@ -201,10 +201,8 @@ export function useTossAccountSnapshot(opts?: {
     async (refresh = false, silent = false) => {
       const uid = userRef.current?.id ?? null;
       const hasLocal = Boolean(uid && readTossSnapshotCache(uid));
-      if (!silent) {
-        syncingRef.current += 1;
-        setSyncing(true);
-      }
+      syncingRef.current += 1;
+      setSyncing(true);
       if (!silent && !hasLocal && !snapshotRef.current) setLoading(true);
       try {
         let meUser = userRef.current;
@@ -268,10 +266,8 @@ export function useTossAccountSnapshot(opts?: {
           setUpdatedAtMs(null);
         }
       } finally {
-        if (!silent) {
-          syncingRef.current = Math.max(0, syncingRef.current - 1);
-          setSyncing(syncingRef.current > 0);
-        }
+        syncingRef.current = Math.max(0, syncingRef.current - 1);
+        setSyncing(syncingRef.current > 0);
         setAuthChecked(true);
         if (!silent) setLoading(false);
       }

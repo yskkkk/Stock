@@ -25,6 +25,7 @@ import { useLiveExchangeTrades } from "../hooks/useLiveExchangeTrades";
 import { useUsdKrwRate } from "../hooks/useUsdKrwRate";
 import { exchangeAccountPnlSummary } from "../lib/exchangeAccountPnlSummary";
 import LiveAccountPnlSummaryBar from "./LiveAccountPnlSummaryBar";
+import AccountSnapshotFreshness from "./AccountSnapshotFreshness";
 
 export default function LiveAccountTradesMainPanel({
   scenario,
@@ -55,6 +56,8 @@ export default function LiveAccountTradesMainPanel({
   const {
     snapshot: tossSnapshot,
     loading: tossSnapshotLoading,
+    syncing: tossSnapshotSyncing,
+    updatedAtMs: tossUpdatedAtMs,
     err: tossSnapshotErr,
   } = useTossAccountSnapshot({
     poll: scenario === "live-toss" && apiReady,
@@ -152,6 +155,13 @@ export default function LiveAccountTradesMainPanel({
   const holdingsLoading =
     scenario === "live-toss" ? tossSnapshotLoading && !tossSnapshot : pfLoading && !portfolio;
   const holdingsErr = scenario === "live-toss" ? tossSnapshotErr : pfErr;
+  const panelSyncing =
+    scenario === "live-toss" ? tossSnapshotSyncing : pfLoading && Boolean(portfolio);
+  const panelUpdatedAtMs = scenario === "live-toss" ? tossUpdatedAtMs : null;
+  const hasHoldingsData =
+    scenario === "live-toss" ? Boolean(tossSnapshot) : Boolean(portfolio);
+  const panelStaleErr =
+    scenario === "live-toss" && tossSnapshot && tossSnapshotErr ? tossSnapshotErr : null;
 
   return (
     <div className="trade-history-main-workspace card">
@@ -165,6 +175,16 @@ export default function LiveAccountTradesMainPanel({
               {title} · {ko.app.liveTradeDockAccountTabBalance}
             </h2>
           </div>
+          {hasHoldingsData ? (
+            <AccountSnapshotFreshness
+              syncing={panelSyncing}
+              updatedAtMs={panelUpdatedAtMs}
+              err={panelStaleErr}
+              hasData={hasHoldingsData}
+              className="trade-history-main-workspace__freshness panel-freshness"
+              staleHintClassName="trade-history-main-workspace__stale-hint panel-freshness__stale-hint"
+            />
+          ) : null}
         </header>
       ) : null}
 
