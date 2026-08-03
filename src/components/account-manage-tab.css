@@ -783,12 +783,25 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
 
 @media (max-width: 900px) {
   .account-manage-tab__summary-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
+  }
+
+  .account-manage-tab__stat--trio {
+    grid-column: 1 / -1;
+    order: 0;
+  }
+
+  .account-manage-tab__stat--holdings {
+    grid-column: 1 / -1;
+    order: 2;
   }
 
   .account-manage-tab__cash-group {
+    display: grid;
     grid-column: 1 / -1;
     grid-template-columns: 1fr;
+    order: 1;
+    gap: 0.45rem;
   }
 
   .account-manage-tab__stat--cash .account-manage-tab__stat-value {
@@ -914,13 +927,9 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
   color: color-mix(in srgb, var(--text, inherit) 72%, var(--muted));
 }
 
+/* PC: 원화·달러 현금을 요약 그리드의 각각 별도 칸으로 펼침(한 칸 합산 방지) */
 .account-manage-tab__cash-group {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-  grid-column: span 2;
-  align-self: stretch;
-  min-width: 0;
+  display: contents;
 }
 
 .account-manage-tab__cash-group-hint {
@@ -2544,8 +2553,9 @@ html[data-theme="light"] .account-manage-tab__bubble-sym-pnl.is-down {
   }
 
   .account-manage-tab__stat--cash {
-    min-height: 3.35rem;
-    padding: 0.4rem 0.55rem;
+    min-height: 44px;
+    padding: 0.62rem 0.75rem;
+    touch-action: manipulation;
   }
 
   .account-manage-tab__stat--cash .account-manage-tab__stat-value {

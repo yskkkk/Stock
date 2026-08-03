@@ -1822,6 +1822,7 @@ export default function AccountManageTab({
                   <div
                     className="account-manage-tab__stat account-manage-tab__stat--cash account-manage-tab__stat--cash-krw"
                     role="group"
+                    aria-describedby="account-summary-cash-hint"
                     aria-label={accountCashStatAria(
                       ko.app.accountManageCashKrw,
                       formatPrice(
@@ -1867,6 +1868,7 @@ export default function AccountManageTab({
                   <div
                     className="account-manage-tab__stat account-manage-tab__stat--cash account-manage-tab__stat--cash-usd"
                     role="group"
+                    aria-describedby="account-summary-cash-hint"
                     aria-label={accountCashStatAria(
                       ko.app.accountManageCashUsd,
                       formatPrice(
