@@ -15,6 +15,20 @@ export function normalizeRoundTripFeeRate(rate: number): number {
   return r;
 }
 
+/** 표시용 — 왕복 수수료(기본 0.2%)를 뺀 금액 */
+export function applyRoundTripFeeToAmount(
+  amount: number,
+  currency: "KRW" | "USD" = "KRW",
+  roundTripFeeRate: number = TOSS_FIXED_ROUND_TRIP_FEE_RATE,
+): number {
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const fee = normalizeRoundTripFeeRate(roundTripFeeRate);
+  const net = n * (1 - fee);
+  if (!Number.isFinite(net) || net < 0) return 0;
+  return currency === "USD" ? Math.round(net * 100) / 100 : Math.round(net);
+}
+
 export function grossReturnPct(entry: number, current: number): number {
   return ((current - entry) / entry) * 100;
 }

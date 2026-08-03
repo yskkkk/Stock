@@ -39,6 +39,7 @@ import {
   tossHoldingsTotalNetMarketValueKrw,
 } from "../lib/tossHoldingPnl";
 import { formatPercent, formatPrice, formatSignedMoney, formatTimeMsKst, formatUpdatedAt } from "../lib/format";
+import { applyRoundTripFeeToAmount } from "../lib/netReturn";
 import {
   buildRebalanceNowConfirmMessage,
   buildRebalanceNowRunSubLabel,
@@ -323,6 +324,19 @@ export default function AccountManageTab({
   const money = useCallback(
     (n: number | null | undefined) =>
       formatAccountMoney(n, displayCurrency, usdKrwRate),
+    [displayCurrency, usdKrwRate],
+  );
+
+  /** 현금 잔고 표시 — 왕복 0.2% 수수료 반영 */
+  const moneyCash = useCallback(
+    (n: number | null | undefined) => {
+      const v = krwToDisplay(n, displayCurrency, usdKrwRate);
+      if (v == null) return "?";
+      return formatPrice(
+        applyRoundTripFeeToAmount(v, displayCurrency),
+        displayCurrency,
+      );
+    },
     [displayCurrency, usdKrwRate],
   );
   const signedMoney = useCallback(
@@ -1734,7 +1748,10 @@ export default function AccountManageTab({
                   >
                     {summaryPending
                       ? "…"
-                      : money((holdingsTotalKrw ?? 0) + cashKrw)}
+                      : money(
+                          (holdingsTotalKrw ?? 0) +
+                            applyRoundTripFeeToAmount(cashKrw, "KRW"),
+                        )}
                   </span>
                 </div>
               </div>
@@ -1803,7 +1820,10 @@ export default function AccountManageTab({
                     role="group"
                     aria-label={accountCashStatAria(
                       ko.app.accountManageCashKrw,
-                      formatPrice(cashNativeKrw, "KRW"),
+                      formatPrice(
+                        applyRoundTripFeeToAmount(cashNativeKrw, "KRW"),
+                        "KRW",
+                      ),
                       balanceHidden,
                       summaryPending,
                       !summaryPending && cashKrwWeightPct != null
@@ -1825,7 +1845,10 @@ export default function AccountManageTab({
                       <span className="account-manage-tab__money">
                         {summaryPending
                           ? "…"
-                          : formatPrice(cashNativeKrw, "KRW")}
+                          : formatPrice(
+                              applyRoundTripFeeToAmount(cashNativeKrw, "KRW"),
+                              "KRW",
+                            )}
                       </span>
                       {!summaryPending && cashKrwWeightPct != null ? (
                         <span className="account-manage-tab__stat-sub">
@@ -1842,7 +1865,10 @@ export default function AccountManageTab({
                     role="group"
                     aria-label={accountCashStatAria(
                       ko.app.accountManageCashUsd,
-                      formatPrice(cashNativeUsd, "USD"),
+                      formatPrice(
+                        applyRoundTripFeeToAmount(cashNativeUsd, "USD"),
+                        "USD",
+                      ),
                       balanceHidden,
                       summaryPending,
                       [
@@ -1853,7 +1879,10 @@ export default function AccountManageTab({
                           ? ko.app.accountManageCashUsdKrwHint.replace(
                               "{amount}",
                               formatPrice(
-                                Math.round(cashNativeUsd * usdKrwRate),
+                                applyRoundTripFeeToAmount(
+                                  Math.round(cashNativeUsd * usdKrwRate),
+                                  "KRW",
+                                ),
                                 "KRW",
                               ),
                             )
@@ -1880,7 +1909,10 @@ export default function AccountManageTab({
                       <span className="account-manage-tab__money">
                         {summaryPending
                           ? "…"
-                          : formatPrice(cashNativeUsd, "USD")}
+                          : formatPrice(
+                              applyRoundTripFeeToAmount(cashNativeUsd, "USD"),
+                              "USD",
+                            )}
                       </span>
                       {!summaryPending && cashUsdWeightPct != null ? (
                         <span className="account-manage-tab__stat-sub">
@@ -1898,7 +1930,10 @@ export default function AccountManageTab({
                           {ko.app.accountManageCashUsdKrwHint.replace(
                             "{amount}",
                             formatPrice(
-                              Math.round(cashNativeUsd * usdKrwRate),
+                              applyRoundTripFeeToAmount(
+                                Math.round(cashNativeUsd * usdKrwRate),
+                                "KRW",
+                              ),
                               "KRW",
                             ),
                           )}
@@ -1917,7 +1952,7 @@ export default function AccountManageTab({
                       className="account-manage-tab__money"
                       aria-hidden={balanceHidden || undefined}
                     >
-                      {summaryPending ? "…" : money(cashKrw)}
+                      {summaryPending ? "…" : moneyCash(cashKrw)}
                     </span>
                     {!summaryPending && cashTotalWeightPct != null ? (
                       <span className="account-manage-tab__stat-sub">
@@ -2723,7 +2758,7 @@ export default function AccountManageTab({
                                     )
                                   : ko.app.accountManageStyleTargetCashShort
                                       .replace("{amount}", money(need - cashKrw))
-                                      .replace("{cash}", money(cashKrw))}
+                                      .replace("{cash}", moneyCash(cashKrw))}
                               </p>
                             ) : null}
                           </>
@@ -2765,13 +2800,19 @@ export default function AccountManageTab({
                         <span>
                           {ko.app.accountManageCashKrw}{" "}
                           <span className="account-manage-tab__money">
-                            {formatPrice(cashNativeKrw, "KRW")}
+                            {formatPrice(
+                              applyRoundTripFeeToAmount(cashNativeKrw, "KRW"),
+                              "KRW",
+                            )}
                           </span>
                         </span>
                         <span>
                           {ko.app.accountManageCashUsd}{" "}
                           <span className="account-manage-tab__money">
-                            {formatPrice(cashNativeUsd, "USD")}
+                            {formatPrice(
+                              applyRoundTripFeeToAmount(cashNativeUsd, "USD"),
+                              "USD",
+                            )}
                           </span>
                         </span>
                       </span>
@@ -2780,7 +2821,7 @@ export default function AccountManageTab({
                         className="account-manage-tab__money"
                         aria-hidden={balanceHidden || undefined}
                       >
-                        {money(cashKrw)}
+                        {moneyCash(cashKrw)}
                       </span>
                     )
                   ) : (
@@ -3302,7 +3343,10 @@ export default function AccountManageTab({
                             className="account-manage-tab__money"
                             aria-hidden={balanceHidden || undefined}
                           >
-                            {formatPrice(cashNativeKrw, "KRW")}
+                            {formatPrice(
+                              applyRoundTripFeeToAmount(cashNativeKrw, "KRW"),
+                              "KRW",
+                            )}
                           </span>
                         </li>
                         <li>
@@ -3311,7 +3355,10 @@ export default function AccountManageTab({
                             className="account-manage-tab__money"
                             aria-hidden={balanceHidden || undefined}
                           >
-                            {formatPrice(cashNativeUsd, "USD")}
+                            {formatPrice(
+                              applyRoundTripFeeToAmount(cashNativeUsd, "USD"),
+                              "USD",
+                            )}
                           </span>
                         </li>
                       </>
@@ -3322,7 +3369,7 @@ export default function AccountManageTab({
                           className="account-manage-tab__money"
                           aria-hidden={balanceHidden || undefined}
                         >
-                          {money(cashKrw)}
+                          {moneyCash(cashKrw)}
                         </span>
                       </li>
                     )}

@@ -154,9 +154,9 @@ export const ko = {
     accountManageLoading: "계좌 정보를 불러오는 중…",
     accountManageEmpty: "표시할 보유·잔고가 없습니다.",
     accountManageChartTitle: "보유 비중",
-    accountManageChartBasis: "평가금액 기준",
+    accountManageChartBasis: "평가금액 기준 · 왕복 0.2% 수수료 반영",
     accountManageStyleChartTitle: "성장·가치·현금",
-    accountManageStyleChartSub: "성장주 · 가치·방어주 · 현금 — 평가금액 기준 3분할",
+    accountManageStyleChartSub: "성장주 · 가치·방어주 · 현금 — 평가금액·왕복 0.2% 수수료 반영",
     accountManageStyleGrowth: "성장주",
     accountManageStyleValue: "가치·방어주",
     accountManageStyleCashSplit: "현금(원·$)",
@@ -265,7 +265,7 @@ export const ko = {
     accountManageRebalancePreviewZoneLabel: "미리보기 · 주문 없음",
     accountManageRebalanceRealOrderZoneLabel: "실제 매수 · 정규장만",
     accountManageRebalanceAmountNote:
-      "수수료·세금 미포함 · 시장별 원통화(국내 원·미국 $)",
+      "왕복 0.2% 수수료 반영 · 시장별 원통화(국내 원·미국 $)",
     accountManageRebalanceNowRunSub: "{amountNote} · 돈이 나갑니다",
     accountManageRebalanceNowRunSubAmount:
       "{summary} · {amountNote} · 돈이 나갑니다",

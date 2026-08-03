@@ -1,13 +1,22 @@
 import type { TossRebalanceBuyPlan } from "../api";
 import { ko } from "../i18n/ko";
 import { formatPrice } from "./format";
+import { applyRoundTripFeeToAmount } from "./netReturn";
 
-/** 리밸런스 미리보기·즉시 매수 공통 금액 표기 (시장별 원통화) */
+/** @deprecated applyRoundTripFeeToAmount — 리밸런스 표시용 별칭 */
+export function applyRebalanceDisplayFee(
+  amount: number,
+  currency: "KRW" | "USD",
+): number {
+  return applyRoundTripFeeToAmount(amount, currency);
+}
+
+/** 리밸런스 미리보기·즉시 매수 공통 금액 표기 (시장별 원통화 · 수수료 반영) */
 export function formatRebalanceMoney(
   amount: number,
   currency: "KRW" | "USD",
 ): string {
-  return formatPrice(amount, currency);
+  return formatPrice(applyRoundTripFeeToAmount(amount, currency), currency);
 }
 
 export function rebalanceCashLabel(currency: "KRW" | "USD"): string {

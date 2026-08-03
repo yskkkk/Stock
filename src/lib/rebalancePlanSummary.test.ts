@@ -15,9 +15,9 @@ import {
 } from "./rebalancePlanSummary";
 
 describe("rebalancePlanSummary", () => {
-  it("formats native currency per market", () => {
-    expect(formatRebalanceMoney(1200, "KRW")).toBe("1,200원");
-    expect(formatRebalanceMoney(12.5, "USD")).toBe("12.50$");
+  it("formats native currency per market after 0.2% fee", () => {
+    expect(formatRebalanceMoney(1200, "KRW")).toBe("1,198원");
+    expect(formatRebalanceMoney(12.5, "USD")).toBe("12.48$");
   });
 
   it("summarizes cashToSpend in preview format (not order sum)", () => {
@@ -64,7 +64,7 @@ describe("rebalancePlanSummary", () => {
       ["kr", "us"],
     );
     expect(summary).toBe(
-      "원화 현금 이번 사용 50,000원\n달러 현금 이번 사용 50.00$",
+      "원화 현금 이번 사용 49,900원\n달러 현금 이번 사용 49.90$",
     );
   });
 
@@ -114,15 +114,15 @@ describe("rebalancePlanSummary", () => {
       ],
       ["kr"],
     );
-    expect(msg).toContain("원화 현금 이번 사용 10,000원");
-    expect(msg).toContain("수수료·세금 미포함");
+    expect(msg).toContain("원화 현금 이번 사용 9,980원");
+    expect(msg).toContain("왕복 0.2% 수수료 반영");
     expect(msg).toContain("미리보기와 동일하게");
   });
 
   it("substitutes amount note in templates", () => {
     expect(
       withRebalanceAmountNote("실주문 · {amountNote}"),
-    ).toContain("수수료·세금 미포함");
+    ).toContain("왕복 0.2% 수수료 반영");
   });
 
   it("summarizes cashToSpend inline for compact buttons", () => {
@@ -146,14 +146,14 @@ describe("rebalancePlanSummary", () => {
       ["kr", "us"],
     );
     expect(inline).toBe(
-      "원화 현금 이번 사용 50,000원 · 달러 현금 이번 사용 50.00$",
+      "원화 현금 이번 사용 49,900원 · 달러 현금 이번 사용 49.90$",
     );
   });
 
   it("builds run sub with summary when toolbar has no separate line", () => {
     const sub = buildRebalanceNowRunSubLabel("50,000원 · 25.50$");
     expect(sub).toContain("50,000원");
-    expect(sub).toContain("수수료·세금 미포함");
+    expect(sub).toContain("왕복 0.2% 수수료 반영");
     expect(sub).toContain("돈이 나갑니다");
   });
 
@@ -162,14 +162,14 @@ describe("rebalancePlanSummary", () => {
       repeatSummary: false,
     });
     expect(sub).not.toContain("50,000원");
-    expect(sub).toContain("수수료·세금 미포함");
+    expect(sub).toContain("왕복 0.2% 수수료 반영");
     expect(sub).toContain("돈이 나갑니다");
   });
 
   it("builds preview toolbar sub without spend-money wording", () => {
     const withSum = buildRebalancePreviewSubLabel("50,000원 · 25.50$");
     expect(withSum).toContain("50,000원");
-    expect(withSum).toContain("수수료·세금 미포함");
+    expect(withSum).toContain("왕복 0.2% 수수료 반영");
     expect(withSum).not.toContain("돈이 나갑니다");
 
     const bare = buildRebalancePreviewSubLabel(null, { repeatSummary: false });
@@ -194,13 +194,13 @@ describe("rebalancePlanSummary", () => {
 
   it("builds run summary lead with shared amount note", () => {
     const line = buildRebalanceRunSummaryLead();
-    expect(line).toContain("수수료·세금 미포함");
+    expect(line).toContain("왕복 0.2% 수수료 반영");
     expect(line).toContain("미리보기·즉시 매수 동일");
   });
 
   it("builds shared spend summary lead for compact toolbar and modal", () => {
     const line = buildRebalanceSpendSummaryLead();
-    expect(line).toContain("수수료·세금 미포함");
+    expect(line).toContain("왕복 0.2% 수수료 반영");
     expect(line).toContain("미리보기·즉시 매수 동일");
     expect(line).toBe(buildRebalanceSharedSpendLead());
   });

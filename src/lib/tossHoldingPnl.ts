@@ -230,18 +230,24 @@ export function tossHoldingsTotalNetMarketValueKrw(
   }
 
   if (!summary) return null;
+  const fee =
+    typeof feeInput === "number"
+      ? normalizeRoundTripFeeRate(feeInput)
+      : DEFAULT_ROUND_TRIP_FEE_RATE;
   const mvK = summary.marketValueKrw;
   const mvU = summary.marketValueUsd;
   const hasK = mvK != null && Number.isFinite(mvK) && mvK > 0;
   const hasU = mvU != null && Number.isFinite(mvU) && mvU > 0;
   if (!hasK && !hasU) return null;
+  const netK = hasK ? mvK! * (1 - fee) : 0;
+  const netU = hasU ? mvU! * (1 - fee) : 0;
   if (hasU) {
     if (!(usdKrwRate != null && usdKrwRate > 0)) {
-      return hasK ? Math.round(mvK!) : null;
+      return hasK ? Math.round(netK) : null;
     }
-    return Math.round((hasK ? mvK! : 0) + mvU! * usdKrwRate);
+    return Math.round(netK + netU * usdKrwRate);
   }
-  return Math.round(mvK!);
+  return Math.round(netK);
 }
 
 /** Combined account PnL in KRW (purchase FX for USD). */
