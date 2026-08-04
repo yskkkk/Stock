@@ -152,6 +152,51 @@ export function findUserLineIndexForPrompt(lines, userRequest) {
 }
 
 /**
+ * @param {string | null | undefined} sessionId
+ * @returns {string | null} transcript jsonl 절대 경로
+ */
+export function resolveIdeTranscriptPathForSession(sessionId) {
+  const sid = String(sessionId ?? "").trim();
+  if (!sid) return null;
+  const root = resolveTranscriptRoot();
+  const direct = path.join(root, sid, `${sid}.jsonl`);
+  if (fs.existsSync(direct)) return direct;
+  if (!fs.existsSync(root)) return null;
+  /** @type {string | null} */
+  let newest = null;
+  let newestMtime = 0;
+  /** @param {string} dir */
+  function walk(dir) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of entries) {
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!ent.name.endsWith(".jsonl")) continue;
+      if (path.basename(ent.name, ".jsonl") !== sid) continue;
+      try {
+        const st = fs.statSync(full);
+        if (st.mtimeMs >= newestMtime) {
+          newestMtime = st.mtimeMs;
+          newest = full;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  walk(root);
+  return newest;
+}
+
+/**
  * @param {string} filePath
  * @param {string | null | undefined} userRequest
  * @param {number} [userLineIndex]
@@ -159,18 +204,26 @@ export function findUserLineIndexForPrompt(lines, userRequest) {
  */
 export function readIdeTurnNotifyPair(filePath, userRequest, userLineIndex) {
   const lines = readTranscriptLines(filePath);
+  const frozenReq = String(userRequest ?? "").trim();
   let idx =
     typeof userLineIndex === "number" && userLineIndex >= 0 ? userLineIndex : -1;
-  if (idx < 0 || !extractUserPromptAtLine(lines, idx)) {
-    idx = findUserLineIndexForPrompt(lines, userRequest);
+  if (idx >= 0) {
+    const atIdx = extractUserPromptAtLine(lines, idx);
+    if (!atIdx || (frozenReq && !opsIdePromptsMatch(atIdx, frozenReq))) {
+      idx = -1;
+    }
   }
-  const reqAt =
-    idx >= 0 ? extractUserPromptAtLine(lines, idx) : extractLastUserPromptFromLines(lines);
-  const req = String(userRequest ?? "").trim() || reqAt;
+  if (idx < 0 && frozenReq) {
+    idx = findUserLineIndexForPrompt(lines, frozenReq);
+  }
+  // 요청은 슬롯에 얼린 값을 우선 — transcript 최신 user로 바꾸지 않음(어긋남 방지)
+  const req =
+    frozenReq ||
+    (idx >= 0 ? extractUserPromptAtLine(lines, idx) : "") ||
+    "";
+  // 해당 턴 assistant만 — 세션 마지막 assistant(다음 턴)로 채우지 않음
   const agentResponse =
-    idx >= 0
-      ? extractAssistantResponseForUserTurn(lines, idx)
-      : extractLastAssistantTextFromLines(lines);
+    idx >= 0 ? extractAssistantResponseForUserTurn(lines, idx) : "";
   return {
     userRequest: req,
     agentResponse,
@@ -246,46 +299,8 @@ export function readAgentResponseFromTranscriptFile(filePath) {
  * @returns {string}
  */
 export function readAgentResponseForIdeSession(sessionId) {
-  const sid = String(sessionId ?? "").trim();
-  if (!sid) return "";
-  const root = resolveTranscriptRoot();
-  const direct = path.join(root, sid, `${sid}.jsonl`);
-  if (fs.existsSync(direct)) {
-    return readAgentResponseFromTranscriptFile(direct);
-  }
-  if (!fs.existsSync(root)) return "";
-  /** @type {string | null} */
-  let newest = null;
-  let newestMtime = 0;
-  /** @param {string} dir */
-  function walk(dir) {
-    let entries = [];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const ent of entries) {
-      const full = path.join(dir, ent.name);
-      if (ent.isDirectory()) {
-        walk(full);
-        continue;
-      }
-      if (!ent.name.endsWith(".jsonl")) continue;
-      if (path.basename(ent.name, ".jsonl") !== sid) continue;
-      try {
-        const st = fs.statSync(full);
-        if (st.mtimeMs >= newestMtime) {
-          newestMtime = st.mtimeMs;
-          newest = full;
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-  walk(root);
-  return newest ? readAgentResponseFromTranscriptFile(newest) : "";
+  const file = resolveIdeTranscriptPathForSession(sessionId);
+  return file ? readAgentResponseFromTranscriptFile(file) : "";
 }
 
 /**

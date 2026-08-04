@@ -177,6 +177,7 @@ function releaseActiveLease(filePath) {
           userRequest: ctx.prompt,
           sessionId: ctx.sessionId,
           transcriptPath: filePath,
+          userLineIndex: ctx.lineIndex,
         }
       : undefined;
 
@@ -309,7 +310,12 @@ function ensureLatestUserInQueue(filePath, latestUser, lines) {
 
   writeIdeLeaseDiskImmediate({ prompt: preview, sessionId, queueStatus: "waiting" });
   try {
-    const reg = registerIdeDevQueueSlot({ prompt: preview, sessionId });
+    const reg = registerIdeDevQueueSlot({
+      prompt: preview,
+      sessionId,
+      transcriptPath: filePath,
+      userLineIndex: latestUser.lineIndex,
+    });
     activeLeaseId = String(reg.leaseId ?? "").trim() || null;
     activeTranscriptPath = filePath;
     writeIdeLeaseDiskImmediate({
@@ -353,6 +359,8 @@ function enqueueFromTranscript(filePath, prompt, lineIndex) {
     const reg = registerIdeDevQueueSlot({
       prompt: preview,
       sessionId,
+      transcriptPath: filePath,
+      userLineIndex: lineIndex,
     });
     activeLeaseId = String(reg.leaseId ?? "").trim() || null;
     activeTranscriptPath = filePath;

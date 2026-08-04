@@ -57,6 +57,7 @@ import {
  *     sessionId?: string | null;
  *     transcriptPath?: string | null;
  *     gitRevAtStart?: string | null;
+ *     userLineIndex?: number;
  *   };
  * }} QueueSlot
  */
@@ -216,6 +217,10 @@ function finalizeIdeQueueSlot(slot, state, error = null) {
       sessionId: slot.sessionId ?? pending?.sessionId,
       transcriptPath: pending?.transcriptPath ?? undefined,
       gitRevAtStart: slot.gitRevAtStart ?? pending?.gitRevAtStart ?? undefined,
+      userLineIndex:
+        typeof pending?.userLineIndex === "number"
+          ? pending.userLineIndex
+          : undefined,
       leaseId: slot.id,
     });
     slot.pendingIdeNotify = undefined;
@@ -516,8 +521,26 @@ export function registerIdeDevQueueSlot(input) {
     throw err;
   }
 
+  const sessionIdEarly = String(input.sessionId ?? "").trim() || null;
+  const transcriptPath =
+    String(input.transcriptPath ?? "").trim() || null;
+  const userLineIndex =
+    typeof input.userLineIndex === "number" && input.userLineIndex >= 0
+      ? input.userLineIndex
+      : undefined;
+
   const existing = findActiveIdeSlotByPrompt(prompt);
   if (existing?.meta) {
+    if (transcriptPath || userLineIndex != null) {
+      existing.pendingIdeNotify = {
+        userRequest: prompt,
+        sessionId: existing.sessionId ?? sessionIdEarly,
+        transcriptPath:
+          transcriptPath ?? existing.pendingIdeNotify?.transcriptPath ?? null,
+        gitRevAtStart: existing.pendingIdeNotify?.gitRevAtStart ?? null,
+        ...(userLineIndex != null ? { userLineIndex } : {}),
+      };
+    }
     const leaseId = existing.id;
     const { queueSeq, queueStatus } = queueSeqAndStatusForSlotId(leaseId);
     return {
@@ -532,7 +555,7 @@ export function registerIdeDevQueueSlot(input) {
     };
   }
 
-  const sessionId = String(input.sessionId ?? "").trim() || null;
+  const sessionId = sessionIdEarly;
 
   const waiting = waitingSlotCount();
   if (waiting >= MAX_WAITING) {
@@ -554,6 +577,16 @@ export function registerIdeDevQueueSlot(input) {
     source: "ide",
     meta: queueMeta,
     sessionId,
+    ...(transcriptPath || userLineIndex != null
+      ? {
+          pendingIdeNotify: {
+            userRequest: prompt,
+            sessionId,
+            transcriptPath,
+            ...(userLineIndex != null ? { userLineIndex } : {}),
+          },
+        }
+      : {}),
   });
   slots.push(slot);
   persistSlots();
@@ -690,7 +723,7 @@ export function releaseIdeDevQueueSlot(input) {
  * @returns {{ ok: boolean; released?: boolean; cleared?: boolean }}
  */
 /**
- * @param {{ notify?: { userRequest: string; sessionId?: string | null; transcriptPath?: string | null; gitRevAtStart?: string | null } }} [opts]
+ * @param {{ notify?: { userRequest: string; sessionId?: string | null; transcriptPath?: string | null; gitRevAtStart?: string | null; userLineIndex?: number } }} [opts]
  */
 export function releaseAnyRunningIdeDevQueueSlot(opts = {}) {
   let released = false;
@@ -739,6 +772,10 @@ export function releaseAnyRunningIdeDevQueueSlot(opts = {}) {
         sessionId: notify.sessionId,
         transcriptPath: notify.transcriptPath ?? undefined,
         gitRevAtStart: notify.gitRevAtStart ?? undefined,
+        userLineIndex:
+          typeof notify.userLineIndex === "number"
+            ? notify.userLineIndex
+            : undefined,
       });
     }
   }

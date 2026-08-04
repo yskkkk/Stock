@@ -5,8 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  readAgentResponseForIdeSession,
   readIdeTurnNotifyPair,
+  resolveIdeTranscriptPathForSession,
 } from "./ops-ide-transcript-text.js";
 import {
   buildOpsDevNotifyDedupKey,
@@ -125,36 +125,34 @@ async function waitForGitPushSettled(snap) {
 async function settleAndRefreshBeforeSend(snap) {
   await waitForGitPushSettled(snap);
 
-  const transcriptPath = String(snap.transcriptPath ?? "").trim();
+  let transcriptPath = String(snap.transcriptPath ?? "").trim();
   const sessionId = String(snap.sessionId ?? "").trim();
   const userLineIndex =
     typeof snap.userLineIndex === "number" ? snap.userLineIndex : -1;
 
-  if (transcriptPath) {
-    const pair = readIdeTurnNotifyPair(
-      transcriptPath,
-      snap.userRequest,
-      userLineIndex >= 0 ? userLineIndex : undefined,
-    );
-    if (pair.userRequest) {
-      snap.userRequest = trimBlock(pair.userRequest, REQUEST_MAX);
-    }
-    if (pair.agentResponse) {
-      snap.completion = trimBlock(
-        normalizeOpsCompletionText(pair.agentResponse, ""),
-        COMPLETION_MAX,
-      );
-    }
-    if (pair.userLineIndex >= 0) snap.userLineIndex = pair.userLineIndex;
-  } else if (sessionId) {
-    const fresh = readAgentResponseForIdeSession(sessionId);
-    if (fresh) {
-      snap.completion = trimBlock(
-        normalizeOpsCompletionText(fresh, ""),
-        COMPLETION_MAX,
-      );
-    }
+  if (!transcriptPath && sessionId) {
+    transcriptPath = resolveIdeTranscriptPathForSession(sessionId) || "";
+    if (transcriptPath) snap.transcriptPath = transcriptPath;
   }
+  if (!transcriptPath) return;
+
+  const frozenRequest = String(snap.userRequest ?? "").trim();
+  const pair = readIdeTurnNotifyPair(
+    transcriptPath,
+    frozenRequest,
+    userLineIndex >= 0 ? userLineIndex : undefined,
+  );
+  // 요청은 슬롯에 얼린 값 유지 — transcript 최신 user로 덮지 않음
+  if (!frozenRequest && pair.userRequest) {
+    snap.userRequest = trimBlock(pair.userRequest, REQUEST_MAX);
+  }
+  if (pair.agentResponse) {
+    snap.completion = trimBlock(
+      normalizeOpsCompletionText(pair.agentResponse, ""),
+      COMPLETION_MAX,
+    );
+  }
+  if (pair.userLineIndex >= 0) snap.userLineIndex = pair.userLineIndex;
 }
 
 function debounceMs(priority = 1) {

@@ -18,9 +18,9 @@ import { getRepoHeadRev } from "./ops-agent-git-push.js";
 
 import {
 
-  readAgentResponseForIdeSession,
-
   readIdeTurnNotifyPair,
+
+  resolveIdeTranscriptPathForSession,
 
 } from "./ops-ide-transcript-text.js";
 
@@ -355,7 +355,13 @@ export function notifyIdeDevelopmentCompleted(opts) {
 
 
 
-  const transcriptPath = String(opts.transcriptPath ?? "").trim();
+  let transcriptPath = String(opts.transcriptPath ?? "").trim();
+
+  if (!transcriptPath && sessionId) {
+
+    transcriptPath = resolveIdeTranscriptPathForSession(sessionId) || "";
+
+  }
 
   let pairedRequest = userRequest;
 
@@ -391,15 +397,9 @@ export function notifyIdeDevelopmentCompleted(opts) {
 
   if (!agentResponse) {
 
-    agentResponse = readAgentResponseForIdeSession(sessionId);
-
-  }
-
-  if (!agentResponse) {
-
     agentResponse =
 
-      "Cursor IDE에서 작업이 끝났습니다. (transcript에서 응답 본문을 찾지 못했습니다.)";
+      "Cursor IDE에서 작업이 끝났습니다. (해당 턴 응답을 아직 찾지 못했습니다.)";
 
   }
 
