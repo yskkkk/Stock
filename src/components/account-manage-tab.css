@@ -876,7 +876,7 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   flex-direction: row;
   flex-wrap: wrap;
   align-items: stretch;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 0.45rem 0.85rem;
 }
 
@@ -884,14 +884,14 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 0.15rem;
   min-width: 0;
-  text-align: right;
+  text-align: left;
 }
 
 .account-manage-tab__stat--trio .account-manage-tab__stat-value {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .account-manage-tab__stat--holdings {
@@ -1485,6 +1485,64 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
   background: color-mix(in srgb, var(--accent-dim) 14%, var(--card));
 }
 
+.account-manage-tab__style-glance {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.account-manage-tab__style-glance-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  min-height: 2.75rem;
+  padding: 0.38rem 0.35rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  border-top: 3px solid var(--style-glance-color, var(--accent));
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  text-align: center;
+}
+
+.account-manage-tab__style-glance-cell.active {
+  border-color: color-mix(in srgb, var(--style-glance-color, var(--accent)) 55%, var(--card-border));
+  background: color-mix(in srgb, var(--style-glance-color, var(--accent)) 12%, var(--card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--style-glance-color, var(--accent)) 28%, transparent);
+}
+
+.account-manage-tab__style-glance-label {
+  font-size: 0.64rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: color-mix(in srgb, var(--text) 72%, var(--muted));
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.account-manage-tab__style-glance-pct {
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  color: var(--text);
+}
+
+.account-manage-tab__style-glance-target {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--muted);
+  text-align: center;
+}
+
 .account-manage-tab__style-strip-main {
   display: flex;
   align-items: flex-start;
@@ -1541,7 +1599,8 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
   align-items: stretch;
   gap: 2px;
   width: 100%;
-  height: 0.62rem;
+  min-height: 1.35rem;
+  height: 1.35rem;
   margin-top: 0.35rem;
   border-radius: 999px;
   overflow: hidden;
@@ -1551,10 +1610,12 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
 .account-manage-tab__style-bar-seg {
   flex-basis: 0;
   min-width: 0.35rem;
+  min-height: 100%;
   padding: 0;
   border: none;
   cursor: pointer;
   opacity: 0.92;
+  touch-action: manipulation;
   transition: opacity 0.12s ease, box-shadow 0.12s ease;
 }
 
@@ -1897,6 +1958,30 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
   min-height: 13.5rem;
 }
 
+@media (max-width: 900px) {
+  .account-manage-tab__style-glance-cell {
+    min-height: 44px;
+    padding: 0.42rem 0.38rem;
+  }
+
+  .account-manage-tab__style-glance-pct {
+    font-size: 0.98rem;
+  }
+
+  .account-manage-tab__style-chip {
+    min-height: 44px;
+  }
+
+  .account-manage-tab__style-bar {
+    min-height: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .account-manage-tab__style-assign-link {
+    min-height: 44px;
+  }
+}
+
 @media (max-width: 520px) {
   .account-manage-tab__chart-panel {
     grid-template-columns: 1fr;
@@ -1942,6 +2027,19 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
     margin-top: 0.85rem;
     padding: 0.72rem 0.75rem;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-border, #14b8a6) 22%, transparent);
+  }
+
+  .account-manage-tab__style-glance-label {
+    font-size: 0.66rem;
+  }
+
+  .account-manage-tab__style-glance-target {
+    font-size: 0.7rem;
+    text-align: left;
+  }
+
+  .account-manage-tab__style-strip-sub {
+    display: none;
   }
 
   .account-manage-tab__style-mini-svg {
