@@ -177,8 +177,8 @@ const TOSS_LEDGER_CACHE_TICK_MS = (() => {
 })();
 
 const TOSS_LEDGER_API_REFRESH_MS = (() => {
-  const n = Number(process.env.STOCK_TOSS_LEDGER_API_MS ?? 15_000);
-  return Number.isFinite(n) && n >= 5_000 ? Math.min(n, 120_000) : 15_000;
+  const n = Number(process.env.STOCK_TOSS_LEDGER_API_MS ?? 8_000);
+  return Number.isFinite(n) && n >= 5_000 ? Math.min(n, 120_000) : 8_000;
 })();
 
 /**

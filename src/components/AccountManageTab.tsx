@@ -59,9 +59,13 @@ import {
 } from "../hooks/useAccountManageDisplayCurrency";
 import { useAccountStyleTargetWeights } from "../hooks/useAccountStyleTargetWeights";
 import { useSnapshotFreshness } from "./AccountSnapshotFreshness";
-import { useBithumbAccountSnapshot } from "../hooks/useBithumbAccountSnapshot";
 import {
-  TOSS_LEDGER_POLL_MS,
+  ACCOUNT_TAB_BITHUMB_POLL_MS,
+  useBithumbAccountSnapshot,
+} from "../hooks/useBithumbAccountSnapshot";
+import {
+  ACCOUNT_TAB_TOSS_API_REFRESH_MS,
+  ACCOUNT_TAB_TOSS_CACHE_POLL_MS,
   useTossAccountSnapshot,
 } from "../hooks/useTossAccountSnapshot";
 import { useLiveTradingStatusPoll } from "../hooks/useLiveTradingStatusPoll";
@@ -274,7 +278,8 @@ export default function AccountManageTab({
     reload: reloadToss,
   } = useTossAccountSnapshot({
     poll: Boolean(user) && provider === "toss",
-    pollIntervalMs: TOSS_LEDGER_POLL_MS,
+    pollIntervalMs: ACCOUNT_TAB_TOSS_CACHE_POLL_MS,
+    apiRefreshIntervalMs: ACCOUNT_TAB_TOSS_API_REFRESH_MS,
   });
 
   const {
@@ -287,6 +292,7 @@ export default function AccountManageTab({
     reload: reloadBithumb,
   } = useBithumbAccountSnapshot({
     poll: Boolean(user) && provider === "bithumb",
+    pollIntervalMs: ACCOUNT_TAB_BITHUMB_POLL_MS,
   });
 
   const tossFeeRatesByMarket = useMemo(() => {
@@ -1422,6 +1428,57 @@ export default function AccountManageTab({
         aria-label={ko.app.accountManageStyleChartTitle}
         data-vu="account-style-strip"
       >
+        <div
+          className="account-manage-tab__style-glance"
+          role="group"
+          aria-label={ko.app.accountManageStyleChartTitle}
+        >
+          {styleSegments.map((seg) => {
+            const active = styleFocusKey === seg.sector;
+            return (
+              <button
+                key={`style-glance-${seg.sector}`}
+                type="button"
+                className={[
+                  "account-manage-tab__style-glance-cell",
+                  active ? "active" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={
+                  { "--style-glance-color": seg.color } as Record<string, string>
+                }
+                aria-pressed={active}
+                aria-label={`${styleSegmentLabel(seg)} ${formatAllocPct(seg.pct)}`}
+                onClick={() => onStyleChipClick(seg.sector)}
+              >
+                <span className="account-manage-tab__style-glance-label">
+                  {styleSegmentLabel(seg)}
+                </span>
+                <span className="account-manage-tab__style-glance-pct">
+                  {formatAllocPct(seg.pct)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {styleTargetDrift ? (
+          <p className="account-manage-tab__style-glance-target">
+            {ko.app.accountManageStyleGlanceTarget
+              .replace(
+                "{ratio}",
+                `${styleTargetParts.growth}:${styleTargetParts.value}`,
+              )
+              .replace(
+                "{growth}",
+                formatAllocPct(styleTargetDrift.currentGrowthPct),
+              )
+              .replace(
+                "{value}",
+                formatAllocPct(styleTargetDrift.currentValuePct),
+              )}
+          </p>
+        ) : null}
         <div className="account-manage-tab__style-strip-main">
           <svg
             className="account-manage-tab__style-mini-svg"
@@ -1467,12 +1524,9 @@ export default function AccountManageTab({
             <p className="account-manage-tab__style-strip-sub">
               {ko.app.accountManageStyleChartSub}
             </p>
-            <p className="account-manage-tab__style-strip-note">
-              {ko.app.accountManageStyleNewDefaultHint}
-            </p>
             <div
               className="account-manage-tab__style-bar"
-              role="img"
+              role="group"
               aria-label={ko.app.accountManageStyleChartTitle}
             >
               {styleSegments.map((seg) => (

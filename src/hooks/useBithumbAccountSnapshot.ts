@@ -8,9 +8,15 @@ import {
 import { LIVE_TRADE_AUTH_CHANGE } from "../lib/liveTradeAuthEvents";
 
 const VISIBLE_POLL_MS = 5_000;
+/** 계좌 탭 등 빠른 갱신이 필요할 때 */
+export const ACCOUNT_TAB_BITHUMB_POLL_MS = 2_000;
 
-export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
+export function useBithumbAccountSnapshot(opts?: {
+  poll?: boolean;
+  pollIntervalMs?: number;
+}) {
   const poll = opts?.poll ?? false;
+  const pollIntervalMs = opts?.pollIntervalMs ?? VISIBLE_POLL_MS;
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [snapshot, setSnapshot] = useState<BithumbTestSnapshot | null>(null);
@@ -94,7 +100,7 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
 
     const id = window.setInterval(() => {
       void reload(true, true);
-    }, VISIBLE_POLL_MS);
+    }, pollIntervalMs);
 
     const onAuthChange = () => {
       void reload(true, false);
@@ -105,7 +111,7 @@ export function useBithumbAccountSnapshot(opts?: { poll?: boolean }) {
       window.clearInterval(id);
       window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     };
-  }, [poll, reload]);
+  }, [poll, pollIntervalMs, reload]);
 
   return {
     user,

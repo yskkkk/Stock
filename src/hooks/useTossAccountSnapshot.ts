@@ -16,10 +16,14 @@ import {
 } from "../lib/tossSnapshotClientCache";
 import { tossSnapshotLedgerFingerprint } from "../lib/tossSnapshotLiveQuotes";
 
-/** 파일 캐시·클라이언트 캐시 — 5초 (거래소 API 15초 주기이므로 실시간성 동일) */
+/** 파일 캐시·클라이언트 캐시 — 기본 5초 (좌측 레일·독 등) */
 export const TOSS_LEDGER_POLL_MS = 5_000;
 /** 토스 Open API(잔고·수량) — ACCOUNT 1TPS 보호 */
 export const TOSS_LEDGER_API_REFRESH_MS = 15_000;
+/** 계좌 탭: 캐시 조회를 빠르게 (시세·스냅샷 반영) */
+export const ACCOUNT_TAB_TOSS_CACHE_POLL_MS = 1_000;
+/** 계좌 탭: Open API refresh (1TPS 여유 두고 짧게) */
+export const ACCOUNT_TAB_TOSS_API_REFRESH_MS = 8_000;
 
 function hydrateFromClientCache(userId: string): {
   snapshot: TossTestSnapshot;
