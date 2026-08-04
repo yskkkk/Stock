@@ -26,7 +26,7 @@ const ACTIVITY_LOG_READ_MAX_LINES = 400;
 
 const MAX_ITEMS = 32;
 const MAX_INSTRUCTION_CHARS = 14_000;
-const STALE_RUNNING_MS = 35 * 60 * 1000;
+const STALE_RUNNING_MS = 12 * 60 * 1000;
 
 export const RECORD_MODE_REQUEST_IP = "record-mode";
 
@@ -142,6 +142,23 @@ export function resetStaleRunningInPlace(items) {
 }
 
 /**
+ * feedback에 연결되지 않은 pending/running 잡 제거(고아 — VU가 멈춘 것처럼 보임).
+ * @param {Iterable<string>} linkedJobIds
+ * @returns {number} removed count
+ */
+export function removeDetachedRecordModeJobsSync(linkedJobIds) {
+  const linked = linkedJobIds instanceof Set ? linkedJobIds : new Set(linkedJobIds);
+  const data = readRecordModeQueueSync();
+  const next = data.items.filter((it) => {
+    if (it.status !== "pending" && it.status !== "running") return true;
+    return linked.has(it.id);
+  });
+  const removed = data.items.length - next.length;
+  if (removed > 0) writeQueueSync({ items: next });
+  return removed;
+}
+
+/**
  * @param {{ items: RecordModeItem[] }} data
  */
 function writeQueueSync(data) {
@@ -219,6 +236,10 @@ export function claimNextPendingRecordJob() {
     purgeRecordModeErrorItemsSync();
     const data = readRecordModeQueueSync();
     resetStaleRunningInPlace(data.items);
+    if (data.items.some((it) => it.status === "running")) {
+      writeQueueSync(data);
+      return null;
+    }
     const idx = data.items.findIndex(
       (it) => it.status === "pending" && it.instruction.trim().length > 0,
     );

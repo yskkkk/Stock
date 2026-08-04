@@ -122,7 +122,7 @@ const MAX_DETAIL_LEN = 4_000;
  * }} VirtualUserStore
  */
 
-const DEFAULT_CONTINUOUS_INTERVAL_MS = 3 * 60_000; // 에이전트 전송 스캔 주기(탐색은 연속)
+const DEFAULT_CONTINUOUS_INTERVAL_MS = 30_000; // 에이전트 전송 스캔 주기(탐색은 연속)
 
 /** @returns {VirtualUserContinuous} */
 export function defaultContinuousConfig() {

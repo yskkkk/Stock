@@ -83,8 +83,11 @@ async function runRecordModeAgentJob(id, instruction) {
           discomfort: buildDiscomfortText(fb),
           postVersionId: post.ok && post.version ? post.version.id : null,
         });
-        // 다음 VU 피드백은 3분 스캔에서만 — 여기서 바로 dispatch 하지 않음
       }
+      // VU 상시가동: 완료 직후 다음 approved 즉시 큐잉 (3분 대기 금지)
+      void import("./virtual-user-auto-implement.js")
+        .then((m) => m.dispatchNextVirtualUserImplement())
+        .catch(() => {});
     } catch {
       /* version bookkeeping optional */
     }
@@ -100,13 +103,18 @@ async function runRecordModeAgentJob(id, instruction) {
       const fb = listVirtualFeedbackSync().find((f) => f.implementJobId === id);
       if (fb) {
         patchVirtualFeedbackSync(fb.id, {
-          status: "new",
+          status: "approved",
           implementJobId: null,
           implementQueuedAtMs: null,
           improvementSummary: `에이전트 실패 후 재시도 대기: ${msg.slice(0, 200)}`,
         });
       }
-      // 실패 직후 즉시 다음 전송 안 함 — 3분 스캔 + idle 조건
+      // API 고갈 pause가 아니면 다음 건 계속
+      if (!getVirtualUserContinuousSync().pausedByApiExhaustion) {
+        void import("./virtual-user-auto-implement.js")
+          .then((m) => m.dispatchNextVirtualUserImplement())
+          .catch(() => {});
+      }
     } catch {
       /* optional */
     }

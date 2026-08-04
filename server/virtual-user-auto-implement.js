@@ -3,7 +3,7 @@
  * - 피드백은 탐색 중·개발 중에도 계속 쌓임(status=new 대기열)
  * - 에이전트 전송만 FIFO 1건씩: 앞 건 완료 후 다음 new를 보냄
  */
-import { appendRecordModePendingJob, readRecordModeQueueSync } from "./ops-record-mode-store.js";
+import { appendRecordModePendingJob, readRecordModeQueueSync, removeDetachedRecordModeJobsSync } from "./ops-record-mode-store.js";
 import {
   createCodeVersionSync,
   ensureBaselineCodeVersionSync,
@@ -15,7 +15,7 @@ import {
   patchVirtualFeedbackSync,
 } from "./virtual-user-store.js";
 import { appendServerEventLog } from "./access-log.js";
-import { isOpsAgentJobRunning } from "./ops-agent-job-queue.js";
+import { isServerDevelopingSync } from "./virtual-user-dev-gate.js";
 import {
   hasCursorApiKey,
   pauseVirtualUserForApiExhaustion,
@@ -83,6 +83,18 @@ function reclaimOrphanQueuedFeedbackSync() {
     });
     n += 1;
   }
+  const linked = new Set(
+    listVirtualFeedbackSync()
+      .map((f) => f.implementJobId)
+      .filter(Boolean),
+  );
+  const detached = removeDetachedRecordModeJobsSync(linked);
+  if (detached > 0) {
+    appendServerEventLog(
+      "virtual-user",
+      `reclaim detached record-mode jobs removed=${detached}`,
+    );
+  }
   return n;
 }
 
@@ -130,7 +142,8 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
   if (opts.force !== true && hasActiveVirtualUserImplementJobSync()) {
     return { ok: false, skipped: true, reason: "serial-busy" };
   }
-  if (opts.force !== true && isOpsAgentJobRunning()) {
+  // IDE(이 채팅) lease는 막지 않음 — 웹/기록모드 에이전트만 busy
+  if (opts.force !== true && isServerDevelopingSync()) {
     return { ok: false, skipped: true, reason: "server-developing" };
   }
 
@@ -222,7 +235,7 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
 export async function dispatchNextVirtualUserImplement(opts = {}) {
   const run = async () => {
     reclaimOrphanQueuedFeedbackSync();
-    if (opts.force !== true && isOpsAgentJobRunning()) {
+    if (opts.force !== true && isServerDevelopingSync()) {
       return { ok: false, skipped: true, reason: "server-developing" };
     }
     if (opts.force !== true && hasActiveVirtualUserImplementJobSync()) {

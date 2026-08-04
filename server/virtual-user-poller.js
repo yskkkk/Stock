@@ -2,7 +2,7 @@
  * 가상 사용자 연속 탐색 폴러
  * - 탐색: 세션 끝나면 짧게 쉬고 바로 다음 — 피드백은 대기 없이 계속 쌓임
  * - 연속 탐색에서는 Playwright로 같은 Vite(5173)를 열지 않음(자기 부하시 웹 로딩 불가)
- * - 에이전트 전송: 3분마다 스캔, 서버가 개발 중(에이전트 실행 중)이 아닐 때만 1건 FIFO
+ * - 에이전트 전송: 짧은 주기로 스캔 + 잡 완료 시 즉시 다음 건 (IDE 채팅은 막지 않음)
  * - 에이전트 1건 제한 이유: ops 큐·워킹트리 동시 수정 충돌 방지
  */
 import { appendServerEventLog } from "./access-log.js";
@@ -23,14 +23,11 @@ import {
 import { enrichVirtualFeedbackNarrativesSync } from "./virtual-user-feedback-enrich.js";
 import { dispatchNextVirtualUserImplement } from "./virtual-user-auto-implement.js";
 import { reviewPendingVirtualFeedbackBatchSync } from "./virtual-user-manager.js";
-import {
-  getOpsAgentQueueMemorySnapshot,
-  isOpsAgentJobRunning,
-} from "./ops-agent-job-queue.js";
+import { isServerDevelopingSync } from "./virtual-user-dev-gate.js";
 
 const POLLER_ID = "virtual-user-continuous";
-/** 에이전트 전송 스캔 주기 */
-const IMPLEMENT_SCAN_MS = 3 * 60_000;
+/** 에이전트 전송 스캔 주기(안전망) — 정상 시 잡 완료 직후 chain dispatch */
+const IMPLEMENT_SCAN_MS = 30_000;
 /** 매니저 검토 스캔 (프롬프트 게이트) */
 const MANAGER_SCAN_MS = 20_000;
 /** 백엔드 전용 연속 탐색 세션 간격 */
@@ -56,24 +53,7 @@ export function isVirtualUserContinuousBusy() {
   return running;
 }
 
-/**
- * 웹/기록모드 에이전트가 돌 때만 VU 구현을 막는다.
- * IDE 큐(이 채팅)가 잡혀 있으면 예전엔 수시간 스킵돼 VU가 멈춘 것처럼 보였음.
- */
-export function isServerDevelopingSync() {
-  try {
-    if (!isOpsAgentJobRunning()) return false;
-    const entries = getOpsAgentQueueMemorySnapshot()?.entries ?? [];
-    const runningEntry = entries.find((e) => e.status === "running");
-    if (!runningEntry) return true;
-    if (runningEntry.source === "ide" || runningEntry.requestIp === "cursor-ide") {
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
+export { isServerDevelopingSync } from "./virtual-user-dev-gate.js";
 
 function countFeedbackBacklog() {
   try {
@@ -165,7 +145,7 @@ export async function tickVirtualUserContinuousOnce() {
           `explore tick ok created=${created} emptyStreak=${emptyStreak} personaOff=${personaOffset} angle=${angleOffset} (novelty; agent via 3min idle scan)`,
         );
       }
-      // 탐색 직후 에이전트 전송하지 않음 — 3분 스캔 + 개발 중 아님일 때만
+      // 탐색 직후 에이전트 전송하지 않음 — 주기 스캔·잡 완료 chain에서만
       return result;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -230,7 +210,7 @@ function tickManagerReviewOnce() {
 }
 
 /**
- * 3분마다: 개발 중이 아니면 대기 피드백 1건만 에이전트로
+ * 주기 스캔: 웹/기록모드 개발 중이 아니면 대기 피드백 1건만 에이전트로
  */
 async function tickImplementScanOnce() {
   // 전송 직전 미검토 분량 선처리
@@ -253,7 +233,14 @@ async function tickImplementScanOnce() {
   if (cfg.autoImplement === false) {
     return { ok: false, reason: "auto-off" };
   }
-  return dispatchNextVirtualUserImplement();
+  const r = await dispatchNextVirtualUserImplement();
+  if (!r?.ok && r?.reason && r.reason !== "none") {
+    appendServerEventLog(
+      "virtual-user",
+      `implement scan skip — ${r.reason}`,
+    );
+  }
+  return r;
 }
 
 export function startVirtualUserContinuousPoller() {
@@ -313,14 +300,14 @@ export function startVirtualUserContinuousPoller() {
   }, MANAGER_SCAN_MS);
   setTimeout(() => tickManagerReviewOnce(), 12_000);
 
-  // 에이전트 전송: 3분마다, 개발 중 아닐 때만
+  // 에이전트 전송: 짧은 주기 스캔 + 잡 완료 시 chain (IDE는 막지 않음)
   if (implementTimer) clearInterval(implementTimer);
   implementTimer = setInterval(() => {
     void tickImplementScanOnce().catch(() => {});
   }, IMPLEMENT_SCAN_MS);
   setTimeout(() => {
     void tickImplementScanOnce().catch(() => {});
-  }, 60_000);
+  }, 5_000);
 }
 
 /** 관리 UI에서 enabled 바뀐 뒤 탐색 루프 유지 */
