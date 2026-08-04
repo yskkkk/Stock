@@ -1462,9 +1462,19 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
 }
 
 .account-manage-tab__style-block,
-.account-manage-tab__style-list,
-.account-manage-tab__style-strip {
+.account-manage-tab__style-list {
   display: none;
+}
+
+.account-manage-tab__style-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--accent-border, #14b8a6) 45%, var(--card-border));
+  background: color-mix(in srgb, var(--accent-dim) 14%, var(--card));
 }
 
 .account-manage-tab__style-strip-main {
