@@ -910,9 +910,10 @@ export function createApp() {
         "./picks-live-quotes.js"
       );
       const quotes = await fetchQuoteSnapshotsForSymbols(symbols, {
-        maxAgeMs: 0,
+        // 계좌·실거래 시세: 400ms 이내 캐시만 재사용 → 클라 0.5초 폴링과 맞춤
+        maxAgeMs: 400,
       });
-      res.json({ quotes, interval: "1m", updatedAtMs: Date.now() });
+      res.json({ quotes, interval: "live", updatedAtMs: Date.now() });
     }),
   );
 

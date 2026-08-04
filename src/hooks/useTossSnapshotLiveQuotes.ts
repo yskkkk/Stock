@@ -11,15 +11,45 @@ import {
 } from "../lib/tossSnapshotLiveQuotes";
 import { useUsdKrwRate } from "./useUsdKrwRate";
 
-/** 계좌관리 시세 — 잔고 API와 분리해 빠르게 폴링 */
+/** 계좌관리 시세 폴링 간격 */
 export const TOSS_SNAPSHOT_QUOTE_POLL_MS = 500;
-const QUOTE_FETCH_TIMEOUT_MS = 8_000;
+const QUOTE_FETCH_TIMEOUT_MS = 6_000;
 
 export type TossSnapshotLiveQuotesResult = {
   snapshot: TossTestSnapshot | null;
   quotesUpdatedAtMs: number | null;
 };
 
+/** 동일 심볼 집합에 대해 동시에 1건만 요청 */
+const quoteInflight = new Map<
+  string,
+  Promise<{
+    quotes: import("../types").PicksDailyHistoryQuotesMap;
+    updatedAtMs: number;
+  }>
+>();
+
+function fetchQuotesCoalesced(symbolsKey: string, syms: string[], signal: AbortSignal) {
+  const existing = quoteInflight.get(symbolsKey);
+  if (existing) return existing;
+  const p = fetchLiveTradingMinuteQuotes(syms, { signal })
+    .then((res) => ({
+      quotes: res.quotes ?? {},
+      updatedAtMs:
+        typeof res.updatedAtMs === "number" && res.updatedAtMs > 0
+          ? res.updatedAtMs
+          : Date.now(),
+    }))
+    .finally(() => {
+      quoteInflight.delete(symbolsKey);
+    });
+  quoteInflight.set(symbolsKey, p);
+  return p;
+}
+
+/**
+ * 토스 보유·평가 — 시세 API를 완료 후 500ms 간격으로 연속 폴링(잔고 API와 분리).
+ */
 export function useTossSnapshotLiveQuotes(
   snapshot: TossTestSnapshot | null,
   enabled = true,
@@ -48,7 +78,19 @@ export function useTossSnapshotLiveQuotes(
       usdKrwRef.current,
       feeRatesRef.current,
     );
-    return merged === base ? { ...base, holdings: base.holdings.slice() } : merged;
+    // 가격이 같아도 새 객체 → 요약 금액·등락률 리렌더
+    if (merged === base) {
+      return {
+        ...base,
+        holdings: base.holdings.map((h) => ({ ...h })),
+        summary: base.summary ? { ...base.summary } : base.summary,
+      };
+    }
+    return {
+      ...merged,
+      holdings: merged.holdings.map((h) => ({ ...h })),
+      summary: merged.summary ? { ...merged.summary } : merged.summary,
+    };
   }, []);
 
   useEffect(() => {
@@ -66,7 +108,6 @@ export function useTossSnapshotLiveQuotes(
     });
   }, [snapshot, symbolsKey, applyQuotes]);
 
-  // 환율·수수료 바뀌면 현재 시세로 재계산
   useEffect(() => {
     const ledger = ledgerRef.current;
     if (!ledger || !symbolsKey) return;
@@ -81,47 +122,45 @@ export function useTossSnapshotLiveQuotes(
 
     const syms = symbolsKey.split(",").filter(Boolean);
     let cancelled = false;
-    let inFlight = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     let abortCtrl: AbortController | null = null;
+    const gap = Math.max(400, pollMs);
 
-    const pull = () => {
-      if (cancelled || inFlight) return;
-      inFlight = true;
+    const tick = async () => {
+      if (cancelled) return;
       abortCtrl?.abort();
       abortCtrl = new AbortController();
-      const timer = window.setTimeout(
+      const hard = window.setTimeout(
         () => abortCtrl?.abort(),
         QUOTE_FETCH_TIMEOUT_MS,
       );
-
-      void fetchLiveTradingMinuteQuotes(syms, { signal: abortCtrl.signal })
-        .then((res) => {
-          if (cancelled) return;
-          quotesRef.current = res.quotes ?? {};
-          const at =
-            typeof res.updatedAtMs === "number" && res.updatedAtMs > 0
-              ? res.updatedAtMs
-              : Date.now();
-          setQuotesUpdatedAtMs(at);
-          const ledger = ledgerRef.current;
-          if (!ledger) return;
-          setLiveSnapshot(applyQuotes(ledger));
-        })
-        .catch(() => {
-          /* 다음 틱 재시도 */
-        })
-        .finally(() => {
-          window.clearTimeout(timer);
-          inFlight = false;
-        });
+      try {
+        const res = await fetchQuotesCoalesced(
+          symbolsKey,
+          syms,
+          abortCtrl.signal,
+        );
+        if (cancelled) return;
+        quotesRef.current = res.quotes;
+        setQuotesUpdatedAtMs(res.updatedAtMs);
+        const ledger = ledgerRef.current;
+        if (ledger) setLiveSnapshot(applyQuotes(ledger));
+      } catch {
+        /* 다음 틱 */
+      } finally {
+        window.clearTimeout(hard);
+      }
+      if (cancelled) return;
+      timer = setTimeout(() => {
+        void tick();
+      }, gap);
     };
 
-    pull();
-    const id = window.setInterval(pull, Math.max(400, pollMs));
+    void tick();
     return () => {
       cancelled = true;
       abortCtrl?.abort();
-      window.clearInterval(id);
+      if (timer != null) clearTimeout(timer);
     };
   }, [enabled, symbolsKey, pollMs, applyQuotes]);
 

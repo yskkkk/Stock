@@ -234,13 +234,22 @@ export async function fetchQuoteSnapshotsForSymbols(symbols, opts = {}) {
   ).slice(0, QUOTE_FETCH_MAX_SYMBOLS);
 
   const cacheOpts = { maxAgeMs: opts.maxAgeMs };
+  const naverMaxAge =
+    typeof opts.maxAgeMs === "number" && Number.isFinite(opts.maxAgeMs)
+      ? Math.max(0, opts.maxAgeMs)
+      : undefined;
 
   /** @type {Record<string, { price: number; changePercent?: number; currency?: string; quotedAtMs?: number }>} */
   const out = {};
 
   const krSymbols = uniq.filter((sym) => isKrQuoteSymbol(sym));
   const naverByCode =
-    krSymbols.length > 0 ? await fetchKrNaverQuotesBatch(krSymbols) : new Map();
+    krSymbols.length > 0
+      ? await fetchKrNaverQuotesBatch(
+          krSymbols,
+          naverMaxAge != null ? { maxAgeMs: naverMaxAge } : {},
+        )
+      : new Map();
 
   await mapPool(uniq, async (sym) => {
     if (isKrQuoteSymbol(sym)) {

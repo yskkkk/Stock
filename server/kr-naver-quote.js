@@ -7,8 +7,8 @@ const NAVER_POLL_URL =
 const UA =
   "Mozilla/5.0 (compatible; StockDashboard/1.0; +https://github.com/yskkkk/Stock)";
 const CACHE_MS = Math.max(
-  15_000,
-  Number(process.env.KR_NAVER_QUOTE_TTL_MS) || 30_000,
+  1_000,
+  Number(process.env.KR_NAVER_QUOTE_TTL_MS) || 5_000,
 );
 const BATCH_SIZE = Math.min(
   80,
@@ -145,9 +145,10 @@ async function fetchNaverByCodes(codes) {
 
 /**
  * @param {string[]} yahooOrBareSymbols
+ * @param {{ maxAgeMs?: number }} [opts] — 0이면 캐시 무시(실시간)
  * @returns {Promise<Map<string, KrNaverQuote>>} key = 6자리 code
  */
-export async function fetchKrNaverQuotesBatch(yahooOrBareSymbols) {
+export async function fetchKrNaverQuotesBatch(yahooOrBareSymbols, opts = {}) {
   const codes = [
     ...new Set(
       (Array.isArray(yahooOrBareSymbols) ? yahooOrBareSymbols : [])
@@ -159,10 +160,14 @@ export async function fetchKrNaverQuotesBatch(yahooOrBareSymbols) {
   const out = new Map();
   const needFetch = [];
   const now = Date.now();
+  const maxAge =
+    typeof opts.maxAgeMs === "number" && Number.isFinite(opts.maxAgeMs)
+      ? Math.max(0, opts.maxAgeMs)
+      : CACHE_MS;
 
   for (const code of codes) {
     const hit = cache.get(code);
-    if (hit && now - hit.at < CACHE_MS && hit.quote) {
+    if (maxAge > 0 && hit && now - hit.at < maxAge && hit.quote) {
       out.set(code, hit.quote);
     } else {
       needFetch.push(code);
