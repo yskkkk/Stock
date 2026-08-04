@@ -225,6 +225,11 @@ function finalizeIdeQueueSlot(slot, state, error = null) {
     });
     slot.pendingIdeNotify = undefined;
   }
+
+  // IDE 개발 종료 → VU 탐색 즉시 재개
+  void import("./virtual-user-poller.js")
+    .then((m) => m.kickVirtualUserExploreSoon?.(0))
+    .catch(() => {});
 }
 
 function buildOpsAgentQueueMemoryEntries() {
@@ -790,6 +795,11 @@ export function releaseAnyRunningIdeDevQueueSlot(opts = {}) {
     .catch(() => {
       bumpDevQueueDisplayMirror();
     });
+
+  // IDE 전부 해제 → VU 탐색 재개
+  void import("./virtual-user-poller.js")
+    .then((m) => m.kickVirtualUserExploreSoon?.(0))
+    .catch(() => {});
 
   return { ok: true, released };
 }

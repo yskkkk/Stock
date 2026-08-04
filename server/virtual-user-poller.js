@@ -1,9 +1,8 @@
 /**
  * 가상 사용자 연속 탐색 폴러
- * - 탐색: 세션 끝나면 짧게 쉬고 바로 다음 — 피드백은 대기 없이 계속 쌓임
+ * - 탐색: 쉬지 않고 연속 (세션 사이 짧은 gap만). IDE 요청이 오면 쉬고, 개발 완료되면 즉시 재개
  * - 연속 탐색에서는 Playwright로 같은 Vite(5173)를 열지 않음(자기 부하시 웹 로딩 불가)
  * - 에이전트 전송: 짧은 주기로 스캔 + 잡 완료 시 즉시 다음 건 (IDE 채팅은 막지 않음)
- * - 에이전트 1건 제한 이유: ops 큐·워킹트리 동시 수정 충돌 방지
  */
 import { appendServerEventLog } from "./access-log.js";
 import { markPollerBootStarted, pollerGuardAsync } from "./poller-registry.js";
@@ -23,16 +22,21 @@ import {
 import { enrichVirtualFeedbackNarrativesSync } from "./virtual-user-feedback-enrich.js";
 import { dispatchNextVirtualUserImplement } from "./virtual-user-auto-implement.js";
 import { reviewPendingVirtualFeedbackBatchSync } from "./virtual-user-manager.js";
-import { isServerDevelopingSync } from "./virtual-user-dev-gate.js";
+import {
+  isIdeDevBusySync,
+  isServerDevelopingSync,
+} from "./virtual-user-dev-gate.js";
 
 const POLLER_ID = "virtual-user-continuous";
 /** 에이전트 전송 스캔 주기(안전망) — 정상 시 잡 완료 직후 chain dispatch */
 const IMPLEMENT_SCAN_MS = 30_000;
 /** 매니저 검토 스캔 (프롬프트 게이트) */
 const MANAGER_SCAN_MS = 20_000;
-/** 백엔드 전용 연속 탐색 세션 간격 */
-const EXPLORE_GAP_MS = 5_000;
-/** pending 백로그가 이보다 크면 탐색 속도 완화 */
+/** 백엔드 전용 연속 탐색 세션 간격 — IDE 없을 때 거의 연속 */
+const EXPLORE_GAP_MS = 2_000;
+/** IDE 개발 중 탐색 재개 여부 폴링 */
+const EXPLORE_IDE_PAUSE_POLL_MS = 3_000;
+/** pending 백로그가 이보다 크면 탐색 세션당 분량만 줄임(간격은 유지) */
 const EXPLORE_BACKLOG_SOFT = 40;
 const EXPLORE_BACKLOG_HARD = 120;
 
@@ -44,6 +48,7 @@ let exploreTimer = null;
 let implementTimer = null;
 /** @type {ReturnType<typeof setInterval> | null} */
 let managerTimer = null;
+let lastExploreIdePauseLogMs = 0;
 
 export function getVirtualUserContinuousPollIntervalMs() {
   return IMPLEMENT_SCAN_MS;
@@ -53,7 +58,7 @@ export function isVirtualUserContinuousBusy() {
   return running;
 }
 
-export { isServerDevelopingSync } from "./virtual-user-dev-gate.js";
+export { isServerDevelopingSync, isIdeDevBusySync } from "./virtual-user-dev-gate.js";
 
 function countFeedbackBacklog() {
   try {
@@ -70,26 +75,28 @@ function countFeedbackBacklog() {
   }
 }
 
-function exploreGapForBacklog() {
-  const { pending, approved } = countFeedbackBacklog();
-  if (pending >= EXPLORE_BACKLOG_HARD || approved >= 25) {
-    return 60_000;
-  }
-  if (pending >= EXPLORE_BACKLOG_SOFT || approved >= 8) {
-    return 20_000;
-  }
-  return EXPLORE_GAP_MS;
-}
-
 export async function tickVirtualUserContinuousOnce() {
   if (running) return { ok: false, reason: "busy" };
   return pollerGuardAsync(POLLER_ID, async () => {
     const cfg = getVirtualUserContinuousSync();
     if (!cfg.enabled) return { ok: false, reason: "disabled" };
 
+    // IDE 요청 중에는 탐색 쉼 — 개발 완료 후 kick/폴링으로 재개
+    if (isIdeDevBusySync()) {
+      const now = Date.now();
+      if (now - lastExploreIdePauseLogMs > 30_000) {
+        lastExploreIdePauseLogMs = now;
+        appendServerEventLog(
+          "virtual-user",
+          "explore pause — IDE developing (resume when IDE done)",
+        );
+      }
+      return { ok: true, createdCount: 0, pausedForIde: true };
+    }
+
     const backlog = countFeedbackBacklog();
     if (backlog.pending >= EXPLORE_BACKLOG_HARD) {
-      // 매니저·구현이 따라잡을 때까지 탐색만 잠시 쉼 (상시가동 유지)
+      // 매니저가 비울 수 있게 검토만 — 간격은 짧게 유지해 “쉬는” 느낌이 안 나게
       tickManagerReviewOnce();
       patchVirtualUserContinuousSync({
         lastTickAtMs: Date.now(),
@@ -99,7 +106,7 @@ export async function tickVirtualUserContinuousOnce() {
       });
       appendServerEventLog(
         "virtual-user",
-        `explore pause backlog pending=${backlog.pending} approved=${backlog.approved} (drain first)`,
+        `explore light tick backlog pending=${backlog.pending} approved=${backlog.approved} (manager drain)`,
       );
       return { ok: true, createdCount: 0, pausedForBacklog: true };
     }
@@ -142,10 +149,9 @@ export async function tickVirtualUserContinuousOnce() {
       if (result.ok) {
         appendServerEventLog(
           "virtual-user",
-          `explore tick ok created=${created} emptyStreak=${emptyStreak} personaOff=${personaOffset} angle=${angleOffset} (novelty; agent via 3min idle scan)`,
+          `explore tick ok created=${created} emptyStreak=${emptyStreak} personaOff=${personaOffset} angle=${angleOffset}`,
         );
       }
-      // 탐색 직후 에이전트 전송하지 않음 — 주기 스캔·잡 완료 chain에서만
       return result;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -161,6 +167,15 @@ export async function tickVirtualUserContinuousOnce() {
   });
 }
 
+/**
+ * IDE 개발 완료·해제 직후 탐색 즉시 재개.
+ * @param {number} [delayMs]
+ */
+export function kickVirtualUserExploreSoon(delayMs = 0) {
+  if (!started) return;
+  scheduleExploreSoon(Math.max(0, Number(delayMs) || 0));
+}
+
 function scheduleExploreSoon(delayMs = EXPLORE_GAP_MS) {
   if (exploreTimer) {
     clearTimeout(exploreTimer);
@@ -170,11 +185,22 @@ function scheduleExploreSoon(delayMs = EXPLORE_GAP_MS) {
   exploreTimer = setTimeout(() => {
     exploreTimer = null;
     void (async () => {
-      // 상시가동: 꺼져 있으면 다시 켠다 (env=0만 완전 off)
       ensureVirtualUserContinuousAlwaysOn();
       const cfg = getVirtualUserContinuousSync();
       if (!cfg.enabled) {
         scheduleExploreSoon(5_000);
+        return;
+      }
+      if (isIdeDevBusySync()) {
+        const now = Date.now();
+        if (now - lastExploreIdePauseLogMs > 30_000) {
+          lastExploreIdePauseLogMs = now;
+          appendServerEventLog(
+            "virtual-user",
+            "explore pause — IDE developing (resume when IDE done)",
+          );
+        }
+        scheduleExploreSoon(EXPLORE_IDE_PAUSE_POLL_MS);
         return;
       }
       try {
@@ -182,7 +208,11 @@ function scheduleExploreSoon(delayMs = EXPLORE_GAP_MS) {
       } catch {
         /* continue loop */
       }
-      scheduleExploreSoon(exploreGapForBacklog());
+      // IDE가 없으면 백로그와 무관하게 거의 연속 탐색
+      const nextGap = isIdeDevBusySync()
+        ? EXPLORE_IDE_PAUSE_POLL_MS
+        : EXPLORE_GAP_MS;
+      scheduleExploreSoon(nextGap);
     })();
   }, delayMs);
 }
@@ -213,7 +243,6 @@ function tickManagerReviewOnce() {
  * 주기 스캔: 웹/기록모드 개발 중이 아니면 대기 피드백 1건만 에이전트로
  */
 async function tickImplementScanOnce() {
-  // 전송 직전 미검토 분량 선처리
   tickManagerReviewOnce();
   if (isServerDevelopingSync()) {
     appendServerEventLog(
@@ -223,7 +252,6 @@ async function tickImplementScanOnce() {
     return { ok: false, reason: "developing" };
   }
   const cfg = getVirtualUserContinuousSync();
-  // 마스터 스위치 off: 새 전송만 중단 — 이미 queued/running 잡은 폴러·에이전트가 끝냄
   if (cfg.enabled === false) {
     return { ok: false, reason: "disabled" };
   }
@@ -278,7 +306,6 @@ export function startVirtualUserContinuousPoller() {
     appendServerEventLog("virtual-user", `narrative enrich fail ${msg}`);
   }
 
-  // 상시가동: 부팅 시 enabled·autoImplement 강제 on (env=0만 예외)
   patchVirtualUserContinuousSync({
     intervalMs: IMPLEMENT_SCAN_MS,
   });
@@ -286,21 +313,18 @@ export function startVirtualUserContinuousPoller() {
   const after = getVirtualUserContinuousSync();
   appendServerEventLog(
     "virtual-user",
-    `explore=always-on(novelty) gap=${EXPLORE_GAP_MS}ms · implementScan=${after.intervalMs}ms enabled=${after.enabled} autoImplement=${after.autoImplement} boot=${boot.reason || "ok"}`,
+    `explore=always-on gap=${EXPLORE_GAP_MS}ms · pauseOnIde=1 · implementScan=${after.intervalMs}ms enabled=${after.enabled} autoImplement=${after.autoImplement} boot=${boot.reason || "ok"}`,
   );
   markPollerBootStarted(POLLER_ID);
 
-  // 탐색: 거의 연속 루프
-  scheduleExploreSoon(45_000);
+  scheduleExploreSoon(5_000);
 
-  // 매니저 검토: 45초마다 (프롬프트 게이트)
   if (managerTimer) clearInterval(managerTimer);
   managerTimer = setInterval(() => {
     tickManagerReviewOnce();
   }, MANAGER_SCAN_MS);
   setTimeout(() => tickManagerReviewOnce(), 12_000);
 
-  // 에이전트 전송: 짧은 주기 스캔 + 잡 완료 시 chain (IDE는 막지 않음)
   if (implementTimer) clearInterval(implementTimer);
   implementTimer = setInterval(() => {
     void tickImplementScanOnce().catch(() => {});
