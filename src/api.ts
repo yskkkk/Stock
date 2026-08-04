@@ -245,7 +245,10 @@ export type PicksDailyHistoryQuotesMap = Record<
   }
 >;
 
-export function fetchLiveTradingMinuteQuotes(symbols: string[]) {
+export function fetchLiveTradingMinuteQuotes(
+  symbols: string[],
+  opts?: { signal?: AbortSignal },
+) {
   const uniq = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
   if (!uniq.length) {
     return Promise.resolve({
@@ -259,7 +262,9 @@ export function fetchLiveTradingMinuteQuotes(symbols: string[]) {
     quotes: PicksDailyHistoryQuotesMap;
     interval: "1m";
     updatedAtMs: number;
-  }>(`/api/live-trading/quotes?${params}`);
+  }>(`/api/live-trading/quotes?${params}`, {
+    signal: opts?.signal,
+  });
 }
 
 export function fetchMacroEvents() {

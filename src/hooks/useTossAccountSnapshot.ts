@@ -205,8 +205,12 @@ export function useTossAccountSnapshot(opts?: {
     async (refresh = false, silent = false) => {
       const uid = userRef.current?.id ?? null;
       const hasLocal = Boolean(uid && readTossSnapshotCache(uid));
-      syncingRef.current += 1;
-      setSyncing(true);
+      // 조용한 폴링은 UI「갱신 중」을 켜지 않음 — 겹치면 스피너가 영구 고착됨
+      const trackSync = !silent;
+      if (trackSync) {
+        syncingRef.current += 1;
+        setSyncing(true);
+      }
       if (!silent && !hasLocal && !snapshotRef.current) setLoading(true);
       try {
         let meUser = userRef.current;
@@ -270,8 +274,10 @@ export function useTossAccountSnapshot(opts?: {
           setUpdatedAtMs(null);
         }
       } finally {
-        syncingRef.current = Math.max(0, syncingRef.current - 1);
-        setSyncing(syncingRef.current > 0);
+        if (trackSync) {
+          syncingRef.current = Math.max(0, syncingRef.current - 1);
+          setSyncing(syncingRef.current > 0);
+        }
         setAuthChecked(true);
         if (!silent) setLoading(false);
       }

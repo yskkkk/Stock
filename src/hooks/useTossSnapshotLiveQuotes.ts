@@ -11,8 +11,9 @@ import {
 } from "../lib/tossSnapshotLiveQuotes";
 import { useUsdKrwRate } from "./useUsdKrwRate";
 
-/** 계좌관리·토스 보유 시세 — 최대한 실시간에 가깝게 1초 폴링 */
+/** 계좌관리·토스 보유 시세 — 실시간에 가깝게 폴링 */
 export const TOSS_SNAPSHOT_QUOTE_POLL_MS = 1_000;
+const QUOTE_FETCH_TIMEOUT_MS = 12_000;
 
 export type TossSnapshotLiveQuotesResult = {
   snapshot: TossTestSnapshot | null;
@@ -20,7 +21,7 @@ export type TossSnapshotLiveQuotesResult = {
   quotesUpdatedAtMs: number | null;
 };
 
-/** 토스 보유·평가 손익 — 시세 API로 1초 갱신 (계좌 API와 분리) */
+/** 토스 보유·평가 손익 — 시세 API로 주기 갱신 (계좌 API와 분리) */
 export function useTossSnapshotLiveQuotes(
   snapshot: TossTestSnapshot | null,
   enabled = true,
@@ -31,23 +32,28 @@ export function useTossSnapshotLiveQuotes(
   const hasHoldings = Boolean(symbolsKey);
   const { rate: usdKrwRate } = useUsdKrwRate(hasHoldings && enabled);
   const quotesRef = useRef<import("../types").PicksDailyHistoryQuotesMap>({});
+  const ledgerRef = useRef<TossTestSnapshot | null>(snapshot);
   const [liveSnapshot, setLiveSnapshot] = useState<TossTestSnapshot | null>(
     () => snapshot,
   );
   const [quotesUpdatedAtMs, setQuotesUpdatedAtMs] = useState<number | null>(null);
 
   const applyQuotes = useCallback(
-    (base: TossTestSnapshot) =>
-      mergeLiveQuotesIntoTossSnapshot(
+    (base: TossTestSnapshot) => {
+      const merged = mergeLiveQuotesIntoTossSnapshot(
         base,
         quotesRef.current,
         usdKrwRate,
         feeRates,
-      ),
+      );
+      // 동일 참조 반환 시 React가 스킵하므로 항상 새 객체로 강제(실시간 표시)
+      return merged === base ? { ...base, holdings: [...base.holdings] } : merged;
+    },
     [usdKrwRate, feeRates],
   );
 
   useEffect(() => {
+    ledgerRef.current = snapshot;
     if (!snapshot) {
       setLiveSnapshot(null);
       return;
@@ -62,7 +68,7 @@ export function useTossSnapshotLiveQuotes(
   }, [snapshot, symbolsKey, applyQuotes]);
 
   useEffect(() => {
-    if (!enabled || !snapshot || !symbolsKey) {
+    if (!enabled || !symbolsKey) {
       setQuotesUpdatedAtMs(null);
       return;
     }
@@ -70,28 +76,38 @@ export function useTossSnapshotLiveQuotes(
     const syms = symbolsKey.split(",").filter(Boolean);
     let cancelled = false;
     let inFlight = false;
+    /** @type {AbortController | null} */
+    let abortCtrl = null;
 
     const pull = () => {
       if (cancelled || inFlight) return;
       inFlight = true;
-      void fetchLiveTradingMinuteQuotes(syms)
+      abortCtrl?.abort();
+      abortCtrl = new AbortController();
+      const timer = window.setTimeout(
+        () => abortCtrl?.abort(),
+        QUOTE_FETCH_TIMEOUT_MS,
+      );
+
+      void fetchLiveTradingMinuteQuotes(syms, { signal: abortCtrl.signal })
         .then((res) => {
           if (cancelled) return;
-          quotesRef.current = res.quotes ?? {};
+          const nextQuotes = res.quotes ?? {};
+          quotesRef.current = nextQuotes;
           const at =
             typeof res.updatedAtMs === "number" && res.updatedAtMs > 0
               ? res.updatedAtMs
               : Date.now();
           setQuotesUpdatedAtMs(at);
-          setLiveSnapshot((prev) => {
-            const base = prev ?? snapshot;
-            return applyQuotes(base);
-          });
+          const ledger = ledgerRef.current;
+          if (!ledger) return;
+          setLiveSnapshot(applyQuotes(ledger));
         })
         .catch(() => {
-          /* 이전 시세·손익 유지 */
+          /* 이전 시세 유지 — 다음 틱 재시도 */
         })
         .finally(() => {
+          window.clearTimeout(timer);
           inFlight = false;
         });
     };
@@ -100,9 +116,10 @@ export function useTossSnapshotLiveQuotes(
     const id = window.setInterval(pull, Math.max(500, pollMs));
     return () => {
       cancelled = true;
+      abortCtrl?.abort();
       window.clearInterval(id);
     };
-  }, [enabled, snapshot, symbolsKey, pollMs, applyQuotes]);
+  }, [enabled, symbolsKey, pollMs, applyQuotes]);
 
   return { snapshot: liveSnapshot, quotesUpdatedAtMs };
 }

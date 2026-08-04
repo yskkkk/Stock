@@ -1607,8 +1607,9 @@ export default function AccountManageTab({
     ) : null;
 
   const snapshotSyncing = provider === "toss" ? tossSyncing : bithumbSyncing;
+  // 수동 새로고침·명시적 sync만 스피너 — 백그라운드 시세/캐시 폴링은 제외
   const fetchActivity = refreshing || snapshotSyncing;
-  const { slowFetch, freshnessTick } = useSnapshotFreshness(fetchActivity, 2500);
+  const { slowFetch, freshnessTick } = useSnapshotFreshness(fetchActivity, 1800);
 
   if (!authChecked) {
     return (

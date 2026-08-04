@@ -53,8 +53,11 @@ export function useBithumbAccountSnapshot(opts?: {
 
   const reload = useCallback(
     async (refresh = false, silent = false) => {
-      syncingRef.current += 1;
-      setSyncing(true);
+      const trackSync = !silent;
+      if (trackSync) {
+        syncingRef.current += 1;
+        setSyncing(true);
+      }
       if (!silent && !snapshotRef.current) setLoading(true);
       try {
         const me = await fetchAuthMe();
@@ -73,8 +76,10 @@ export function useBithumbAccountSnapshot(opts?: {
         setUpdatedAtMs(null);
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
-        syncingRef.current = Math.max(0, syncingRef.current - 1);
-        setSyncing(syncingRef.current > 0);
+        if (trackSync) {
+          syncingRef.current = Math.max(0, syncingRef.current - 1);
+          setSyncing(syncingRef.current > 0);
+        }
         setAuthChecked(true);
         if (!silent) setLoading(false);
       }
@@ -95,12 +100,15 @@ export function useBithumbAccountSnapshot(opts?: {
     void (async () => {
       if (cancelled) return;
       await reload(false, false);
-      // 폴링은 interval에만 맡김 — 마운트 직후 refresh 이중 요청 제거
     })();
 
-    const id = window.setInterval(() => {
-      void reload(true, true);
+    // 캐시성 폴링은 silent — 스피너 고착 방지. 잔고 refresh는 주기적으로만.
+    const cacheId = window.setInterval(() => {
+      void reload(false, true);
     }, pollIntervalMs);
+    const refreshId = window.setInterval(() => {
+      void reload(true, true);
+    }, Math.max(pollIntervalMs * 4, 8_000));
 
     const onAuthChange = () => {
       void reload(true, false);
@@ -108,7 +116,8 @@ export function useBithumbAccountSnapshot(opts?: {
     window.addEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      window.clearInterval(cacheId);
+      window.clearInterval(refreshId);
       window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     };
   }, [poll, pollIntervalMs, reload]);
