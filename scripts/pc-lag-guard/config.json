@@ -1,0 +1,40 @@
+{
+  "pollIntervalSec": 45,
+  "sustainSamples": 3,
+  "thresholds": {
+    "cpuPercent": 88,
+    "availMemMb": 900,
+    "commitPercent": 90,
+    "diskQueue": 4,
+    "sampleSlowMs": 2500
+  },
+  "actions": {
+    "flushDns": true,
+    "trimWorkingSets": true,
+    "cleanTempOlderHours": 48,
+    "killSafePatterns": true,
+    "restartExplorerIfHung": false,
+    "beep": true
+  },
+  "safeKillPatterns": [
+    "vitest",
+    "esbuild",
+    "playwright.*chromium"
+  ],
+  "neverKillNameContains": [
+    "Cursor",
+    "Code.exe",
+    "Stock",
+    "explorer",
+    "System",
+    "csrss",
+    "winlogon",
+    "services",
+    "lsass",
+    "dwm",
+    "WindowsTerminal",
+    "powershell",
+    "pwsh"
+  ],
+  "logMaxKb": 512
+}

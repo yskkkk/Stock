@@ -5,6 +5,7 @@ server/.data
 server/.logs
 .DS_Store
 *.log
+scripts/pc-lag-guard/pc-lag-guard.state.json
 .cursor/**
 !.cursor/rules/
 !.cursor/rules/**
