@@ -781,6 +781,13 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
   align-items: stretch;
 }
 
+/* 태블릿·좁은 PC: 현금 칸을 2열로 넓혀 원·$ 합산처럼 보이지 않게 */
+@media (max-width: 1200px) and (min-width: 901px) {
+  .account-manage-tab__summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .account-manage-tab__summary-row {
     grid-template-columns: 1fr;
@@ -801,7 +808,7 @@ html:not([data-theme="light"]) .account-manage-tab__rebalance-zone-hint--blocked
     grid-column: 1 / -1;
     grid-template-columns: 1fr;
     order: 1;
-    gap: 0.45rem;
+    gap: 0.55rem;
   }
 
   .account-manage-tab__stat--cash .account-manage-tab__stat-value {
@@ -943,6 +950,7 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
 
 .account-manage-tab__stat--cash {
   min-height: 3.1rem;
+  min-width: 0;
 }
 
 .account-manage-tab__stat--cash-krw {

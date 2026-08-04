@@ -1956,6 +1956,7 @@ export default function AccountManageTab({
                   className="account-manage-tab__cash-group"
                   role="group"
                   aria-label={`${ko.app.accountManageCashKrw}, ${ko.app.accountManageCashUsd}`}
+                  data-vu="account-summary-cash-group"
                 >
                   <div
                     className="account-manage-tab__stat account-manage-tab__stat--cash account-manage-tab__stat--cash-krw"
