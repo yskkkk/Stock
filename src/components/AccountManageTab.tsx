@@ -1414,6 +1414,144 @@ export default function AccountManageTab({
     );
   };
 
+  const renderStyleStrip = () =>
+    styleSegments.length > 0 ? (
+      <div
+        className="account-manage-tab__style-strip"
+        role="group"
+        aria-label={ko.app.accountManageStyleChartTitle}
+        data-vu="account-style-strip"
+      >
+        <div className="account-manage-tab__style-strip-main">
+          <svg
+            className="account-manage-tab__style-mini-svg"
+            viewBox="0 0 200 200"
+            role="img"
+            aria-label={ko.app.accountManageStyleChartTitle}
+          >
+            {styleSegments.map((seg) => {
+              const dimmed = styleFocusKey && styleFocusKey !== seg.sector;
+              return (
+                <path
+                  key={`style-mini-${seg.sector}`}
+                  className={[
+                    "account-manage-tab__seg",
+                    dimmed ? "account-manage-tab__seg--dim" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  d={donutArcPath(cx, cy, r0, r1, seg.a0, seg.a1)}
+                  fill={seg.color}
+                  onClick={() => onStyleChipClick(seg.sector)}
+                />
+              );
+            })}
+            <circle cx={cx} cy={cy} r={r0 - 2} className="account-manage-tab__hole" />
+            <text
+              x={cx}
+              y={cy - 2}
+              textAnchor="middle"
+              className="account-manage-tab__style-mini-center"
+            >
+              {styleFocusKey
+                ? formatAllocPct(
+                    styleSegments.find((s) => s.sector === styleFocusKey)?.pct ?? 0,
+                  )
+                : ko.app.accountManageGroupStyle}
+            </text>
+          </svg>
+          <div className="account-manage-tab__style-strip-body">
+            <h4 className="account-manage-tab__style-strip-title">
+              {ko.app.accountManageStyleChartTitle}
+            </h4>
+            <p className="account-manage-tab__style-strip-sub">
+              {ko.app.accountManageStyleChartSub}
+            </p>
+            <p className="account-manage-tab__style-strip-note">
+              {ko.app.accountManageStyleNewDefaultHint}
+            </p>
+            <div
+              className="account-manage-tab__style-bar"
+              role="img"
+              aria-label={ko.app.accountManageStyleChartTitle}
+            >
+              {styleSegments.map((seg) => (
+                <button
+                  key={`style-bar-${seg.sector}`}
+                  type="button"
+                  className={[
+                    "account-manage-tab__style-bar-seg",
+                    styleFocusKey === seg.sector ? "active" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  style={{ flexGrow: Math.max(seg.pct, 0.5), background: seg.color }}
+                  aria-label={`${styleSegmentLabel(seg)} ${formatAllocPct(seg.pct)}`}
+                  title={`${styleSegmentLabel(seg)} ${formatAllocPct(seg.pct)}`}
+                  onClick={() => onStyleChipClick(seg.sector)}
+                />
+              ))}
+            </div>
+            <div className="account-manage-tab__style-chips">
+              {styleSegments.map((seg) => {
+                const active = styleFocusKey === seg.sector;
+                const mix = styleSourceCounts[seg.sector];
+                return (
+                  <button
+                    key={`style-chip-${seg.sector}`}
+                    type="button"
+                    className={[
+                      "account-manage-tab__style-chip",
+                      active ? "active" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    aria-pressed={active}
+                    aria-label={`${styleSegmentLabel(seg)} ${formatAllocPct(seg.pct)}`}
+                    onClick={() => onStyleChipClick(seg.sector)}
+                  >
+                    <span
+                      className="account-manage-tab__swatch"
+                      style={{ background: seg.color }}
+                      aria-hidden
+                    />
+                    <span className="account-manage-tab__style-chip-label">
+                      <span className="account-manage-tab__style-chip-name">
+                        {styleSegmentLabel(seg)}
+                      </span>
+                      {mix && (mix.auto > 0 || mix.specified > 0) ? (
+                        <span className="account-manage-tab__style-chip-mix">
+                          {ko.app.accountManageStyleLegendMix
+                            .replace("{auto}", String(mix.auto))
+                            .replace("{specified}", String(mix.specified))}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="account-manage-tab__style-chip-pct">
+                      {formatAllocPct(seg.pct)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <div className="account-manage-tab__style-strip-footer">
+          <p className="account-manage-tab__style-strip-hint">
+            {ko.app.accountManageStyleStripHint}
+          </p>
+          <button
+            type="button"
+            className="account-manage-tab__style-assign-link"
+            data-vu="account-style-assign-link"
+            onClick={scrollToStyleAssign}
+          >
+            {ko.app.accountManageStyleAssignLink}
+          </button>
+        </div>
+      </div>
+    ) : null;
+
   const snapshotSyncing = provider === "toss" ? tossSyncing : bithumbSyncing;
   const fetchActivity = refreshing || snapshotSyncing;
   const { slowFetch, freshnessTick } = useSnapshotFreshness(fetchActivity, 2500);
@@ -2352,6 +2490,8 @@ export default function AccountManageTab({
                   })}
                 </ul>
               )}
+
+              {renderStyleStrip()}
 
               {focusKey ? (
                 renderChartFilterBar(undefined, "weight")
