@@ -16,14 +16,37 @@ import {
 } from "../lib/tossSnapshotClientCache";
 import { tossSnapshotLedgerFingerprint } from "../lib/tossSnapshotLiveQuotes";
 
-/** 파일 캐시·클라이언트 캐시 — 기본 5초 (좌측 레일·독 등) */
-export const TOSS_LEDGER_POLL_MS = 5_000;
+/** 파일 캐시·클라이언트 캐시 — 기본 (좌측 레일·독 등) */
+export const TOSS_LEDGER_POLL_MS = 8_000;
 /** 토스 Open API(잔고·수량) — ACCOUNT 1TPS 보호 */
 export const TOSS_LEDGER_API_REFRESH_MS = 15_000;
-/** 계좌 탭: 캐시 조회를 빠르게 (시세·스냅샷 반영) */
-export const ACCOUNT_TAB_TOSS_CACHE_POLL_MS = 1_000;
-/** 계좌 탭: Open API refresh (1TPS 여유 두고 짧게) */
-export const ACCOUNT_TAB_TOSS_API_REFRESH_MS = 8_000;
+/**
+ * 계좌 탭 잔고 폴링 — 시세는 useTossSnapshotLiveQuotes가 담당.
+ * 너무 짧으면 스냅샷 요청 폭주로 시세 API까지 막힘.
+ */
+export const ACCOUNT_TAB_TOSS_CACHE_POLL_MS = 3_000;
+export const ACCOUNT_TAB_TOSS_API_REFRESH_MS = 12_000;
+
+/** 동시에 여러 컴포넌트가 호출해도 1건만 네트워크 */
+type SnapshotRes = Awaited<ReturnType<typeof fetchTossAccountSnapshot>>;
+let inflightRefresh: Promise<SnapshotRes> | null = null;
+let inflightCache: Promise<SnapshotRes> | null = null;
+
+function fetchTossAccountSnapshotCoalesced(refresh: boolean): Promise<SnapshotRes> {
+  if (refresh) {
+    if (inflightRefresh) return inflightRefresh;
+    inflightRefresh = fetchTossAccountSnapshot({ refresh: true }).finally(() => {
+      inflightRefresh = null;
+    });
+    return inflightRefresh;
+  }
+  if (inflightRefresh) return inflightRefresh;
+  if (inflightCache) return inflightCache;
+  inflightCache = fetchTossAccountSnapshot({ refresh: false }).finally(() => {
+    inflightCache = null;
+  });
+  return inflightCache;
+}
 
 function hydrateFromClientCache(userId: string): {
   snapshot: TossTestSnapshot;
@@ -116,6 +139,9 @@ export function useTossAccountSnapshot(opts?: {
   const userRef = useRef<AuthUser | null>(null);
   const snapshotRef = useRef<TossTestSnapshot | null>(boot.snapshot);
   const syncingRef = useRef(0);
+  const reloadRef = useRef<
+    (refresh?: boolean, silent?: boolean) => Promise<void>
+  >(async () => {});
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -205,7 +231,7 @@ export function useTossAccountSnapshot(opts?: {
     async (refresh = false, silent = false) => {
       const uid = userRef.current?.id ?? null;
       const hasLocal = Boolean(uid && readTossSnapshotCache(uid));
-      // 조용한 폴링은 UI「갱신 중」을 켜지 않음 — 겹치면 스피너가 영구 고착됨
+      // 자동 폴링은 UI「갱신 중」을 절대 켜지 않음
       const trackSync = !silent;
       if (trackSync) {
         syncingRef.current += 1;
@@ -260,7 +286,7 @@ export function useTossAccountSnapshot(opts?: {
           setTossFeeRatesByMarket(cached.tossFeeRatesByMarket);
           setUpdatedAtMs(cached.updatedAtMs);
         }
-        const out = await fetchTossAccountSnapshot({ refresh });
+        const out = await fetchTossAccountSnapshotCoalesced(refresh);
         applySnapshotResponse(
           out,
           meUser.id,
@@ -285,37 +311,44 @@ export function useTossAccountSnapshot(opts?: {
     [applySnapshotResponse],
   );
 
+  reloadRef.current = reload;
+
   useEffect(() => {
     let cancelled = false;
 
     void (async () => {
       if (cancelled) return;
-      await reload(false, false);
+      // 최초 1회만 로딩 표시 — 이후 폴링은 silent
+      await reloadRef.current(false, Boolean(boot.hasCache));
     })();
 
-    const cacheId = poll
-      ? window.setInterval(() => {
-          void reload(false, true);
-        }, pollIntervalMs)
-      : undefined;
+    if (!poll) {
+      return () => {
+        cancelled = true;
+      };
+    }
 
-    const apiId = poll
-      ? window.setInterval(() => {
-          void reload(true, true);
-        }, apiRefreshIntervalMs)
-      : undefined;
+    const cacheId = window.setInterval(() => {
+      void reloadRef.current(false, true);
+    }, Math.max(2_000, pollIntervalMs));
+
+    const apiId = window.setInterval(() => {
+      void reloadRef.current(true, true);
+    }, Math.max(8_000, apiRefreshIntervalMs));
 
     const onAuthChange = () => {
-      void reload(true, false);
+      void reloadRef.current(true, false);
     };
     window.addEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     return () => {
       cancelled = true;
-      if (cacheId != null) window.clearInterval(cacheId);
-      if (apiId != null) window.clearInterval(apiId);
+      window.clearInterval(cacheId);
+      window.clearInterval(apiId);
       window.removeEventListener(LIVE_TRADE_AUTH_CHANGE, onAuthChange);
     };
-  }, [poll, pollIntervalMs, apiRefreshIntervalMs, reload]);
+    // reload를 deps에 넣지 않음 — identity 변경으로 폴링이 재기동·폭주하는 것 방지
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boot.hasCache stable for mount
+  }, [poll, pollIntervalMs, apiRefreshIntervalMs]);
 
   return {
     user,

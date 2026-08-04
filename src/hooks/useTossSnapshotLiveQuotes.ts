@@ -11,17 +11,15 @@ import {
 } from "../lib/tossSnapshotLiveQuotes";
 import { useUsdKrwRate } from "./useUsdKrwRate";
 
-/** 계좌관리·토스 보유 시세 — 실시간에 가깝게 폴링 */
-export const TOSS_SNAPSHOT_QUOTE_POLL_MS = 1_000;
-const QUOTE_FETCH_TIMEOUT_MS = 12_000;
+/** 계좌관리 시세 — 잔고 API와 분리해 빠르게 폴링 */
+export const TOSS_SNAPSHOT_QUOTE_POLL_MS = 500;
+const QUOTE_FETCH_TIMEOUT_MS = 8_000;
 
 export type TossSnapshotLiveQuotesResult = {
   snapshot: TossTestSnapshot | null;
-  /** 시세 API 마지막 성공 시각(ms) */
   quotesUpdatedAtMs: number | null;
 };
 
-/** 토스 보유·평가 손익 — 시세 API로 주기 갱신 (계좌 API와 분리) */
 export function useTossSnapshotLiveQuotes(
   snapshot: TossTestSnapshot | null,
   enabled = true,
@@ -33,24 +31,25 @@ export function useTossSnapshotLiveQuotes(
   const { rate: usdKrwRate } = useUsdKrwRate(hasHoldings && enabled);
   const quotesRef = useRef<import("../types").PicksDailyHistoryQuotesMap>({});
   const ledgerRef = useRef<TossTestSnapshot | null>(snapshot);
+  const feeRatesRef = useRef(feeRates);
+  const usdKrwRef = useRef(usdKrwRate);
+  feeRatesRef.current = feeRates;
+  usdKrwRef.current = usdKrwRate;
+
   const [liveSnapshot, setLiveSnapshot] = useState<TossTestSnapshot | null>(
     () => snapshot,
   );
   const [quotesUpdatedAtMs, setQuotesUpdatedAtMs] = useState<number | null>(null);
 
-  const applyQuotes = useCallback(
-    (base: TossTestSnapshot) => {
-      const merged = mergeLiveQuotesIntoTossSnapshot(
-        base,
-        quotesRef.current,
-        usdKrwRate,
-        feeRates,
-      );
-      // 동일 참조 반환 시 React가 스킵하므로 항상 새 객체로 강제(실시간 표시)
-      return merged === base ? { ...base, holdings: [...base.holdings] } : merged;
-    },
-    [usdKrwRate, feeRates],
-  );
+  const applyQuotes = useCallback((base: TossTestSnapshot) => {
+    const merged = mergeLiveQuotesIntoTossSnapshot(
+      base,
+      quotesRef.current,
+      usdKrwRef.current,
+      feeRatesRef.current,
+    );
+    return merged === base ? { ...base, holdings: base.holdings.slice() } : merged;
+  }, []);
 
   useEffect(() => {
     ledgerRef.current = snapshot;
@@ -67,6 +66,13 @@ export function useTossSnapshotLiveQuotes(
     });
   }, [snapshot, symbolsKey, applyQuotes]);
 
+  // 환율·수수료 바뀌면 현재 시세로 재계산
+  useEffect(() => {
+    const ledger = ledgerRef.current;
+    if (!ledger || !symbolsKey) return;
+    setLiveSnapshot(applyQuotes(ledger));
+  }, [usdKrwRate, feeRates, symbolsKey, applyQuotes]);
+
   useEffect(() => {
     if (!enabled || !symbolsKey) {
       setQuotesUpdatedAtMs(null);
@@ -76,8 +82,7 @@ export function useTossSnapshotLiveQuotes(
     const syms = symbolsKey.split(",").filter(Boolean);
     let cancelled = false;
     let inFlight = false;
-    /** @type {AbortController | null} */
-    let abortCtrl = null;
+    let abortCtrl: AbortController | null = null;
 
     const pull = () => {
       if (cancelled || inFlight) return;
@@ -92,8 +97,7 @@ export function useTossSnapshotLiveQuotes(
       void fetchLiveTradingMinuteQuotes(syms, { signal: abortCtrl.signal })
         .then((res) => {
           if (cancelled) return;
-          const nextQuotes = res.quotes ?? {};
-          quotesRef.current = nextQuotes;
+          quotesRef.current = res.quotes ?? {};
           const at =
             typeof res.updatedAtMs === "number" && res.updatedAtMs > 0
               ? res.updatedAtMs
@@ -104,7 +108,7 @@ export function useTossSnapshotLiveQuotes(
           setLiveSnapshot(applyQuotes(ledger));
         })
         .catch(() => {
-          /* 이전 시세 유지 — 다음 틱 재시도 */
+          /* 다음 틱 재시도 */
         })
         .finally(() => {
           window.clearTimeout(timer);
@@ -113,7 +117,7 @@ export function useTossSnapshotLiveQuotes(
     };
 
     pull();
-    const id = window.setInterval(pull, Math.max(500, pollMs));
+    const id = window.setInterval(pull, Math.max(400, pollMs));
     return () => {
       cancelled = true;
       abortCtrl?.abort();

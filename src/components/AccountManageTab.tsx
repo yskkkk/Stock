@@ -273,7 +273,7 @@ export default function AccountManageTab({
     tossFeeRatesByMarket: tossFeeRatesByMarketHook,
     updatedAtMs: tossUpdatedAtMs,
     loading: tossLoading,
-    syncing: tossSyncing,
+    syncing: _tossSyncing,
     err: tossErr,
     reload: reloadToss,
   } = useTossAccountSnapshot({
@@ -287,7 +287,7 @@ export default function AccountManageTab({
     feeLabelKo: bithumbFeeLabel,
     updatedAtMs: bithumbUpdatedAtMs,
     loading: bithumbLoading,
-    syncing: bithumbSyncing,
+    syncing: _bithumbSyncing,
     err: bithumbErr,
     reload: reloadBithumb,
   } = useBithumbAccountSnapshot({
@@ -314,7 +314,7 @@ export default function AccountManageTab({
   const { snapshot: liveSnapshot, quotesUpdatedAtMs } = useTossSnapshotLiveQuotes(
     tossSnapshot,
     Boolean(user && provider === "toss" && tossSnapshot?.holdings?.length),
-    undefined,
+    500,
     feeRates,
   );
   const activeToss = liveSnapshot ?? tossSnapshot;
@@ -895,10 +895,12 @@ export default function AccountManageTab({
   const onRefresh = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
+    const hardStop = window.setTimeout(() => setRefreshing(false), 20_000);
     try {
-      if (provider === "toss") await reloadToss?.(true);
-      else await reloadBithumb?.(true);
+      if (provider === "toss") await reloadToss?.(true, false);
+      else await reloadBithumb?.(true, false);
     } finally {
+      window.clearTimeout(hardStop);
       setRefreshing(false);
     }
   }, [provider, reloadToss, reloadBithumb, refreshing]);
@@ -1606,10 +1608,9 @@ export default function AccountManageTab({
       </div>
     ) : null;
 
-  const snapshotSyncing = provider === "toss" ? tossSyncing : bithumbSyncing;
-  // 수동 새로고침·명시적 sync만 스피너 — 백그라운드 시세/캐시 폴링은 제외
-  const fetchActivity = refreshing || snapshotSyncing;
-  const { slowFetch, freshnessTick } = useSnapshotFreshness(fetchActivity, 1800);
+  // 자동 폴링/시세는 스피너에 묶지 않음 — 수동 새로고침만「갱신 중」
+  const fetchActivity = refreshing;
+  const { slowFetch, freshnessTick } = useSnapshotFreshness(fetchActivity, 1200);
 
   if (!authChecked) {
     return (
