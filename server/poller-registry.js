@@ -68,13 +68,13 @@ export const POLLER_CATALOG = {
     labelKo: "토스 Open API 잔고 갱신",
     groupKo: "계좌",
     intervalMs: () => {
-      const n = Number(process.env.STOCK_TOSS_LEDGER_API_MS ?? 15_000);
-      return Number.isFinite(n) && n >= 5_000 ? Math.min(n, 120_000) : 15_000;
+      const n = Number(process.env.STOCK_TOSS_LEDGER_API_MS ?? 8_000);
+      return Number.isFinite(n) && n >= 5_000 ? Math.min(n, 120_000) : 8_000;
     },
     envDisable: "STOCK_TOSS_LEDGER_POLL=0",
     isBootEnabled: () => process.env.STOCK_TOSS_LEDGER_POLL !== "0",
     descriptionKo:
-      "토스 연동 사용자의 계좌·보유를 Open API로 주기 조회해 live-trade-toss-ledger.json에 저장합니다. ACCOUNT 1TPS 제한으로 15초 간격이 기본입니다.",
+      "토스 연동 사용자의 계좌·보유를 Open API로 주기 조회해 live-trade-toss-ledger.json에 저장합니다. ACCOUNT 1TPS 제한으로 8초 간격이 기본입니다.",
   },
   "live-trade-auto-sell": {
     labelKo: "실매매·시뮬 자동 매도",
