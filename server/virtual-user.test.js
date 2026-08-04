@@ -324,7 +324,6 @@ describe("virtual-user-api-guard", () => {
       ),
     ).toBe(true);
     expect(isCursorApiExhaustedError("selector timeout on tab")).toBe(false);
-
   });
 });
 

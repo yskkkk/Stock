@@ -1,5 +1,5 @@
 /**
- * Cursor API 토큰/쿼터 소진 감지 → 가상 사용자 자동 개선 정지
+ * Cursor API 토큰/쿼터 소진 감지 → 가상 사용자 전체 정지(탐색·자동 구현)
  */
 import { appendServerEventLog } from "./access-log.js";
 import {
@@ -38,6 +38,8 @@ export function isCursorApiExhaustedError(errOrMsg) {
     /billing/.test(s) ||
     /out of credits/.test(s) ||
     /credit[\s_-]?limit/.test(s) ||
+    /token[\s_-]?(limit|budget|quota|exhausted)/.test(s) ||
+    /monthly[\s_-]?(limit|budget|quota)/.test(s) ||
     /api[\s_-]?key.*(invalid|missing|expired|revoked)/.test(s) ||
     (/cursor_api_key/.test(s) &&
       /(invalid|missing|expired|revoked|not set|없|설정)/.test(s))
@@ -49,24 +51,27 @@ export function hasCursorApiKey() {
 }
 
 /**
- * API 소진 시 자동 구현만 정지 — 탐색(상시가동)은 유지
+ * API 소진 시 가상 사용자 전체 정지(탐색·자동 구현).
+ * 관리자가 마스터를 다시 켜기 전까지 유지(서버 재기동으로 자동 해제하지 않음).
  * @param {string} reason
  */
 export function pauseVirtualUserForApiExhaustion(reason) {
   const msg = String(reason ?? "Cursor API 토큰/쿼터 소진").slice(0, 500);
   const cur = getVirtualUserContinuousSync();
-  if (cur.pausedByApiExhaustion && cur.autoImplement === false) {
+  if (
+    cur.pausedByApiExhaustion &&
+    cur.enabled === false &&
+    cur.autoImplement === false
+  ) {
     patchVirtualUserContinuousSync({
       lastError: msg,
       pausedAtMs: cur.pausedAtMs ?? Date.now(),
       pausedReason: msg,
-      // 탐색은 계속
-      enabled: true,
     });
     return { ok: true, already: true };
   }
   patchVirtualUserContinuousSync({
-    enabled: true,
+    enabled: false,
     autoImplement: false,
     pausedByApiExhaustion: true,
     pausedAtMs: Date.now(),
@@ -75,12 +80,12 @@ export function pauseVirtualUserForApiExhaustion(reason) {
   });
   appendServerEventLog(
     "virtual-user",
-    `autoImplement paused by API exhaustion (explore stays on): ${msg}`,
+    `stopped by API exhaustion (explore+implement off): ${msg}`,
   );
   return { ok: true, already: false };
 }
 
-/** 사용자가 다시 켤 때 / 부팅 시 키 있으면 해제 */
+/** 사용자가 다시 켤 때 해제 */
 export function clearVirtualUserApiExhaustionPause() {
   const cur = getVirtualUserContinuousSync();
   if (!cur.pausedByApiExhaustion) return { ok: true, cleared: false };
@@ -95,24 +100,42 @@ export function clearVirtualUserApiExhaustionPause() {
 }
 
 /**
- * 서버 기동·감시: 가상 사용자 연속 탐색을 상시 가동.
- * STOCK_VIRTUAL_USER_CONTINUOUS=0 일 때만 완전 off.
- * API 키 없으면 탐색은 on, 자동 구현만 정지.
+ * 서버 기동: 상시 가동 복구.
+ * - STOCK_VIRTUAL_USER_CONTINUOUS=0 → off
+ * - pausedByApiExhaustion → 그대로 정지 유지(토큰 소진 후 재기동해도 자동 재개 금지)
+ * - 키 없음 → 전체 정지
  */
 export function ensureVirtualUserAutoImproveOnBoot() {
   if (process.env.STOCK_VIRTUAL_USER_CONTINUOUS === "0") {
     return { ok: false, reason: "env-off" };
   }
-  if (!hasCursorApiKey()) {
-    pauseVirtualUserForApiExhaustion(
-      "CURSOR_API_KEY 없음 — 자동 구현만 정지. 탐색은 상시 가동. .env에 키를 넣으면 자동 구현도 재개.",
-    );
-    patchVirtualUserContinuousSync({ enabled: true });
-    return { ok: true, reason: "explore-only-no-api-key", enabled: true, autoImplement: false };
-  }
   const cur = getVirtualUserContinuousSync();
   if (cur.pausedByApiExhaustion) {
-    clearVirtualUserApiExhaustionPause();
+    patchVirtualUserContinuousSync({
+      enabled: false,
+      autoImplement: false,
+    });
+    appendServerEventLog(
+      "virtual-user",
+      `boot: stay stopped (API exhaustion) reason=${String(cur.pausedReason || "").slice(0, 160)}`,
+    );
+    return {
+      ok: true,
+      reason: "api-exhausted-stay-off",
+      enabled: false,
+      autoImplement: false,
+    };
+  }
+  if (!hasCursorApiKey()) {
+    pauseVirtualUserForApiExhaustion(
+      "CURSOR_API_KEY 없음 — 가상 사용자를 정지했습니다. .env에 키를 넣고 관리자에서 다시 켜 주세요.",
+    );
+    return {
+      ok: true,
+      reason: "stopped-no-api-key",
+      enabled: false,
+      autoImplement: false,
+    };
   }
   patchVirtualUserContinuousSync({
     enabled: true,
@@ -131,19 +154,21 @@ export function ensureVirtualUserAutoImproveOnBoot() {
 }
 
 /**
- * 탐색 루프용: 꺼져 있으면 다시 켠다 (STOCK_VIRTUAL_USER_CONTINUOUS=0 제외)
+ * 탐색 루프용: 꺼져 있으면 다시 켠다.
+ * API 소진 정지·env=0 이면 재가동하지 않음.
  */
 export function ensureVirtualUserContinuousAlwaysOn() {
   if (process.env.STOCK_VIRTUAL_USER_CONTINUOUS === "0") {
     return { ok: false, reason: "env-off" };
   }
   const cur = getVirtualUserContinuousSync();
-  const keyOk = hasCursorApiKey();
-  if (
-    cur.enabled &&
-    (!keyOk ? cur.autoImplement === false : cur.autoImplement === true) &&
-    (!keyOk || !cur.pausedByApiExhaustion)
-  ) {
+  if (cur.pausedByApiExhaustion) {
+    return { ok: false, reason: "api-exhausted" };
+  }
+  if (!hasCursorApiKey()) {
+    return { ok: false, reason: "no-api-key" };
+  }
+  if (cur.enabled && cur.autoImplement === true) {
     return { ok: true, reenabled: false };
   }
   if (!cur.enabled) {

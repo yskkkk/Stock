@@ -134,7 +134,7 @@ export async function maybeAutoImplementVirtualFeedback(item, opts = {}) {
 
   if (!hasCursorApiKey()) {
     pauseVirtualUserForApiExhaustion(
-      "CURSOR_API_KEY 없음 — 자동 구현을 정지했습니다.",
+      "CURSOR_API_KEY 없음 — 가상 사용자를 정지했습니다.",
     );
     return { ok: false, skipped: true, reason: "no-api-key" };
   }

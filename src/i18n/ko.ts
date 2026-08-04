@@ -182,6 +182,9 @@ export const ko = {
       "비중 필터가 적용 중입니다. 아래 목록에서 「전체 보기」로 해제할 수 있습니다.",
     accountManageStyleStripHint:
       "칩·막대·도넛을 누르면 해당 성향만 목록에 표시 · 「성향」열에서 자동/지정 구분",
+    /** 보유 비중 아래 한눈 요약 — 목표·현재 성장/가치 */
+    accountManageStyleGlanceTarget:
+      "목표 {ratio} · 현재 성장 {growth} · 가치 {value}",
     accountManageStyleAssignLink: "종목별 성향 지정 ↓",
     accountManageStyleTargetTitle: "목표 비중 (성장:가치)",
     accountManageStyleTargetHint:
@@ -1952,7 +1955,7 @@ export const ko = {
     vuContinuousLast: "최근 실행",
     vuContinuousCreated: "이번 {n}건",
     vuContinuousPausedApi:
-      "Cursor API 토큰/쿼터 소진으로 에이전트 구현이 정지됨. 피드백 탐색은 계속됩니다. 키·쿼터 확인 후 가상 사용자를 다시 켜 주세요.",
+      "Cursor API 토큰/쿼터가 소진되어 가상 사용자(탐색·자동 구현)가 정지되었습니다. 키·쿼터 확인 후 가상 사용자를 다시 켜 주세요.",
     vuAutoImplementOn: "자동 구현 켜짐 (FIFO 1건씩)",
     vuAutoImplementOff: "자동 구현 꺼짐",
     vuVersions: "코드 버전·롤백",

@@ -94,6 +94,10 @@ export async function tickVirtualUserContinuousOnce() {
       return { ok: true, createdCount: 0, pausedForIde: true };
     }
 
+    if (cfg.pausedByApiExhaustion) {
+      return { ok: false, reason: "api-exhausted" };
+    }
+
     const backlog = countFeedbackBacklog();
     if (backlog.pending >= EXPLORE_BACKLOG_HARD) {
       // 매니저가 비울 수 있게 검토만 — 간격은 짧게 유지해 “쉬는” 느낌이 안 나게
@@ -111,10 +115,11 @@ export async function tickVirtualUserContinuousOnce() {
       return { ok: true, createdCount: 0, pausedForBacklog: true };
     }
 
-    if (cfg.autoImplement !== false && !hasCursorApiKey()) {
+    if (!hasCursorApiKey()) {
       pauseVirtualUserForApiExhaustion(
-        "CURSOR_API_KEY 없음 — 에이전트 구현만 정지(피드백 탐색은 계속).",
+        "CURSOR_API_KEY 없음 — 가상 사용자를 정지했습니다.",
       );
+      return { ok: false, reason: "api-exhausted" };
     }
 
     running = true;
@@ -187,6 +192,11 @@ function scheduleExploreSoon(delayMs = EXPLORE_GAP_MS) {
     void (async () => {
       ensureVirtualUserContinuousAlwaysOn();
       const cfg = getVirtualUserContinuousSync();
+      if (cfg.pausedByApiExhaustion) {
+        // 토큰 소진 정지 — 관리자가 켤 때까지 탐색 안 함(느린 폴링만)
+        scheduleExploreSoon(60_000);
+        return;
+      }
       if (!cfg.enabled) {
         scheduleExploreSoon(5_000);
         return;
