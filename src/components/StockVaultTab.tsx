@@ -1800,6 +1800,24 @@ export default function StockVaultTab({
           ) : null}
         </div>
 
+        {showFilterEmptyState ? (
+          <div className="stock-vault-tab__empty-filter" role="status">
+            <p className="stock-vault-tab__muted">
+              {ko.stockVault.emptyFilteredReason(
+                emptyStateFilterLabels.join(" · "),
+              )}
+            </p>
+            <button
+              type="button"
+              className="stock-vault-tab__filter-reset"
+              aria-label={ko.stockVault.filterResetAria}
+              onClick={resetVaultFilters}
+            >
+              {ko.stockVault.filterReset}
+            </button>
+          </div>
+        ) : null}
+
         <StockVaultRowBubblePortal actionsRef={rowBubbleActionsRef} tipId={rowBubbleTipId} />
 
         {(loading && displayItems.length === 0 && !isHistoricalView) ||
@@ -1810,26 +1828,7 @@ export default function StockVaultTab({
             {error}
           </p>
         ) : filtered.length === 0 ? (
-          showFilterEmptyState ? (
-            <div
-              className="stock-vault-tab__empty-filter stock-vault-tab__empty-filter--list"
-              role="status"
-            >
-              <p className="stock-vault-tab__muted">
-                {ko.stockVault.emptyFilteredReason(
-                  emptyStateFilterLabels.join(" · "),
-                )}
-              </p>
-              <button
-                type="button"
-                className="stock-vault-tab__filter-reset"
-                aria-label={ko.stockVault.filterResetAria}
-                onClick={resetVaultFilters}
-              >
-                {ko.stockVault.filterReset}
-              </button>
-            </div>
-          ) : showEntryHintInEmpty ? (
+          showFilterEmptyState ? null : showEntryHintInEmpty ? (
             <p className="stock-vault-tab__entry-hint stock-vault-tab__entry-hint--empty">
               {ko.stockVault.entryHint}
             </p>
