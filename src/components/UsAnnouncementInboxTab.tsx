@@ -153,7 +153,11 @@ function tocTargetHeading(line: string): string | null {
 function scrollToAnalysisSection(heading: string) {
   const el = document.getElementById(sectionAnchorId(heading));
   if (!el) return;
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  const bar = document.querySelector(".us-ann-inbox__page-bar");
+  const offset =
+    bar instanceof HTMLElement ? bar.getBoundingClientRect().height + 8 : 12;
+  const top = el.getBoundingClientRect().top + window.scrollY - offset;
+  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
 }
 
 /** ## 섹션이 있으면 블록으로, 없으면 문단 리스트 */
@@ -397,143 +401,202 @@ export default function UsAnnouncementInboxTab() {
     return ko.usAnnouncement.count.replace("{n}", String(cards.length));
   }, [cards.length]);
 
-  const renderAnalysisBody = (classPrefix: "page" | "modal") => (
-    <>
-      <h3 className={`us-ann-inbox__${classPrefix}-section`}>
-        {selected?.deepAnalysis
-          ? ko.usAnnouncement.deepAnalysisLabel
-          : ko.usAnnouncement.articleLabel}
-      </h3>
-      {analysisBlocks.length ? (
-        analysisBlocks.map((block, i) => {
-          const isToc = block.heading === "목차";
-          return (
-            <section
-              key={`${block.heading ?? "p"}-${i}`}
-              id={
-                block.heading && !isToc
-                  ? sectionAnchorId(block.heading)
-                  : undefined
-              }
-              className={
-                isToc
-                  ? `us-ann-inbox__${classPrefix}-block us-ann-inbox__${classPrefix}-block--toc`
-                  : `us-ann-inbox__${classPrefix}-block`
-              }
-            >
-              {block.heading ? (
-                <h4 className={`us-ann-inbox__${classPrefix}-h`}>
-                  {block.heading}
-                </h4>
-              ) : null}
-              {isToc ? (
-                <div className={`us-ann-inbox__${classPrefix}-content`}>
-                  {block.paras.map((para) => {
-                    const target = tocTargetHeading(para);
-                    if (!target) return null;
-                    return (
-                      <button
-                        key={para.slice(0, 64)}
-                        type="button"
-                        className={`us-ann-inbox__${classPrefix}-toc-link`}
-                        onClick={() => scrollToAnalysisSection(target)}
-                      >
-                        {para}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className={`us-ann-inbox__${classPrefix}-content`}>
-                  {renderAnalysisParas(block.paras, classPrefix)}
-                </div>
-              )}
-            </section>
-          );
-        })
-      ) : (
-        <p className={`us-ann-inbox__${classPrefix}-p`}>
-          {ko.usAnnouncement.articleEmpty}
-        </p>
-      )}
-
-      {selected?.numbersBrief ? (
-        <>
-          <h3 className={`us-ann-inbox__${classPrefix}-section`}>
-            {ko.usAnnouncement.numbersLabel}
+  const renderAnalysisBody = (classPrefix: "page" | "modal") => {
+    const hasDeep = Boolean(selected?.deepAnalysis?.trim());
+    const showNumbersAgain = Boolean(selected?.numbersBrief) && !hasDeep;
+    return (
+      <>
+        {hasDeep ? (
+          <h3 className="us-ann-inbox__visually-hidden">
+            {ko.usAnnouncement.deepAnalysisLabel}
           </h3>
-          <ul className="us-ann-inbox__numbers-list">
-            {splitBriefLines(selected.numbersBrief).map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-    </>
-  );
+        ) : (
+          <h3 className={`us-ann-inbox__${classPrefix}-section`}>
+            {ko.usAnnouncement.articleLabel}
+          </h3>
+        )}
+        {analysisBlocks.length ? (
+          analysisBlocks.map((block, i) => {
+            const isToc = block.heading === "목차";
+            return (
+              <section
+                key={`${block.heading ?? "p"}-${i}`}
+                id={
+                  block.heading && !isToc
+                    ? sectionAnchorId(block.heading)
+                    : undefined
+                }
+                className={
+                  isToc
+                    ? `us-ann-inbox__${classPrefix}-block us-ann-inbox__${classPrefix}-block--toc`
+                    : `us-ann-inbox__${classPrefix}-block`
+                }
+              >
+                {block.heading ? (
+                  <h4 className={`us-ann-inbox__${classPrefix}-h`}>
+                    {block.heading}
+                  </h4>
+                ) : null}
+                {isToc ? (
+                  <div
+                    className={`us-ann-inbox__${classPrefix}-content us-ann-inbox__${classPrefix}-toc`}
+                  >
+                    <p className={`us-ann-inbox__${classPrefix}-toc-hint`}>
+                      {ko.usAnnouncement.tocHint}
+                    </p>
+                    {block.paras.map((para, ti) => {
+                      const target = tocTargetHeading(para);
+                      if (!target) return null;
+                      const num = para.match(/^(\d+)[.)]/)?.[1];
+                      return (
+                        <button
+                          key={`toc-${ti}-${target}`}
+                          type="button"
+                          className={`us-ann-inbox__${classPrefix}-toc-link`}
+                          onClick={() => scrollToAnalysisSection(target)}
+                        >
+                          {num ? (
+                            <span
+                              className={`us-ann-inbox__${classPrefix}-toc-num`}
+                              aria-hidden="true"
+                            >
+                              {num}
+                            </span>
+                          ) : null}
+                          <span>{target}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className={`us-ann-inbox__${classPrefix}-content`}>
+                    {renderAnalysisParas(block.paras, classPrefix)}
+                  </div>
+                )}
+              </section>
+            );
+          })
+        ) : (
+          <p className={`us-ann-inbox__${classPrefix}-p`}>
+            {ko.usAnnouncement.articleEmpty}
+          </p>
+        )}
+
+        {showNumbersAgain ? (
+          <>
+            <h3 className={`us-ann-inbox__${classPrefix}-section`}>
+              {ko.usAnnouncement.numbersLabel}
+            </h3>
+            <ul className="us-ann-inbox__numbers-list">
+              {splitBriefLines(selected?.numbersBrief).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+      </>
+    );
+  };
 
   if (selected && pageMode) {
     return (
       <div className="us-ann-inbox us-ann-inbox--page">
-        <article
-          className="us-ann-inbox__page"
-          aria-labelledby="us-ann-page-title"
-        >
-          <div className="us-ann-inbox__page-toolbar">
-            <button
-              type="button"
-              className="us-ann-inbox__btn"
-              onClick={closeSelected}
-            >
-              {ko.usAnnouncement.backToList}
-            </button>
-            <div className="us-ann-inbox__page-links">
-              {selected.links?.edgar ? (
-                <a
-                  className="us-ann-inbox__link"
-                  href={selected.links.edgar}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  EDGAR
-                </a>
-              ) : null}
-              {selected.links?.yahooAnalysis ? (
-                <a
-                  className="us-ann-inbox__link"
-                  href={selected.links.yahooAnalysis}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Yahoo
-                </a>
-              ) : null}
-            </div>
-          </div>
-          <div className="us-ann-inbox__card-top">
+        <div className="us-ann-inbox__page-bar">
+          <button
+            type="button"
+            className="us-ann-inbox__btn us-ann-inbox__btn--back"
+            onClick={closeSelected}
+          >
+            {ko.usAnnouncement.backToList}
+          </button>
+          <div className="us-ann-inbox__page-bar-meta">
+            <span className="us-ann-inbox__sym">{selected.symbol}</span>
             <span
               className={`us-ann-inbox__badge us-ann-inbox__badge--${selected.kind}`}
             >
               {kindLabel(selected.kind)}
             </span>
-            <span className="us-ann-inbox__sym">{selected.symbol}</span>
-            <time
-              className="us-ann-inbox__time"
-              dateTime={new Date(selected.filedAt).toISOString()}
-            >
-              {formatWhen(selected.filedAt)}
-            </time>
           </div>
-          <h2 id="us-ann-page-title" className="us-ann-inbox__page-title">
-            {selected.headline || selected.title}
-          </h2>
-          {selected.form ? (
-            <p className="us-ann-inbox__card-sub">{selected.form}</p>
-          ) : null}
-          {selected.about ? (
-            <p className="us-ann-inbox__page-lead">{selected.about}</p>
-          ) : null}
-          <div className="us-ann-inbox__page-body">{renderAnalysisBody("page")}</div>
+          <div className="us-ann-inbox__page-links">
+            {selected.links?.edgar ? (
+              <a
+                className="us-ann-inbox__link"
+                href={selected.links.edgar}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                EDGAR
+              </a>
+            ) : null}
+            {selected.links?.yahooAnalysis ? (
+              <a
+                className="us-ann-inbox__link"
+                href={selected.links.yahooAnalysis}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Yahoo
+              </a>
+            ) : null}
+          </div>
+        </div>
+        <article
+          className="us-ann-inbox__page"
+          aria-labelledby="us-ann-page-title"
+        >
+          <header className="us-ann-inbox__page-head">
+            <div className="us-ann-inbox__card-top">
+              <span
+                className={`us-ann-inbox__badge us-ann-inbox__badge--${selected.kind}`}
+              >
+                {kindLabel(selected.kind)}
+              </span>
+              <span className="us-ann-inbox__sym">{selected.symbol}</span>
+              <time
+                className="us-ann-inbox__time"
+                dateTime={new Date(selected.filedAt).toISOString()}
+              >
+                {formatWhen(selected.filedAt)}
+              </time>
+            </div>
+            <h2 id="us-ann-page-title" className="us-ann-inbox__page-title">
+              {selected.headline || selected.title}
+            </h2>
+            {selected.form ? (
+              <p className="us-ann-inbox__card-sub">{selected.form}</p>
+            ) : null}
+            {selected.about ? (
+              <p className="us-ann-inbox__page-lead">{selected.about}</p>
+            ) : null}
+            {selected.metrics &&
+            (selected.metrics.vsConsensusPct != null ||
+              selected.metrics.yoyPct != null ||
+              selected.metrics.consensusChangePct != null) ? (
+              <dl className="us-ann-inbox__metrics us-ann-inbox__metrics--page">
+                <div>
+                  <dt>{ko.usAnnouncement.vsConsensus}</dt>
+                  <dd className={pctClass(selected.metrics.vsConsensusPct)}>
+                    {formatPct(selected.metrics.vsConsensusPct)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{ko.usAnnouncement.yoy}</dt>
+                  <dd className={pctClass(selected.metrics.yoyPct)}>
+                    {formatPct(selected.metrics.yoyPct)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{ko.usAnnouncement.consensusChg}</dt>
+                  <dd className={pctClass(selected.metrics.consensusChangePct)}>
+                    {formatPct(selected.metrics.consensusChangePct)}
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
+          </header>
+          <div className="us-ann-inbox__page-body">
+            {renderAnalysisBody("page")}
+          </div>
         </article>
       </div>
     );
@@ -809,7 +872,7 @@ export default function UsAnnouncementInboxTab() {
                       </span>
                       <div className="us-ann-inbox__ai-body">
                         {splitAiParas(card.ai.summary)
-                          .slice(0, 2)
+                          .slice(0, 1)
                           .map((para) => (
                             <p key={para.slice(0, 48)}>{para}</p>
                           ))}
@@ -818,9 +881,9 @@ export default function UsAnnouncementInboxTab() {
                   ) : null}
 
                   {card.deepAnalysis ? (
-                    <p className="us-ann-inbox__deep-teaser">
+                    <span className="us-ann-inbox__deep-teaser">
                       {ko.usAnnouncement.deepTeaser}
-                    </p>
+                    </span>
                   ) : (
                     <p className="us-ann-inbox__open-hint">
                       {ko.usAnnouncement.openHint}
