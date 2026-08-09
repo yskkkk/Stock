@@ -253,106 +253,121 @@ export default function UsAnnouncementInboxTab() {
         </div>
       </header>
 
-      <section className="us-ann-inbox__watch" aria-label={ko.usAnnouncement.watchlist}>
-        <div className="us-ann-inbox__watch-row">
-          <span className="us-ann-inbox__watch-label">{ko.usAnnouncement.watchlist}</span>
-          <div className="us-ann-inbox__chips">
-            {watchlist.map((s) => (
+      <div className="us-ann-inbox__layout">
+        <aside className="us-ann-inbox__side">
+          <section
+            className="us-ann-inbox__watch"
+            aria-label={ko.usAnnouncement.watchlist}
+          >
+            <div className="us-ann-inbox__watch-row">
+              <span className="us-ann-inbox__watch-label">
+                {ko.usAnnouncement.watchlist}
+              </span>
+              <div className="us-ann-inbox__chips">
+                {watchlist.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={
+                      symbolFilter.toUpperCase() === s
+                        ? "us-ann-inbox__chip us-ann-inbox__chip--active"
+                        : "us-ann-inbox__chip"
+                    }
+                    onClick={() =>
+                      setSymbolFilter((prev) =>
+                        prev.toUpperCase() === s ? "" : s,
+                      )
+                    }
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="us-ann-inbox__watch-add">
+              <input
+                className="us-ann-inbox__input"
+                value={watchInput}
+                onChange={(e) => setWatchInput(e.target.value.toUpperCase())}
+                placeholder={ko.usAnnouncement.watchPlaceholder}
+                aria-label={ko.usAnnouncement.watchPlaceholder}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void onAddWatch();
+                }}
+              />
               <button
-                key={s}
                 type="button"
-                className={
-                  symbolFilter.toUpperCase() === s
-                    ? "us-ann-inbox__chip us-ann-inbox__chip--active"
-                    : "us-ann-inbox__chip"
-                }
-                onClick={() =>
-                  setSymbolFilter((prev) => (prev.toUpperCase() === s ? "" : s))
-                }
+                className="us-ann-inbox__btn"
+                disabled={busy || !watchInput.trim()}
+                onClick={() => void onAddWatch()}
               >
-                {s}
+                {ko.usAnnouncement.watchAdd}
+              </button>
+              <button
+                type="button"
+                className="us-ann-inbox__btn us-ann-inbox__btn--ghost"
+                disabled={busy}
+                onClick={() => void onSeedDemo()}
+              >
+                {ko.usAnnouncement.seedDemo}
+              </button>
+            </div>
+          </section>
+
+          <div
+            className="us-ann-inbox__filters"
+            role="tablist"
+            aria-label={ko.usAnnouncement.filters}
+          >
+            {KIND_FILTERS.map((f) => (
+              <button
+                key={f.id || "all"}
+                type="button"
+                role="tab"
+                aria-selected={kind === f.id}
+                className={
+                  kind === f.id
+                    ? "us-ann-inbox__filter us-ann-inbox__filter--active"
+                    : "us-ann-inbox__filter"
+                }
+                onClick={() => setKind(f.id)}
+              >
+                {f.label}
               </button>
             ))}
           </div>
-        </div>
-        <div className="us-ann-inbox__watch-add">
-          <input
-            className="us-ann-inbox__input"
-            value={watchInput}
-            onChange={(e) => setWatchInput(e.target.value.toUpperCase())}
-            placeholder={ko.usAnnouncement.watchPlaceholder}
-            aria-label={ko.usAnnouncement.watchPlaceholder}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void onAddWatch();
-            }}
-          />
-          <button
-            type="button"
-            className="us-ann-inbox__btn"
-            disabled={busy || !watchInput.trim()}
-            onClick={() => void onAddWatch()}
-          >
-            {ko.usAnnouncement.watchAdd}
-          </button>
-          <button
-            type="button"
-            className="us-ann-inbox__btn us-ann-inbox__btn--ghost"
-            disabled={busy}
-            onClick={() => void onSeedDemo()}
-          >
-            {ko.usAnnouncement.seedDemo}
-          </button>
-        </div>
-      </section>
+        </aside>
 
-      <div className="us-ann-inbox__filters" role="tablist" aria-label={ko.usAnnouncement.filters}>
-        {KIND_FILTERS.map((f) => (
-          <button
-            key={f.id || "all"}
-            type="button"
-            role="tab"
-            aria-selected={kind === f.id}
-            className={
-              kind === f.id
-                ? "us-ann-inbox__filter us-ann-inbox__filter--active"
-                : "us-ann-inbox__filter"
-            }
-            onClick={() => setKind(f.id)}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+        <div className="us-ann-inbox__main">
+          <p className="us-ann-inbox__meta">
+            {filteredHint}
+            {updatedAt ? ` · ${formatWhen(updatedAt)}` : null}
+          </p>
 
-      <p className="us-ann-inbox__meta">
-        {filteredHint}
-        {updatedAt ? ` · ${formatWhen(updatedAt)}` : null}
-      </p>
+          {scanStatus ? (
+            <p className="us-ann-inbox__status" role="status">
+              {scanStatus}
+            </p>
+          ) : null}
 
-      {scanStatus ? (
-        <p className="us-ann-inbox__status" role="status">
-          {scanStatus}
-        </p>
-      ) : null}
+          {error ? (
+            <p className="us-ann-inbox__error" role="alert">
+              {error}
+            </p>
+          ) : null}
 
-      {error ? (
-        <p className="us-ann-inbox__error" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      {loading ? (
-        <p className="us-ann-inbox__empty" role="status">
-          {ko.usAnnouncement.loading}
-        </p>
-      ) : !cards.length ? (
-        <p className="us-ann-inbox__empty" role="status">
-          {ko.usAnnouncement.empty}
-        </p>
-      ) : (
-        <ol className="us-ann-inbox__timeline">
-          {cards.map((card) => (
-            <li key={card.id} className="us-ann-inbox__card">
+          {loading ? (
+            <p className="us-ann-inbox__empty" role="status">
+              {ko.usAnnouncement.loading}
+            </p>
+          ) : !cards.length ? (
+            <p className="us-ann-inbox__empty" role="status">
+              {ko.usAnnouncement.empty}
+            </p>
+          ) : (
+            <ol className="us-ann-inbox__timeline">
+              {cards.map((card) => (
+                <li key={card.id} className="us-ann-inbox__card">
               <div className="us-ann-inbox__card-top">
                 <span
                   className={`us-ann-inbox__badge us-ann-inbox__badge--${card.kind}`}
@@ -475,7 +490,9 @@ export default function UsAnnouncementInboxTab() {
             </li>
           ))}
         </ol>
-      )}
+          )}
+        </div>
+      </div>
     </div>
   );
 }
