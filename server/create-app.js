@@ -46,6 +46,17 @@ import { loadStockShareStructure } from "./stock-share-structure.js";
 import { loadValueInvestReturn } from "./value-invest-return-input.js";
 import { loadStockFundamentals } from "./stock-fundamentals.js";
 import {
+  getUsAnnouncementInboxSnapshot,
+  tickUsAnnouncementInbox,
+  updateUsAnnouncementWatchlist,
+  addUsAnnouncementWatchSymbol,
+  seedUsAnnouncementCard,
+} from "./us-announcement-tick.js";
+import {
+  listAnnouncementCards,
+  loadUsAnnouncementStoreSync,
+} from "./us-announcement-inbox-store.js";
+import {
   loadFinancialPeriods,
   loadFinancialStatementDetail,
 } from "./stock-financials.js";
@@ -1517,6 +1528,93 @@ export function createApp() {
         sectorEarnings = [];
       }
       res.json({ sectorEarnings, updatedAt: Date.now() });
+    }),
+  );
+
+  /** 미국 발표 인박스 — 가이던스·컨센·거버넌스 타임라인 */
+  app.get(
+    "/api/us-announcements",
+    asyncRoute(async (req, res) => {
+      const store = loadUsAnnouncementStoreSync();
+      const symbol = String(req.query?.symbol ?? "").trim();
+      const kind = String(req.query?.kind ?? "").trim();
+      const limit = Number(req.query?.limit);
+      const cards = listAnnouncementCards(store, { symbol, kind, limit });
+      res.json({
+        ok: true,
+        watchlist: store.watchlist,
+        cards,
+        updatedAt: store.updatedAt,
+        cardCount: store.cards.length,
+      });
+    }),
+  );
+
+  app.get(
+    "/api/us-announcements/watchlist",
+    asyncRoute(async (_req, res) => {
+      const snap = getUsAnnouncementInboxSnapshot();
+      res.json({ ok: true, watchlist: snap.watchlist, updatedAt: snap.updatedAt });
+    }),
+  );
+
+  app.put(
+    "/api/us-announcements/watchlist",
+    asyncRoute(async (req, res) => {
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const symbols = Array.isArray(body.symbols) ? body.symbols : [];
+      const watchlist = updateUsAnnouncementWatchlist(symbols);
+      res.json({ ok: true, watchlist });
+    }),
+  );
+
+  app.post(
+    "/api/us-announcements/watchlist/add",
+    asyncRoute(async (req, res) => {
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const symbol = String(body.symbol ?? req.query?.symbol ?? "").trim();
+      if (!symbol) {
+        res.status(400).json({ ok: false, error: "symbol required" });
+        return;
+      }
+      const watchlist = addUsAnnouncementWatchSymbol(symbol);
+      res.json({ ok: true, watchlist });
+    }),
+  );
+
+  app.post(
+    "/api/us-announcements/tick",
+    asyncRoute(async (req, res) => {
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const notify = body.notify !== false;
+      const symbols = Array.isArray(body.symbols) ? body.symbols : undefined;
+      const result = await tickUsAnnouncementInbox({ notify, symbols });
+      res.json(result);
+    }),
+  );
+
+  app.post(
+    "/api/us-announcements/seed",
+    asyncRoute(async (req, res) => {
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const symbol = String(body.symbol ?? "AAPL").trim().toUpperCase();
+      const kind = String(body.kind ?? "guidance").trim();
+      const allowed = new Set(["guidance", "consensus", "governance", "earnings"]);
+      if (!allowed.has(kind)) {
+        res.status(400).json({ ok: false, error: "invalid kind" });
+        return;
+      }
+      const result = await seedUsAnnouncementCard(
+        {
+          symbol,
+          kind: /** @type {"guidance"|"consensus"|"governance"|"earnings"} */ (kind),
+          title: String(body.title ?? `${symbol} ${kind} seed`),
+          metrics: body.metrics && typeof body.metrics === "object" ? body.metrics : {},
+          links: body.links && typeof body.links === "object" ? body.links : {},
+        },
+        { notify: body.notify === true },
+      );
+      res.json({ ok: true, inserted: result.inserted, card: result.card });
     }),
   );
 

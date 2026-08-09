@@ -277,6 +277,111 @@ export function fetchSectorEarnings() {
   );
 }
 
+export type UsAnnouncementKind =
+  | "guidance"
+  | "consensus"
+  | "governance"
+  | "earnings";
+
+export type UsAnnouncementCard = {
+  id: string;
+  symbol: string;
+  kind: UsAnnouncementKind;
+  title: string;
+  filedAt: number;
+  source: string;
+  form?: string | null;
+  accession?: string | null;
+  metrics: {
+    consensusEps?: number | null;
+    priorConsensusEps?: number | null;
+    guidanceEps?: number | null;
+    trailingEps?: number | null;
+    yoyPct?: number | null;
+    vsConsensusPct?: number | null;
+    consensusChangePct?: number | null;
+    period?: string | null;
+    numAnalysts?: number | null;
+  };
+  ai: { summary: string; generatedAt: number; engine?: string };
+  links: {
+    edgar?: string | null;
+    yahooAnalysis?: string | null;
+    ir?: string | null;
+  };
+  notified?: { telegramAt?: number | null; emailAt?: number | null };
+  createdAt: number;
+};
+
+export type UsAnnouncementsResponse = {
+  ok: boolean;
+  watchlist: string[];
+  cards: UsAnnouncementCard[];
+  updatedAt: number;
+  cardCount: number;
+};
+
+export function fetchUsAnnouncements(opts?: {
+  symbol?: string;
+  kind?: string;
+  limit?: number;
+}) {
+  const params = new URLSearchParams();
+  if (opts?.symbol) params.set("symbol", opts.symbol);
+  if (opts?.kind) params.set("kind", opts.kind);
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  const q = params.toString();
+  return fetchJson<UsAnnouncementsResponse>(
+    `/api/us-announcements${q ? `?${q}` : ""}`,
+  );
+}
+
+export function tickUsAnnouncements(body?: {
+  notify?: boolean;
+  symbols?: string[];
+}) {
+  return fetchJson<{
+    ok: boolean;
+    watched: number;
+    inserted: number;
+    cards: UsAnnouncementCard[];
+    errors: unknown[];
+  }>("/api/us-announcements/tick", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
+}
+
+export function addUsAnnouncementWatch(symbol: string) {
+  return fetchJson<{ ok: boolean; watchlist: string[] }>(
+    "/api/us-announcements/watchlist/add",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol }),
+    },
+  );
+}
+
+export function seedUsAnnouncement(body: {
+  symbol?: string;
+  kind?: UsAnnouncementKind;
+  title?: string;
+  metrics?: UsAnnouncementCard["metrics"];
+  notify?: boolean;
+}) {
+  return fetchJson<{
+    ok: boolean;
+    inserted: boolean;
+    card: UsAnnouncementCard | null;
+  }>("/api/us-announcements/seed", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export function fetchSp500Sectors() {
   return fetchJson<import("./lib/sp500SectorChart").Sp500SectorsPayload>(
     "/api/sp500-sectors",

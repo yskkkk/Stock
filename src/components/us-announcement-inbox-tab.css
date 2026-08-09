@@ -1,0 +1,338 @@
+.us-ann-inbox {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 12px 16px 48px;
+}
+
+.us-ann-inbox__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.us-ann-inbox__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.us-ann-inbox__sub {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted, #64748b);
+  line-height: 1.45;
+}
+
+.us-ann-inbox__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.us-ann-inbox__btn {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  color: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.us-ann-inbox__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.us-ann-inbox__btn--primary {
+  background: var(--accent, #0f766e);
+  border-color: transparent;
+  color: #fff;
+}
+
+.us-ann-inbox__btn--ghost {
+  background: transparent;
+}
+
+.us-ann-inbox__watch {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  background: var(--surface-2, color-mix(in srgb, var(--surface, #fff) 92%, #94a3b8));
+}
+
+.us-ann-inbox__watch-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.us-ann-inbox__watch-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.us-ann-inbox__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.us-ann-inbox__chip {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.us-ann-inbox__chip--active {
+  border-color: var(--accent, #0f766e);
+  color: var(--accent, #0f766e);
+  background: color-mix(in srgb, var(--accent, #0f766e) 12%, transparent);
+}
+
+.us-ann-inbox__watch-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.us-ann-inbox__input {
+  flex: 1 1 120px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.us-ann-inbox__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.us-ann-inbox__filter {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted, #64748b);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.us-ann-inbox__filter--active {
+  background: color-mix(in srgb, var(--accent, #0f766e) 14%, transparent);
+  color: var(--accent, #0f766e);
+}
+
+.us-ann-inbox__meta {
+  margin: 0 0 12px;
+  font-size: 0.8rem;
+  color: var(--muted, #64748b);
+}
+
+.us-ann-inbox__error {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+.us-ann-inbox__empty {
+  margin: 24px 0;
+  text-align: center;
+  color: var(--muted, #64748b);
+  font-size: 0.9rem;
+}
+
+.us-ann-inbox__timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.us-ann-inbox__card {
+  padding: 14px 16px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+
+.us-ann-inbox__card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.us-ann-inbox__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.us-ann-inbox__badge--guidance {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.us-ann-inbox__badge--consensus {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.us-ann-inbox__badge--governance {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.us-ann-inbox__badge--earnings {
+  background: #fce7f3;
+  color: #9d174d;
+}
+
+.us-ann-inbox__sym {
+  font-weight: 750;
+  font-size: 0.95rem;
+}
+
+.us-ann-inbox__time {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--muted, #64748b);
+}
+
+.us-ann-inbox__card-title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.us-ann-inbox__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.us-ann-inbox__metrics dt {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--muted, #64748b);
+  font-weight: 600;
+}
+
+.us-ann-inbox__metrics dd {
+  margin: 2px 0 0;
+  font-size: 0.95rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.us-ann-inbox__pct--up {
+  color: #15803d;
+}
+
+.us-ann-inbox__pct--down {
+  color: #b91c1c;
+}
+
+.us-ann-inbox__ai {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent, #0f766e) 8%, transparent);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.us-ann-inbox__ai-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+  font-weight: 750;
+  color: var(--accent, #0f766e);
+  letter-spacing: 0.03em;
+}
+
+.us-ann-inbox__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.us-ann-inbox__link {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--accent, #0f766e);
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.us-ann-inbox__link:hover {
+  text-decoration: underline;
+}
+
+.us-ann-inbox__source {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--muted, #64748b);
+}
+
+@media (max-width: 900px) {
+  .us-ann-inbox {
+    padding: 8px 12px 40px;
+  }
+
+  .us-ann-inbox__metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .us-ann-inbox__time {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .us-ann-inbox__source {
+    margin-left: 0;
+  }
+}

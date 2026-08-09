@@ -279,6 +279,18 @@ export const POLLER_CATALOG = {
     descriptionKo:
       "빗썸·토스·실매매 포트폴리오 보유 심볼에 대한 속보를 주기 조회해 이메일로 발송합니다. 기본 off, env opt-in.",
   },
+  "us-announcement-inbox": {
+    labelKo: "미국 발표 인박스",
+    groupKo: "알림",
+    intervalMs: () => {
+      const n = Number(process.env.STOCK_US_ANNOUNCEMENT_POLL_MS ?? 180_000);
+      return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 900_000) : 180_000;
+    },
+    envDisable: "STOCK_US_ANNOUNCEMENT_POLL=0",
+    isBootEnabled: () => process.env.STOCK_US_ANNOUNCEMENT_POLL !== "0",
+    descriptionKo:
+      "관심 미국 종목의 SEC(8-K·Proxy 등)와 Yahoo 컨센 변화를 주기 스캔해 발표 인박스 카드를 쌓고, 텔레그램·메일로 알립니다.",
+  },
   "toss-rebalance-schedule": {
     labelKo: "토스 월별 비중 유지 매수",
     groupKo: "실매매",
