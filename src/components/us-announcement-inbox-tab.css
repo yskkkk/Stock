@@ -468,13 +468,15 @@
 .us-ann-inbox__modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 2000;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   padding: 24px 12px 40px;
   overflow: auto;
-  background: color-mix(in srgb, #0f172a 48%, transparent);
+  background: rgba(2, 6, 23, 0.78);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .us-ann-inbox__modal {
@@ -482,10 +484,19 @@
   margin-top: 24px;
   padding: 18px 18px 16px;
   border-radius: 16px;
-  border: 1px solid var(--border, #e2e8f0);
-  background: var(--surface, #fff);
-  color: inherit;
-  box-shadow: 0 18px 50px color-mix(in srgb, #0f172a 28%, transparent);
+  border: 1px solid var(--card-border, #e2e8f0);
+  /* 불투명 단색 — surface 투명/믹스 금지 */
+  background: #ffffff;
+  color: #0f172a;
+  opacity: 1;
+  isolation: isolate;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.35);
+}
+
+html:not([data-theme="light"]) .us-ann-inbox__modal {
+  background: #1c2128;
+  color: #dce1e8;
+  border-color: rgba(148, 163, 184, 0.18);
 }
 
 .us-ann-inbox__modal-header {
@@ -502,6 +513,7 @@
   font-size: 1.15rem;
   font-weight: 750;
   line-height: 1.35;
+  color: inherit;
 }
 
 .us-ann-inbox__modal-section {
@@ -509,13 +521,18 @@
   font-size: 0.75rem;
   font-weight: 750;
   letter-spacing: 0.03em;
-  color: var(--accent, #0f766e);
+  color: #0f766e;
+}
+
+html:not([data-theme="light"]) .us-ann-inbox__modal-section {
+  color: #8fb5aa;
 }
 
 .us-ann-inbox__modal-body {
   max-height: min(70vh, 640px);
   overflow: auto;
   padding-right: 4px;
+  background: transparent;
 }
 
 .us-ann-inbox__modal-p {
@@ -523,6 +540,7 @@
   font-size: 0.92rem;
   line-height: 1.65;
   white-space: pre-wrap;
+  color: inherit;
 }
 
 .us-ann-inbox__modal-footer {
@@ -531,7 +549,7 @@
   gap: 10px;
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid var(--border, #e2e8f0);
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
 }
 
 @media (max-width: 900px) {
