@@ -433,7 +433,9 @@ export default function UsAnnouncementInboxTab() {
                   <p className="us-ann-inbox__metric-hint">
                     {card.metrics?.vsConsensusLabel ||
                       (card.metrics?.vsConsensusPct == null
-                        ? ko.usAnnouncement.metricNa
+                        ? card.kind === "governance"
+                          ? ko.usAnnouncement.metricNaGovernance
+                          : ko.usAnnouncement.metricNa
                         : "")}
                   </p>
                 </div>
@@ -445,7 +447,9 @@ export default function UsAnnouncementInboxTab() {
                   <p className="us-ann-inbox__metric-hint">
                     {card.metrics?.yoyLabel ||
                       (card.metrics?.yoyPct == null
-                        ? ko.usAnnouncement.metricNa
+                        ? card.kind === "governance"
+                          ? ko.usAnnouncement.metricNaGovernance
+                          : ko.usAnnouncement.metricNa
                         : "")}
                   </p>
                 </div>
@@ -457,7 +461,9 @@ export default function UsAnnouncementInboxTab() {
                   <p className="us-ann-inbox__metric-hint">
                     {card.metrics?.consensusChangeLabel ||
                       (card.metrics?.consensusChangePct == null
-                        ? ko.usAnnouncement.metricNa
+                        ? card.kind === "governance"
+                          ? ko.usAnnouncement.metricNaGovernance
+                          : ko.usAnnouncement.metricNa
                         : "")}
                   </p>
                 </div>

@@ -188,6 +188,29 @@ export function consensusEpsChangedEnough(prev, next, minAbsPct = 2) {
  * @param {{ priorQuarterEpsAvg?: number | null; priorForwardEps?: number | null }} [prior]
  */
 export function metricsFromYahooSnapshot(kind, snap, prior = {}) {
+  const k = String(kind ?? "");
+  // 거버넌스(Proxy 등)는 실적 컨센 지표와 무관 — 동일 Yahoo 스냅을 붙이면 카드마다 내용이 같아 보임
+  if (k === "governance") {
+    return {
+      consensusEps: null,
+      priorConsensusEps: null,
+      guidanceEps: null,
+      trailingEps: null,
+      quarterConsensusEps: null,
+      yearAgoEps: null,
+      reportedEps: null,
+      reportedConsensusEps: null,
+      yoyPct: null,
+      vsConsensusPct: null,
+      consensusChangePct: null,
+      vsConsensusLabel: null,
+      yoyLabel: null,
+      consensusChangeLabel: null,
+      period: null,
+      numAnalysts: null,
+    };
+  }
+
   const q0 = snap?.periods?.["0q"] ?? null;
   const y0 = snap?.periods?.["0y"] ?? null;
   const forwardEps = snap?.forwardEps ?? y0?.epsAvg ?? null;

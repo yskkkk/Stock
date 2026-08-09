@@ -1435,6 +1435,8 @@ export const ko = {
     consensusChg: "컨센 변동",
     metricNa:
       "Yahoo Beat/Miss·전년 동기 EPS·직전 컨센 스냅이 없을 때 비어 있습니다.",
+    metricNaGovernance:
+      "거버넌스 공시에는 실적 컨센 지표를 붙이지 않습니다.",
     aboutLabel: "발표 요지",
     numbersLabel: "주요 수치",
     aiLabel: "AI 해석",

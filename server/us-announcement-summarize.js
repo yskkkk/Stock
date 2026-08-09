@@ -4,7 +4,7 @@
 import { fetchEdgarFilingPlainText } from "./us-announcement-filing-text.js";
 
 /** 카드 링크 분석 스키마 버전 */
-export const ANNOUNCEMENT_ANALYSIS_VERSION = 5;
+export const ANNOUNCEMENT_ANALYSIS_VERSION = 6;
 
 /**
  * @param {number | null | undefined} pct
@@ -99,10 +99,39 @@ export function buildAboutFromFiling(form, kind, title, text) {
     return `${t || "애널리스트 컨센서스"} 변경 이벤트입니다. Yahoo Analysis 추정치 스냅샷을 기준으로 직전 대비 움직임을 카드에 표시합니다.`;
   }
   if (k === "governance" || /DEF\s*14/i.test(f)) {
-    if (/compensation|executive|pay/i.test(body)) {
-      return "임원 보상·주주총회(Proxy) 관련 공시입니다. 보수·이사회·주주제안 안건을 다룹니다.";
+    const isAddl =
+      /DEFA14A/i.test(f) ||
+      /additional\s+(?:definitive\s+)?proxy/i.test(`${t} ${body}`);
+    const formLabel = isAddl
+      ? "추가 Proxy 자료(DEFA14A)"
+      : /DEF\s*14A/i.test(f) || /DEFINITIVE PROXY/i.test(t)
+        ? "정기 Proxy 성명서(DEF 14A)"
+        : "거버넌스·Proxy";
+    const meeting = body.match(
+      /(?:annual meeting|special meeting)[^.]{0,100}?(?:on|to be held)\s+([A-Za-z]+ \d{1,2},?\s+\d{4})/i,
+    );
+    /** @type {string[]} */
+    const topics = [];
+    if (/compensation|executive|pay|say.?on.?pay/i.test(body + t)) {
+      topics.push("임원 보수");
     }
-    return "주주총회·지배구조(Proxy) 공시입니다. 이사회·의결권·주주제안 등 거버넌스 안건이 핵심입니다.";
+    if (/director|board|nominee|이사회/i.test(body + t)) topics.push("이사회");
+    if (/shareholder proposal|주주제안/i.test(body + t)) topics.push("주주제안");
+    if (/buyback|repurchase|dividend|자사주|배당/i.test(body + t)) {
+      topics.push("배당·자사주");
+    }
+    let about = `${formLabel} 공시입니다.`;
+    if (isAddl) {
+      about +=
+        " 본 Proxy(DEF 14A)에 덧붙인 추가 권유·수정 자료로, 정기 성명서와는 제출 목적·시점이 다릅니다.";
+    } else {
+      about +=
+        " 연차/임시 주주총회 안건·이사회·보수를 담은 본문 Proxy입니다.";
+    }
+    if (meeting?.[1]) about += ` 총회일 언급: ${meeting[1]}.`;
+    if (topics.length) about += ` 확인된 주제: ${topics.join("·")}.`;
+    else if (t) about += ` 제목: ${t.slice(0, 80)}.`;
+    return about;
   }
   if (k === "guidance" || f.startsWith("8-K")) {
     const hasGuidance =
@@ -143,8 +172,9 @@ export function buildAboutFromFiling(form, kind, title, text) {
  * Yahoo 메트릭 + 공시 추출 수치 → 한 블록
  * @param {Record<string, unknown> | null | undefined} metrics
  * @param {string[]} filingLines
+ * @param {string} [kind]
  */
-export function buildNumbersBrief(metrics, filingLines) {
+export function buildNumbersBrief(metrics, filingLines, kind = "") {
   /** @type {string[]} */
   const parts = [];
   const m = metrics && typeof metrics === "object" ? metrics : null;
@@ -183,6 +213,9 @@ export function buildNumbersBrief(metrics, filingLines) {
     }
   }
   if (!parts.length) {
+    if (String(kind) === "governance") {
+      return "거버넌스·Proxy 공시는 실적 Beat/Miss·컨센 EPS를 표시하지 않습니다. EDGAR 원문의 안건·보수·이사회를 확인하세요.";
+    }
     return "링크·Yahoo에서 바로 뽑을 핵심 수치가 부족합니다. EDGAR 원문과 Yahoo Analysis를 함께 확인하세요.";
   }
   return parts.slice(0, 8).join("\n");
@@ -342,37 +375,37 @@ export function buildInterpretationFromBrief(args) {
     }
   } else if (kind === "governance") {
     const t = String(title || "").trim();
+    const f = String(form || "").toUpperCase();
     const blob = `${t} ${body}`;
-    if (/compensation|executive|pay|보수/i.test(blob)) {
+    const isAddl =
+      /DEFA14A/i.test(f) || /additional\s+(?:definitive\s+)?proxy/i.test(blob);
+    paras.push(
+      isAddl
+        ? `${sym} 이번 건은 추가 Proxy 자료(DEFA14A)입니다. 정기 DEF 14A와 날짜·목적이 다른 별도 제출입니다.`
+        : `${sym} 이번 건은 정기 Proxy 성명서(DEF 14A)입니다. 주주총회 본안건을 담습니다.`,
+    );
+    if (/compensation|executive|pay|보수|say.?on.?pay/i.test(blob)) {
       paras.push(
-        `${sym} 이번 공시는 임원 보상·보수 체계가 핵심인 거버넌스 안건입니다.`,
-      );
-      paras.push(
-        "해석: 성과급·스톡옵션 규모가 희석·비용으로 이어질 수 있어, 주주제안·이사회 권고 방향을 원문에서 확인하세요.",
+        "해석: 임원 보수·성과급·스톡옵션 규모가 희석·비용으로 이어질 수 있습니다. 이사회 권고·주주제안 찬반을 원문에서 확인하세요.",
       );
     } else if (/buyback|repurchase|dividend|자사주|배당/i.test(blob)) {
       paras.push(
-        `${sym} 배당·자사주 등 자본배분 관련 거버넌스/공시로 읽힙니다.`,
-      );
-      paras.push(
-        "해석: 환원 확대는 주주 우호, 과도한 희석·부채 증가는 부담 요인이므로 규모와 기간을 원문에서 확인하세요.",
+        "해석: 배당·자사주 등 자본배분 안건입니다. 환원 규모와 기간이 주주가치에 미치는 영향을 원문에서 확인하세요.",
       );
     } else if (/director|board|nominee|이사|이사회/i.test(blob)) {
-      paras.push(`${sym} 이사회·이사 선임 관련 Proxy/거버넌스 공시입니다.`);
       paras.push(
-        "해석: 이사회 독립성·관련 당사자 거래·안건 찬반이 지배구조 리스크 판단의 포인트입니다.",
+        "해석: 이사회·이사 선임이 핵심입니다. 독립성·관련 당사자 거래·안건 찬반을 원문에서 확인하세요.",
       );
     } else {
       paras.push(
-        `${sym} 거버넌스 공시(${form || t || "Proxy/8-K"})입니다.` +
-          (t ? ` 제목: ${t.slice(0, 80)}.` : ""),
-      );
-      paras.push(
-        filingLines.length
-          ? `원문에서 확인된 수치/문구: ${filingLines.slice(0, 2).join("; ")}. 배당·자사주·희석·이사회 안건 중 어디에 해당하는지로 해석을 좁히세요.`
-          : "해석: 배당·자사주·희석·이사회·주주제안 중 어떤 안건인지 원문에서 특정한 뒤 자본배분 영향을 판단하세요.",
+        t
+          ? `제목 기준: ${t.slice(0, 100)}. 배당·자사주·희석·이사회·주주제안 중 해당 안건을 원문에서 특정하세요.`
+          : "배당·자사주·희석·이사회·주주제안 중 어떤 안건인지 원문에서 특정하세요.",
       );
     }
+    paras.push(
+      "참고: 거버넌스 카드에는 실적 Beat/Miss·컨센 EPS를 넣지 않습니다(종목 공통 Yahoo 스냅과 혼동 방지).",
+    );
   } else {
     // earnings
     if (hasVs) {
@@ -457,7 +490,7 @@ export function buildFilingHeadlineAndDetail(
 ) {
   const about = buildAboutFromFiling(form, kind, title, text);
   const filingLines = extractFilingNumberLines(text);
-  const numbersBrief = buildNumbersBrief(metrics, filingLines);
+  const numbersBrief = buildNumbersBrief(metrics, filingLines, kind);
   const interpretation = buildInterpretationFromBrief({
     kind,
     symbol,
@@ -486,7 +519,11 @@ export function buildFilingHeadlineAndDetail(
         ? "실적 관련 8-K"
         : "중요 사건(8-K) 공시";
   } else if (k === "governance") {
-    headline = "거버넌스·Proxy 공시";
+    headline = /DEFA14A/i.test(f)
+      ? "추가 Proxy(DEFA14A)"
+      : /DEF\s*14A/i.test(f) || /DEFINITIVE PROXY/i.test(String(title ?? ""))
+        ? "정기 Proxy(DEF 14A)"
+        : "거버넌스·Proxy 공시";
   } else if (k === "consensus") {
     headline = String(title ?? "컨센서스 변경").slice(0, 80);
   } else {

@@ -396,6 +396,59 @@ describe("filing headline/detail", () => {
     expect(interpretation).toMatch(/\+3\.5%|상향/);
   });
 
+  it("governance cards differentiate DEF 14A vs DEFA14A", () => {
+    const def = buildFilingHeadlineAndDetail(
+      "DEF 14A",
+      "governance",
+      "DEFINITIVE PROXY STATEMENT",
+      "Annual meeting to be held June 1, 2026. Executive compensation and board nominees.",
+      { vsConsensusPct: 26.9, yoyPct: 4.5 },
+      "GOOGL",
+    );
+    const addl = buildFilingHeadlineAndDetail(
+      "DEFA14A",
+      "governance",
+      "DEFA14A",
+      "Additional definitive proxy soliciting materials. Say-on-pay.",
+      { vsConsensusPct: 26.9, yoyPct: 4.5 },
+      "GOOGL",
+    );
+    expect(def.about).toMatch(/정기 Proxy|DEF 14A/);
+    expect(addl.about).toMatch(/추가 Proxy|DEFA14A/);
+    expect(def.about).not.toBe(addl.about);
+    expect(def.interpretation).toMatch(/정기 Proxy|DEF 14A/);
+    expect(addl.interpretation).toMatch(/추가 Proxy|DEFA14A/);
+  });
+
+  it("metricsFromYahooSnapshot clears earnings fields for governance", () => {
+    const m = metricsFromYahooSnapshot(
+      "governance",
+      {
+        symbol: "GOOGL",
+        forwardEps: 14,
+        trailingEps: 19,
+        periods: {
+          "0q": {
+            epsAvg: 3,
+            yearAgoEps: 2.8,
+            numAnalysts: 40,
+            growthPct: null,
+          },
+        },
+        lastReported: {
+          epsActual: 2.87,
+          epsEstimate: 2.26,
+          surprisePct: 26.9,
+        },
+        at: Date.now(),
+      },
+      {},
+    );
+    expect(m.vsConsensusPct).toBeNull();
+    expect(m.yoyPct).toBeNull();
+    expect(m.reportedEps).toBeNull();
+  });
+
   it("extracts EPS and revenue lines from filing text", () => {
     const lines = extractFilingNumberLines(
       "Diluted earnings per share $1.25. Total revenues were $50.2 billion. Net income $10.0 billion.",
