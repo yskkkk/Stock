@@ -49,7 +49,7 @@ const MAX_CARDS = 400;
  *   cards: UsAnnouncementCard[];
  *   seenKeys: Record<string, number>;
  *   primedSymbols: Record<string, number>;
- *   notifySentAt: Record<string, number>;
+ *   alertedKeys: Record<string, number>;
  *   consensusSnapshots: Record<string, {
  *     at: number;
  *     forwardEps: number | null;
@@ -82,7 +82,7 @@ export function emptyUsAnnouncementStore() {
     cards: [],
     seenKeys: {},
     primedSymbols: {},
-    notifySentAt: {},
+    alertedKeys: {},
     consensusSnapshots: {},
     updatedAt: Date.now(),
   };
@@ -114,17 +114,25 @@ function normalizeStore(raw) {
     o.primedSymbols && typeof o.primedSymbols === "object"
       ? /** @type {Record<string, number>} */ (o.primedSymbols)
       : {};
-  const notifySentAt =
-    o.notifySentAt && typeof o.notifySentAt === "object"
-      ? /** @type {Record<string, number>} */ (o.notifySentAt)
-      : {};
+  /** @type {Record<string, number>} */
+  let alertedKeys = {};
+  if (o.alertedKeys && typeof o.alertedKeys === "object") {
+    alertedKeys = /** @type {Record<string, number>} */ (o.alertedKeys);
+  } else if (o.notifySentAt && typeof o.notifySentAt === "object") {
+    // 구 쿨다운 키 폐기 — 발표 단위 키만 유지(형식 symbol|kind|… 는 무시)
+    for (const [k, v] of Object.entries(
+      /** @type {Record<string, number>} */ (o.notifySentAt),
+    )) {
+      if (String(k).split("|").length >= 3) alertedKeys[k] = Number(v) || Date.now();
+    }
+  }
   return {
     version: 1,
     watchlist: watch.length ? [...new Set(watch)] : [...DEFAULT_WATCH],
     cards,
     seenKeys,
     primedSymbols,
-    notifySentAt,
+    alertedKeys,
     consensusSnapshots,
     updatedAt: Number(o.updatedAt) || Date.now(),
   };
@@ -214,20 +222,6 @@ export function shouldNotifyAnnouncement(notifyOpt, store, symbol) {
   return isSymbolAnnouncementPrimed(store, symbol);
 }
 
-/** 종목+종류 알림 쿨다운 기본 24h (거버넌스·실적 Form 폭주 방지) */
-export function getAnnouncementNotifyCooldownMs() {
-  const n = Number(process.env.STOCK_US_ANNOUNCEMENT_NOTIFY_COOLDOWN_MS ?? 86_400_000);
-  return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 30 * 86_400_000) : 86_400_000;
-}
-
-/**
- * @param {string} symbol
- * @param {string} kind
- */
-export function buildNotifyCooldownKey(symbol, kind) {
-  return `${String(symbol).toUpperCase()}|${String(kind).toLowerCase()}`;
-}
-
 /**
  * Form 3/4/5 내부자 매매 — 인박스 등록은 하되 알림은 보내지 않음
  * @param {string | null | undefined} form
@@ -241,39 +235,33 @@ export function isQuietAnnouncementForm(form) {
 
 /**
  * @param {UsAnnouncementStore} store
- * @param {string} cooldownKey
- * @param {number} [cooldownMs]
+ * @param {string} dedupeKey
  */
-export function wasAnnouncementRecentlyNotified(
-  store,
-  cooldownKey,
-  cooldownMs = getAnnouncementNotifyCooldownMs(),
-) {
-  const at = Number(store.notifySentAt?.[cooldownKey]);
-  if (!Number.isFinite(at) || at <= 0) return false;
-  return Date.now() - at < cooldownMs;
+export function wasAnnouncementAlerted(store, dedupeKey) {
+  return Boolean(store.alertedKeys?.[dedupeKey]);
 }
 
 /**
+ * 발표 1건(dedupeKey)당 알림 1회 기록
  * @param {UsAnnouncementStore} store
- * @param {string} cooldownKey
+ * @param {string} dedupeKey
  */
-export function markAnnouncementNotified(store, cooldownKey) {
-  if (!store.notifySentAt || typeof store.notifySentAt !== "object") {
-    store.notifySentAt = {};
+export function markAnnouncementAlerted(store, dedupeKey) {
+  if (!store.alertedKeys || typeof store.alertedKeys !== "object") {
+    store.alertedKeys = {};
   }
-  store.notifySentAt[cooldownKey] = Date.now();
+  store.alertedKeys[String(dedupeKey)] = Date.now();
   return store;
 }
 
 /**
- * 카드 삽입 후 실제 메일/텔레그램을 보낼지
+ * 카드 삽입 후 실제 메일/텔레그램을 보낼지 — 발표(키)당 1번
  * @param {{
  *   notifyOpt?: boolean;
  *   store: UsAnnouncementStore;
  *   symbol: string;
- *   kind: string;
  *   form?: string | null;
+ *   dedupeKey: string;
  * }} args
  */
 export function shouldSendAnnouncementAlert(args) {
@@ -283,9 +271,10 @@ export function shouldSendAnnouncementAlert(args) {
   if (isQuietAnnouncementForm(args.form)) {
     return { send: false, reason: "quiet_form" };
   }
-  const key = buildNotifyCooldownKey(args.symbol, args.kind);
-  if (wasAnnouncementRecentlyNotified(args.store, key)) {
-    return { send: false, reason: "cooldown", key };
+  const key = String(args.dedupeKey ?? "");
+  if (!key) return { send: false, reason: "missing_key" };
+  if (wasAnnouncementAlerted(args.store, key)) {
+    return { send: false, reason: "already_alerted", key };
   }
   return { send: true, key };
 }

@@ -12,11 +12,11 @@ import {
   isQuietAnnouncementForm,
   isSymbolAnnouncementPrimed,
   listAnnouncementCards,
-  markAnnouncementNotified,
+  markAnnouncementAlerted,
   markSymbolAnnouncementPrimed,
   shouldNotifyAnnouncement,
   shouldSendAnnouncementAlert,
-  wasAnnouncementRecentlyNotified,
+  wasAnnouncementAlerted,
 } from "./us-announcement-inbox-store.js";
 import { classifySecForm, buildEdgarDocumentUrl } from "./us-announcement-edgar.js";
 import { consensusEpsChangedEnough } from "./us-announcement-consensus.js";
@@ -109,7 +109,7 @@ describe("primed backfill — no notify until primed", () => {
   });
 });
 
-describe("notify cooldown / quiet forms", () => {
+describe("notify once per announcement", () => {
   it("skips Form 4 alerts", () => {
     expect(isQuietAnnouncementForm("4")).toBe(true);
     expect(isQuietAnnouncementForm("DEF 14A")).toBe(false);
@@ -119,35 +119,47 @@ describe("notify cooldown / quiet forms", () => {
       notifyOpt: true,
       store,
       symbol: "AAPL",
-      kind: "governance",
       form: "4",
+      dedupeKey: "AAPL|governance|acc-4",
     });
     expect(r.send).toBe(false);
     expect(r.reason).toBe("quiet_form");
   });
 
-  it("cooldown blocks second governance alert same day", () => {
+  it("allows different filings, blocks same filing twice", () => {
     const store = emptyUsAnnouncementStore();
     markSymbolAnnouncementPrimed(store, "MSFT");
+    const key1 = buildAnnouncementDedupeKey("MSFT", "governance", "acc-1");
+    const key2 = buildAnnouncementDedupeKey("MSFT", "governance", "acc-2");
     const first = shouldSendAnnouncementAlert({
       notifyOpt: true,
       store,
       symbol: "MSFT",
-      kind: "governance",
       form: "DEF 14A",
+      dedupeKey: key1,
     });
     expect(first.send).toBe(true);
-    markAnnouncementNotified(store, first.key);
-    expect(wasAnnouncementRecentlyNotified(store, first.key)).toBe(true);
-    const second = shouldSendAnnouncementAlert({
+    markAnnouncementAlerted(store, key1);
+    expect(wasAnnouncementAlerted(store, key1)).toBe(true);
+
+    const same = shouldSendAnnouncementAlert({
       notifyOpt: true,
       store,
       symbol: "MSFT",
-      kind: "governance",
-      form: "DEFA14A",
+      form: "DEF 14A",
+      dedupeKey: key1,
     });
-    expect(second.send).toBe(false);
-    expect(second.reason).toBe("cooldown");
+    expect(same.send).toBe(false);
+    expect(same.reason).toBe("already_alerted");
+
+    const other = shouldSendAnnouncementAlert({
+      notifyOpt: true,
+      store,
+      symbol: "MSFT",
+      form: "DEFA14A",
+      dedupeKey: key2,
+    });
+    expect(other.send).toBe(true);
   });
 });
 
