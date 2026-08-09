@@ -293,13 +293,21 @@ export type UsAnnouncementCard = {
   form?: string | null;
   accession?: string | null;
   metrics: {
+    metricVersion?: number;
     consensusEps?: number | null;
     priorConsensusEps?: number | null;
     guidanceEps?: number | null;
     trailingEps?: number | null;
+    quarterConsensusEps?: number | null;
+    yearAgoEps?: number | null;
+    reportedEps?: number | null;
+    reportedConsensusEps?: number | null;
     yoyPct?: number | null;
     vsConsensusPct?: number | null;
     consensusChangePct?: number | null;
+    vsConsensusLabel?: string | null;
+    yoyLabel?: string | null;
+    consensusChangeLabel?: string | null;
     period?: string | null;
     numAnalysts?: number | null;
   };

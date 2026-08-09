@@ -4,17 +4,29 @@
 import { fetchEdgarFilingPlainText } from "./us-announcement-filing-text.js";
 
 /**
+ * @param {number | null | undefined} pct
+ */
+function fmtPct(pct) {
+  if (pct == null || !Number.isFinite(Number(pct))) return null;
+  const n = Number(pct);
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${n.toFixed(1)}%`;
+}
+
+/**
  * @param {string} form
  * @param {string} kind
  * @param {string} title
  * @param {string} text
+ * @param {Record<string, unknown> | null | undefined} [metrics]
  */
-export function buildFilingHeadlineAndDetail(form, kind, title, text) {
+export function buildFilingHeadlineAndDetail(form, kind, title, text, metrics) {
   const f = String(form ?? "").toUpperCase();
   const k = String(kind ?? "");
   const t = String(title ?? "").trim();
   const body = String(text ?? "").trim();
   const lower = body.toLowerCase();
+  const m = metrics && typeof metrics === "object" ? metrics : null;
 
   /** @type {string} */
   let headline = "";
@@ -63,27 +75,62 @@ export function buildFilingHeadlineAndDetail(form, kind, title, text) {
         ? "연간 보고서(10-K) 제출"
         : "분기 보고서(10-Q) 제출";
     detailParts.push(
-      "확정 재무제표·MD&A가 포함됩니다. 컨센·가이던스와 숫자를 대조해 보세요.",
+      "확정 재무제표·MD&A·주석이 포함됩니다. 카드 상단 %는 Yahoo 컨센·실적 히스토리 기준이며, 보고서 GAAP/Non-GAAP과 다를 수 있습니다.",
+    );
+    if (m) {
+      const vs = fmtPct(/** @type {number|null} */ (m.vsConsensusPct));
+      const yoy = fmtPct(/** @type {number|null} */ (m.yoyPct));
+      const chg = fmtPct(/** @type {number|null} */ (m.consensusChangePct));
+      if (m.vsConsensusLabel && vs) {
+        detailParts.push(`컨센 대비: ${m.vsConsensusLabel} → ${vs}.`);
+      } else {
+        detailParts.push(
+          "컨센 대비(Beat/Miss) 수치가 비어 있으면 Yahoo에 최근 확정 EPS·당시 추정치가 없거나 아직 반영 전입니다.",
+        );
+      }
+      if (m.yoyLabel && yoy) {
+        detailParts.push(`전년 대비: ${m.yoyLabel} → ${yoy}.`);
+      } else {
+        detailParts.push(
+          "전년 대비는 보통 ‘당분기 컨센 EPS vs 전년 동기 EPS’입니다. 매출·영업이익 YoY와 혼동하지 마세요.",
+        );
+      }
+      if (m.consensusChangeLabel && chg) {
+        detailParts.push(`컨센 변동: ${m.consensusChangeLabel} → ${chg}.`);
+      } else {
+        detailParts.push(
+          "컨센 변동은 서버에 직전 애널 컨센 스냅샷이 저장된 뒤에만 표시됩니다.",
+        );
+      }
+    }
+    detailParts.push(
+      "원문에서 희석 EPS·매출·영업이익·세그먼트·현금흐름을 찾아 Yahoo Analysis·회사 가이던스와 맞춰 보세요.",
     );
   } else if (k === "consensus") {
     headline = t || "애널리스트 컨센서스 변경";
     detailParts.push(
       "증권사 추정 평균이 직전 스냅샷 대비 의미 있게 움직였습니다.",
     );
+    if (m?.consensusChangeLabel) {
+      const chg = fmtPct(/** @type {number|null} */ (m.consensusChangePct));
+      detailParts.push(
+        `${m.consensusChangeLabel}${chg ? ` → ${chg}` : ""}.`,
+      );
+    }
   } else {
     headline = t ? t.slice(0, 80) : "기업 공시";
   }
 
   if (body) {
-    const snip = body.slice(0, 280).replace(/\s+/g, " ").trim();
-    if (snip) detailParts.push(`원문 요지: ${snip}${body.length > 280 ? "…" : ""}`);
+    const snip = body.slice(0, 220).replace(/\s+/g, " ").trim();
+    if (snip) detailParts.push(`원문 요지: ${snip}${body.length > 220 ? "…" : ""}`);
   } else if (!detailParts.length) {
     detailParts.push("원문 링크에서 세부 수치·문구를 확인하세요.");
   }
 
   return {
     headline: headline.slice(0, 120),
-    detail: detailParts.join(" ").slice(0, 900),
+    detail: detailParts.join(" ").slice(0, 1400),
   };
 }
 
@@ -113,13 +160,17 @@ export async function enrichAnnouncementCopy(cardLike) {
     kind,
     title,
     text,
+    cardLike.metrics,
   );
 
   if (kind === "consensus" && cardLike.metrics) {
     const chg = Number(cardLike.metrics.consensusChangePct);
     if (Number.isFinite(chg)) {
       headline = `${cardLike.symbol ?? ""} 컨센 ${chg >= 0 ? "상향" : "하향"} ${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%`.trim();
-      detail = `애널리스트 합의 EPS가 직전 대비 ${chg >= 0 ? "+" : ""}${chg.toFixed(1)}% 움직였습니다. Yahoo Analysis에서 기간·애널 수를 함께 확인하세요.`;
+      const label = cardLike.metrics.consensusChangeLabel
+        ? String(cardLike.metrics.consensusChangeLabel)
+        : "애널리스트 합의 EPS";
+      detail = `${label} → ${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%. Yahoo Analysis에서 기간(0q/0y)·애널 수를 함께 확인하세요.`;
     }
   }
 

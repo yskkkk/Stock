@@ -20,7 +20,7 @@ import {
   wasAnnouncementAlerted,
 } from "./us-announcement-inbox-store.js";
 import { classifySecForm, buildEdgarDocumentUrl } from "./us-announcement-edgar.js";
-import { consensusEpsChangedEnough } from "./us-announcement-consensus.js";
+import { consensusEpsChangedEnough, metricsFromYahooSnapshot } from "./us-announcement-consensus.js";
 import { buildAnnouncementNotifyText } from "./us-announcement-notify.js";
 import { buildFilingHeadlineAndDetail } from "./us-announcement-summarize.js";
 import { htmlToPlainText } from "./us-announcement-filing-text.js";
@@ -71,6 +71,62 @@ describe("us-announcement-analyze", () => {
       metrics,
     });
     expect(s).toMatch(/상향|NVDA/);
+  });
+
+  it("earnings summary explains empty vs consensus and yoy label", () => {
+    const metrics = buildAnnouncementMetrics({
+      kind: "earnings",
+      yoyPct: -26.1,
+      yoyLabel:
+        "당분기 컨센 EPS(2.00) vs 전년 동기 EPS(2.70)",
+      vsConsensusPct: null,
+      consensusChangePct: null,
+    });
+    const s = buildAnnouncementAiSummary({
+      kind: "earnings",
+      symbol: "GOOGL",
+      form: "10-Q",
+      title: "10-Q",
+      metrics,
+    });
+    expect(s).toContain("GOOGL");
+    expect(s).toMatch(/전년 대비|당분기 컨센/);
+    expect(s).toMatch(/컨센 대비|Beat|Miss|비어/);
+    expect(s.length).toBeGreaterThan(180);
+  });
+});
+
+describe("metricsFromYahooSnapshot", () => {
+  it("uses last reported surprise and quarter vs yearAgo", () => {
+    const m = metricsFromYahooSnapshot(
+      "earnings",
+      {
+        symbol: "GOOGL",
+        forwardEps: 8,
+        trailingEps: 7,
+        periods: {
+          "0q": {
+            epsAvg: 2.0,
+            yearAgoEps: 2.7,
+            numAnalysts: 40,
+            growthPct: null,
+          },
+        },
+        lastReported: {
+          epsActual: 2.1,
+          epsEstimate: 2.0,
+          surprisePct: 5,
+        },
+        at: Date.now(),
+      },
+      { priorQuarterEpsAvg: 1.9, priorForwardEps: 7.5 },
+    );
+    expect(m.vsConsensusPct).toBe(5);
+    expect(m.vsConsensusLabel).toMatch(/확정 EPS/);
+    expect(m.yoyPct).toBeCloseTo(-25.9, 0);
+    expect(m.yoyLabel).toMatch(/전년 동기/);
+    expect(m.consensusChangePct).toBeCloseTo(5.3, 0);
+    expect(m.consensusChangeLabel).toMatch(/당분기 컨센/);
   });
 });
 
@@ -285,6 +341,25 @@ describe("notify text", () => {
 });
 
 describe("filing headline/detail", () => {
+  it("builds earnings detail with metric meanings", () => {
+    const { headline, detail } = buildFilingHeadlineAndDetail(
+      "10-Q",
+      "earnings",
+      "10-Q",
+      "",
+      {
+        yoyPct: -26.1,
+        yoyLabel: "당분기 컨센 EPS(2.00) vs 전년 동기 EPS(2.70)",
+        vsConsensusPct: 5,
+        vsConsensusLabel: "최근 확정 EPS(2.10) vs 당시 컨센(2.00)",
+      },
+    );
+    expect(headline).toMatch(/10-Q|분기/);
+    expect(detail).toMatch(/전년 대비/);
+    expect(detail).toMatch(/컨센 대비/);
+    expect(detail.length).toBeGreaterThan(80);
+  });
+
   it("builds guidance headline from 8-K text", () => {
     const { headline, detail } = buildFilingHeadlineAndDetail(
       "8-K",

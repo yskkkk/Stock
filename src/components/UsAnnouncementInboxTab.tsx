@@ -380,18 +380,36 @@ export default function UsAnnouncementInboxTab() {
                   <dd className={pctClass(card.metrics?.vsConsensusPct)}>
                     {formatPct(card.metrics?.vsConsensusPct)}
                   </dd>
+                  <p className="us-ann-inbox__metric-hint">
+                    {card.metrics?.vsConsensusLabel ||
+                      (card.metrics?.vsConsensusPct == null
+                        ? ko.usAnnouncement.metricNa
+                        : "")}
+                  </p>
                 </div>
                 <div>
                   <dt>{ko.usAnnouncement.yoy}</dt>
                   <dd className={pctClass(card.metrics?.yoyPct)}>
                     {formatPct(card.metrics?.yoyPct)}
                   </dd>
+                  <p className="us-ann-inbox__metric-hint">
+                    {card.metrics?.yoyLabel ||
+                      (card.metrics?.yoyPct == null
+                        ? ko.usAnnouncement.metricNa
+                        : "")}
+                  </p>
                 </div>
                 <div>
                   <dt>{ko.usAnnouncement.consensusChg}</dt>
                   <dd className={pctClass(card.metrics?.consensusChangePct)}>
                     {formatPct(card.metrics?.consensusChangePct)}
                   </dd>
+                  <p className="us-ann-inbox__metric-hint">
+                    {card.metrics?.consensusChangeLabel ||
+                      (card.metrics?.consensusChangePct == null
+                        ? ko.usAnnouncement.metricNa
+                        : "")}
+                  </p>
                 </div>
               </dl>
 

@@ -43,9 +43,18 @@ export function buildAnnouncementNotifyText(card) {
   const a = formatPctLine("컨센 대비", m.vsConsensusPct);
   const b = formatPctLine("전년 대비", m.yoyPct);
   const c = formatPctLine("컨센 변동", m.consensusChangePct);
-  if (a) lines.push(a);
-  if (b) lines.push(b);
-  if (c) lines.push(c);
+  if (a) {
+    lines.push(a);
+    if (m.vsConsensusLabel) lines.push(`  · ${m.vsConsensusLabel}`);
+  }
+  if (b) {
+    lines.push(b);
+    if (m.yoyLabel) lines.push(`  · ${m.yoyLabel}`);
+  }
+  if (c) {
+    lines.push(c);
+    if (m.consensusChangeLabel) lines.push(`  · ${m.consensusChangeLabel}`);
+  }
   if (card.detail) lines.push("", card.detail);
   else if (card.ai?.summary) lines.push("", card.ai.summary);
   if (card.links?.edgar) lines.push("", `EDGAR: ${card.links.edgar}`);

@@ -22,8 +22,10 @@ import { fetchRecentSecFilingsForSymbol } from "./us-announcement-edgar.js";
 import {
   consensusEpsChangedEnough,
   fetchYahooConsensusSnapshot,
+  metricsFromYahooSnapshot,
 } from "./us-announcement-consensus.js";
 import {
+  ANNOUNCEMENT_METRIC_VERSION,
   buildAnnouncementMetrics,
   generateAnnouncementAiSummary,
   pctChange,
@@ -64,6 +66,7 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
     kind: card.kind,
     symbol: card.symbol,
     title: card.title,
+    form: card.form,
     metrics: card.metrics,
   });
   card.ai = {
@@ -92,6 +95,7 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
         card.kind,
         card.title,
         "",
+        card.metrics,
       );
       card.headline = copy.headline;
       card.detail = copy.detail;
@@ -140,7 +144,7 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
 }
 
 /**
- * 기존 카드 중복 제거 + 소제목/상세 보강
+ * 기존 카드 중복 제거 + 메트릭/AI/소제목·상세 보강
  * @param {{ limit?: number; force?: boolean }} [opts]
  */
 export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
@@ -152,9 +156,81 @@ export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
   const limit = Math.min(40, Math.max(1, Number(opts.limit) || 20));
   const force = opts.force === true;
   let enriched = 0;
+  let metricsRefreshed = 0;
+
+  /** @type {Map<string, Awaited<ReturnType<typeof fetchYahooConsensusSnapshot>> | null>} */
+  const snapCache = new Map();
+
+  /**
+   * @param {string} sym
+   */
+  async function snapFor(sym) {
+    const key = String(sym).toUpperCase();
+    if (snapCache.has(key)) return snapCache.get(key) ?? null;
+    try {
+      const s = await fetchYahooConsensusSnapshot(key);
+      snapCache.set(key, s);
+      return s;
+    } catch {
+      snapCache.set(key, null);
+      return null;
+    }
+  }
 
   for (const card of store.cards.slice(0, limit)) {
-    if (!force && card.headline && card.detail) continue;
+    const ver = Number(card.metrics?.metricVersion) || 0;
+    const needMetrics = force || ver < ANNOUNCEMENT_METRIC_VERSION;
+    const needCopy = force || !card.headline || !card.detail || needMetrics;
+
+    if (!needMetrics && !needCopy) continue;
+
+    if (needMetrics) {
+      const snap = await snapFor(card.symbol);
+      if (snap) {
+        const prior = store.consensusSnapshots?.[card.symbol] ?? null;
+        const fromYahoo = metricsFromYahooSnapshot(card.kind, snap, {
+          priorQuarterEpsAvg: prior?.periods?.["0q"]?.epsAvg ?? null,
+          priorForwardEps: prior?.forwardEps ?? null,
+        });
+        card.metrics = buildAnnouncementMetrics({
+          kind: card.kind,
+          symbol: card.symbol,
+          ...fromYahoo,
+          ...(card.kind === "consensus"
+            ? {
+                consensusEps:
+                  fromYahoo.quarterConsensusEps ??
+                  fromYahoo.consensusEps ??
+                  card.metrics?.consensusEps,
+                priorConsensusEps:
+                  prior?.periods?.["0q"]?.epsAvg ??
+                  prior?.forwardEps ??
+                  card.metrics?.priorConsensusEps,
+                consensusChangePct: fromYahoo.consensusChangePct,
+              }
+            : {}),
+        });
+        try {
+          const ai = await generateAnnouncementAiSummary({
+            kind: card.kind,
+            symbol: card.symbol,
+            title: card.title,
+            form: card.form,
+            metrics: card.metrics,
+          });
+          card.ai = {
+            summary: ai.summary,
+            generatedAt: Date.now(),
+            engine: ai.engine,
+          };
+        } catch {
+          /* keep old ai */
+        }
+        metricsRefreshed += 1;
+      }
+    }
+
+    if (!needCopy) continue;
     try {
       const copy = await enrichAnnouncementCopy({
         form: card.form,
@@ -181,8 +257,14 @@ export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
     "[us-announcement] cleanup/enrich",
     `removed=${removed}`,
     `enriched=${enriched}`,
+    `metrics=${metricsRefreshed}`,
   );
-  return { removed, enriched, cardCount: store.cards.length };
+  return {
+    removed,
+    enriched,
+    metricsRefreshed,
+    cardCount: store.cards.length,
+  };
 }
 
 /**
@@ -241,9 +323,13 @@ export async function scanSecFilingsForSymbol(symbol, opts = {}) {
     let metrics = buildAnnouncementMetrics({
       kind: f.kind,
       symbol: sym,
-      consensusEps: snap?.forwardEps ?? null,
-      trailingEps: snap?.trailingEps ?? null,
-      period: "0y",
+      ...metricsFromYahooSnapshot(f.kind, snap ?? { periods: {}, forwardEps: null, trailingEps: null, lastReported: null }, {
+        priorQuarterEpsAvg:
+          storeAtStart.consensusSnapshots?.[sym]?.periods?.["0q"]?.epsAvg ??
+          null,
+        priorForwardEps:
+          storeAtStart.consensusSnapshots?.[sym]?.forwardEps ?? null,
+      }),
     });
 
     const card = {
@@ -342,13 +428,19 @@ export async function scanConsensusForSymbol(symbol, opts = {}) {
   const metrics = buildAnnouncementMetrics({
     kind: "consensus",
     symbol: sym,
+    ...metricsFromYahooSnapshot("consensus", snap, {
+      priorQuarterEpsAvg: prev?.periods?.["0q"]?.epsAvg ?? null,
+      priorForwardEps: prev?.forwardEps ?? null,
+    }),
     consensusEps,
     priorConsensusEps,
-    trailingEps: snap.trailingEps,
     consensusChangePct: changePct,
     period: focusPeriod,
   });
   metrics.numAnalysts = nextPeriod?.numAnalysts ?? null;
+  if (!metrics.consensusChangeLabel && changePct != null) {
+    metrics.consensusChangeLabel = `컨센 EPS(${focusPeriod}) 직전 → 현재`;
+  }
 
   const card = {
     id: `ann_${sym}_consensus_${dayKey}_${focusPeriod}`,
@@ -409,7 +501,7 @@ export async function tickUsAnnouncementInbox(opts = {}) {
     }
   } else {
     try {
-      await cleanupAndEnrichAnnouncementInbox({ limit: 12, force: false });
+      await cleanupAndEnrichAnnouncementInbox({ limit: 24, force: false });
     } catch (e) {
       liveTradeLogWarn(
         "[us-announcement] cleanup skip",

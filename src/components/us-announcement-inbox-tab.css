@@ -305,6 +305,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+.us-ann-inbox__metric-hint {
+  margin: 4px 0 0;
+  font-size: 0.65rem;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--muted, #64748b);
+}
+
 .us-ann-inbox__pct--up {
   color: #15803d;
 }
