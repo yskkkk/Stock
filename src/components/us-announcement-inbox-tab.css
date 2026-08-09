@@ -162,6 +162,16 @@
   font-size: 0.875rem;
 }
 
+.us-ann-inbox__status {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent, #0f766e) 12%, transparent);
+  color: inherit;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
 .us-ann-inbox__empty {
   margin: 24px 0;
   text-align: center;

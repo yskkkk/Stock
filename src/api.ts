@@ -347,6 +347,7 @@ export function tickUsAnnouncements(body?: {
     ok: boolean;
     watched: number;
     inserted: number;
+    backfilled?: number;
     cards: UsAnnouncementCard[];
     errors: unknown[];
   }>("/api/us-announcements/tick", {

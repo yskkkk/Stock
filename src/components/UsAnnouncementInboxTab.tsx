@@ -71,25 +71,34 @@ export default function UsAnnouncementInboxTab() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scanStatus, setScanStatus] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await fetchUsAnnouncements({
-        kind: kind || undefined,
-        symbol: symbolFilter.trim() || undefined,
-        limit: 100,
-      });
-      setCards(res.cards);
-      setWatchlist(res.watchlist);
-      setUpdatedAt(res.updatedAt);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : ko.usAnnouncement.loadFail);
-    } finally {
-      setLoading(false);
-    }
-  }, [kind, symbolFilter]);
+  const load = useCallback(
+    async (opts?: { symbol?: string; kind?: "" | UsAnnouncementKind }) => {
+      setError(null);
+      const sym =
+        opts && "symbol" in opts ? opts.symbol ?? "" : symbolFilter;
+      const k = opts && "kind" in opts ? opts.kind ?? "" : kind;
+      try {
+        const res = await fetchUsAnnouncements({
+          kind: k || undefined,
+          symbol: String(sym).trim() || undefined,
+          limit: 100,
+        });
+        setCards(res.cards);
+        setWatchlist(res.watchlist);
+        setUpdatedAt(res.updatedAt);
+        return res;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : ko.usAnnouncement.loadFail);
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [kind, symbolFilter],
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -106,11 +115,39 @@ export default function UsAnnouncementInboxTab() {
   const onRefreshScan = async () => {
     setBusy(true);
     setError(null);
+    setScanStatus(null);
     try {
-      await tickUsAnnouncements({ notify: true });
-      await load();
+      const tick = await tickUsAnnouncements({ notify: true });
+      const inserted = Number(tick.inserted) || 0;
+      const errN = Array.isArray(tick.errors) ? tick.errors.length : 0;
+
+      // 스캔 후 전체 목록을 보여 필터 때문에 "안 늘어난 것처럼" 보이는 경우 방지
+      setSymbolFilter("");
+      setKind("");
+
+      const res = await load({ symbol: "", kind: "" });
+      const total = res?.cards?.length ?? 0;
+
+      if (inserted > 0) {
+        setScanStatus(
+          ko.usAnnouncement.scanOkNew
+            .replace("{n}", String(inserted))
+            .replace("{total}", String(total)),
+        );
+      } else {
+        setScanStatus(
+          ko.usAnnouncement.scanOkNone.replace("{total}", String(total)),
+        );
+      }
+      if (errN > 0) {
+        setScanStatus(
+          (prev) =>
+            `${prev ?? ""} ${ko.usAnnouncement.scanPartialErrors.replace("{n}", String(errN))}`.trim(),
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : ko.usAnnouncement.scanFail);
+      setScanStatus(null);
     } finally {
       setBusy(false);
     }
@@ -261,6 +298,12 @@ export default function UsAnnouncementInboxTab() {
         {filteredHint}
         {updatedAt ? ` · ${formatWhen(updatedAt)}` : null}
       </p>
+
+      {scanStatus ? (
+        <p className="us-ann-inbox__status" role="status">
+          {scanStatus}
+        </p>
+      ) : null}
 
       {error ? (
         <p className="us-ann-inbox__error" role="alert">

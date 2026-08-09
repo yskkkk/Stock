@@ -1431,6 +1431,10 @@ export const ko = {
     detailLabel: "자세한 설명",
     loadFail: "발표 목록을 불러오지 못했습니다.",
     scanFail: "스캔에 실패했습니다.",
+    scanOkNew: "스캔 완료 — 신규 {n}건 등록 (전체 {total}건).",
+    scanOkNone:
+      "스캔 완료 — 새로 등록할 발표가 없습니다. 이미 반영된 공시만 있습니다 (전체 {total}건).",
+    scanPartialErrors: "일부 종목 오류 {n}건.",
     watchFail: "관심 종목 추가에 실패했습니다.",
     seedFail: "데모 카드 생성에 실패했습니다.",
   },
