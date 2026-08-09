@@ -353,13 +353,47 @@ describe("filing headline/detail", () => {
         vsConsensusPct: 5,
         vsConsensusLabel: "최근 확정 EPS(2.10) vs 당시 컨센(2.00)",
       },
+      "GOOGL",
     );
     expect(pack.headline).toMatch(/10-Q|분기/);
     expect(pack.about).toMatch(/10-Q|분기/);
     expect(pack.numbersBrief).toMatch(/컨센 대비/);
     expect(pack.numbersBrief).toContain("\n");
-    expect(pack.interpretation).not.toMatch(/수치 요약/);
-    expect(pack.interpretation).toMatch(/GAAP|Beat|근거/);
+    expect(pack.interpretation).toMatch(/GOOGL|Beat|\+5/);
+    expect(pack.interpretation).not.toMatch(/확인하세요\.$/);
+  });
+
+  it("guidance interpretation uses vs-consensus directly", () => {
+    const { interpretation } = buildFilingHeadlineAndDetail(
+      "8-K",
+      "guidance",
+      "Outlook",
+      "",
+      {
+        vsConsensusPct: -4.2,
+        vsConsensusLabel: "가이던스 EPS(5.00) vs 컨센 EPS(5.22)",
+      },
+      "AAPL",
+    );
+    expect(interpretation).toMatch(/AAPL/);
+    expect(interpretation).toMatch(/-4\.2%|보수/);
+    expect(interpretation).not.toMatch(/보수\/낙관이면/);
+  });
+
+  it("consensus interpretation states up/down with pct", () => {
+    const { interpretation } = buildFilingHeadlineAndDetail(
+      null,
+      "consensus",
+      "컨센 상향",
+      "",
+      {
+        consensusChangePct: 3.5,
+        consensusChangeLabel: "당분기 컨센 직전 → 현재",
+      },
+      "NVDA",
+    );
+    expect(interpretation).toMatch(/NVDA/);
+    expect(interpretation).toMatch(/\+3\.5%|상향/);
   });
 
   it("extracts EPS and revenue lines from filing text", () => {

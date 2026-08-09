@@ -95,6 +95,7 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
         card.title,
         "",
         card.metrics,
+        card.symbol,
       );
       card.headline = copy.headline;
       card.about = copy.about;
