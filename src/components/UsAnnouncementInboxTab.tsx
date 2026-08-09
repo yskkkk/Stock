@@ -294,7 +294,12 @@ export default function UsAnnouncementInboxTab() {
                   {formatWhen(card.filedAt)}
                 </time>
               </div>
-              <h3 className="us-ann-inbox__card-title">{card.title}</h3>
+              <h3 className="us-ann-inbox__card-title">
+                {card.headline || card.title}
+              </h3>
+              {card.headline && card.title && card.headline !== card.title ? (
+                <p className="us-ann-inbox__card-sub">{card.title}</p>
+              ) : null}
 
               <dl className="us-ann-inbox__metrics">
                 <div>
@@ -324,6 +329,15 @@ export default function UsAnnouncementInboxTab() {
                   </span>
                   {card.ai.summary}
                 </p>
+              ) : null}
+
+              {card.detail ? (
+                <div className="us-ann-inbox__detail">
+                  <span className="us-ann-inbox__detail-label">
+                    {ko.usAnnouncement.detailLabel}
+                  </span>
+                  <p className="us-ann-inbox__detail-body">{card.detail}</p>
+                </div>
               ) : null}
 
               <div className="us-ann-inbox__links">

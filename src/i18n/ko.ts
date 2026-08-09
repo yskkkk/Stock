@@ -1428,6 +1428,7 @@ export const ko = {
     yoy: "전년 대비",
     consensusChg: "컨센 변동",
     aiLabel: "AI 의견",
+    detailLabel: "자세한 설명",
     loadFail: "발표 목록을 불러오지 못했습니다.",
     scanFail: "스캔에 실패했습니다.",
     watchFail: "관심 종목 추가에 실패했습니다.",

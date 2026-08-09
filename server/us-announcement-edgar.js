@@ -83,7 +83,8 @@ export function classifySecForm(form) {
   if (f === "DEF 14A" || f === "DEFA14A" || f.startsWith("DEF 14")) {
     return "governance";
   }
-  if (f === "4" || f === "3" || f === "5") return "governance";
+  // Form 3/4/5 내부자 매매는 인박스 중복만 키우므로 제외(알림도 하지 않음)
+  if (f === "4" || f === "3" || f === "5") return null;
   if (f === "8-K" || f === "8-K/A") return "guidance";
   if (f === "10-Q" || f === "10-K" || f === "10-Q/A" || f === "10-K/A") {
     return "earnings";

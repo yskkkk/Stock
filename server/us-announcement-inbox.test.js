@@ -6,6 +6,7 @@ import {
 } from "./us-announcement-analyze.js";
 import {
   buildAnnouncementDedupeKey,
+  dedupeRegisteredAnnouncementCards,
   emptyUsAnnouncementStore,
   hasSeenAnnouncementKey,
   insertAnnouncementCard,
@@ -21,6 +22,8 @@ import {
 import { classifySecForm, buildEdgarDocumentUrl } from "./us-announcement-edgar.js";
 import { consensusEpsChangedEnough } from "./us-announcement-consensus.js";
 import { buildAnnouncementNotifyText } from "./us-announcement-notify.js";
+import { buildFilingHeadlineAndDetail } from "./us-announcement-summarize.js";
+import { htmlToPlainText } from "./us-announcement-filing-text.js";
 
 describe("us-announcement-analyze", () => {
   it("pctChange and vs consensus / yoy", () => {
@@ -168,6 +171,7 @@ describe("us-announcement-edgar helpers", () => {
     expect(classifySecForm("8-K")).toBe("guidance");
     expect(classifySecForm("DEF 14A")).toBe("governance");
     expect(classifySecForm("10-Q")).toBe("earnings");
+    expect(classifySecForm("4")).toBe(null);
     expect(classifySecForm("S-1")).toBe(null);
   });
 
@@ -211,6 +215,63 @@ describe("notify text", () => {
     expect(text).toContain("MSFT");
     expect(text).toContain("컨센 대비");
     expect(text).toContain("보수적");
+  });
+});
+
+describe("filing headline/detail", () => {
+  it("builds guidance headline from 8-K text", () => {
+    const { headline, detail } = buildFilingHeadlineAndDetail(
+      "8-K",
+      "guidance",
+      "8-K",
+      "Item 2.02 Results of Operations. The Company provides full-year guidance and outlook.",
+    );
+    expect(headline).toMatch(/가이던스|실적/);
+    expect(detail.length).toBeGreaterThan(10);
+  });
+
+  it("strips html", () => {
+    expect(htmlToPlainText("<p>Hello <b>World</b></p>")).toBe("Hello World");
+  });
+});
+
+describe("dedupe form4 cards", () => {
+  it("removes form 4 governance spam", () => {
+    const store = emptyUsAnnouncementStore();
+    store.cards = [
+      {
+        id: "a",
+        symbol: "GOOGL",
+        kind: "governance",
+        title: "4",
+        form: "4",
+        accession: "acc-1",
+        filedAt: 1,
+        source: "t",
+        metrics: {},
+        ai: { summary: "", generatedAt: 0 },
+        links: {},
+        createdAt: 1,
+      },
+      {
+        id: "b",
+        symbol: "GOOGL",
+        kind: "governance",
+        title: "Proxy",
+        form: "DEF 14A",
+        accession: "acc-2",
+        filedAt: 2,
+        source: "t",
+        metrics: {},
+        ai: { summary: "", generatedAt: 0 },
+        links: {},
+        createdAt: 2,
+      },
+    ];
+    const { removed } = dedupeRegisteredAnnouncementCards(store);
+    expect(removed).toBe(1);
+    expect(store.cards).toHaveLength(1);
+    expect(store.cards[0].form).toBe("DEF 14A");
   });
 });
 

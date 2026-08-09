@@ -304,6 +304,9 @@ export type UsAnnouncementCard = {
     numAnalysts?: number | null;
   };
   ai: { summary: string; generatedAt: number; engine?: string };
+  headline?: string | null;
+  detail?: string | null;
+  enrichedAt?: number | null;
   links: {
     edgar?: string | null;
     yahooAnalysis?: string | null;

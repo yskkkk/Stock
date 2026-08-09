@@ -238,10 +238,40 @@
 }
 
 .us-ann-inbox__card-title {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   font-size: 0.95rem;
   font-weight: 650;
   line-height: 1.4;
+}
+
+.us-ann-inbox__card-sub {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: var(--muted, #64748b);
+  line-height: 1.35;
+}
+
+.us-ann-inbox__detail {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: color-mix(in srgb, var(--surface, #fff) 88%, #94a3b8);
+}
+
+.us-ann-inbox__detail-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+  font-weight: 750;
+  color: var(--muted, #64748b);
+  letter-spacing: 0.03em;
+}
+
+.us-ann-inbox__detail-body {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
 .us-ann-inbox__metrics {

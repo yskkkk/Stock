@@ -51,6 +51,7 @@ import {
   updateUsAnnouncementWatchlist,
   addUsAnnouncementWatchSymbol,
   seedUsAnnouncementCard,
+  cleanupAndEnrichAnnouncementInbox,
 } from "./us-announcement-tick.js";
 import {
   listAnnouncementCards,
@@ -1615,6 +1616,18 @@ export function createApp() {
         { notify: body.notify === true },
       );
       res.json({ ok: true, inserted: result.inserted, card: result.card });
+    }),
+  );
+
+  app.post(
+    "/api/us-announcements/cleanup",
+    asyncRoute(async (req, res) => {
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const result = await cleanupAndEnrichAnnouncementInbox({
+        limit: Number(body.limit) || 30,
+        force: body.force === true,
+      });
+      res.json({ ok: true, ...result });
     }),
   );
 

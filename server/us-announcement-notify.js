@@ -34,8 +34,11 @@ export function buildAnnouncementNotifyText(card) {
   const kind = KIND_KO[card.kind] || card.kind;
   const lines = [
     `[발표] ${kind} · ${card.symbol}`,
-    card.title,
+    card.headline || card.title,
   ];
+  if (card.headline && card.title && card.headline !== card.title) {
+    lines.push(card.title);
+  }
   const m = card.metrics || {};
   const a = formatPctLine("컨센 대비", m.vsConsensusPct);
   const b = formatPctLine("전년 대비", m.yoyPct);
@@ -43,7 +46,8 @@ export function buildAnnouncementNotifyText(card) {
   if (a) lines.push(a);
   if (b) lines.push(b);
   if (c) lines.push(c);
-  if (card.ai?.summary) lines.push("", card.ai.summary);
+  if (card.detail) lines.push("", card.detail);
+  else if (card.ai?.summary) lines.push("", card.ai.summary);
   if (card.links?.edgar) lines.push("", `EDGAR: ${card.links.edgar}`);
   if (card.links?.yahooAnalysis) {
     lines.push(`Yahoo: ${card.links.yahooAnalysis}`);

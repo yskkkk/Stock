@@ -4,16 +4,17 @@
 import {
   addWatchSymbolSync,
   buildAnnouncementDedupeKey,
+  dedupeRegisteredAnnouncementCards,
   hasSeenAnnouncementKey,
   insertAnnouncementCard,
   isSymbolAnnouncementPrimed,
   loadUsAnnouncementStoreSync,
+  markAnnouncementAlerted,
   markSymbolAnnouncementPrimed,
   saveUsAnnouncementStoreSync,
   setWatchlistSync,
   shouldNotifyAnnouncement,
   shouldSendAnnouncementAlert,
-  markAnnouncementAlerted,
 } from "./us-announcement-inbox-store.js";
 import { fetchRecentSecFilingsForSymbol } from "./us-announcement-edgar.js";
 import {
@@ -25,6 +26,7 @@ import {
   generateAnnouncementAiSummary,
   pctChange,
 } from "./us-announcement-analyze.js";
+import { enrichAnnouncementCopy } from "./us-announcement-summarize.js";
 import { notifyUsAnnouncementCard } from "./us-announcement-notify.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
@@ -61,6 +63,25 @@ async function commitCard(card, dedupeKey, notify = true) {
     generatedAt: Date.now(),
     engine: ai.engine,
   };
+
+  try {
+    const copy = await enrichAnnouncementCopy({
+      form: card.form,
+      kind: card.kind,
+      title: card.title,
+      symbol: card.symbol,
+      edgarUrl: card.links?.edgar,
+      metrics: card.metrics,
+    });
+    card.headline = copy.headline;
+    card.detail = copy.detail;
+    card.enrichedAt = copy.enrichedAt;
+  } catch {
+    card.headline = card.title || null;
+    card.detail = ai.summary || null;
+    card.enrichedAt = Date.now();
+  }
+
   const result = insertAnnouncementCard(store, card, dedupeKey);
   if (!result.inserted || !result.card) {
     return { inserted: false, card: null };
@@ -78,7 +99,6 @@ async function commitCard(card, dedupeKey, notify = true) {
   if (alert.send) {
     const notified = await notifyUsAnnouncementCard(result.card);
     result.card.notified = notified;
-    // 성공/채널미설정 모두 이 발표 키는 알림 완료 처리(재발송 방지)
     markAnnouncementAlerted(store, dedupeKey);
     store.cards = store.cards.map((c) =>
       c.id === result.card.id ? result.card : c,
@@ -96,6 +116,52 @@ async function commitCard(card, dedupeKey, notify = true) {
 
   saveUsAnnouncementStoreSync(store);
   return { inserted: true, card: result.card };
+}
+
+/**
+ * 기존 카드 중복 제거 + 소제목/상세 보강
+ * @param {{ limit?: number; force?: boolean }} [opts]
+ */
+export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
+  let store = loadUsAnnouncementStoreSync();
+  const { removed } = dedupeRegisteredAnnouncementCards(store);
+  saveUsAnnouncementStoreSync(store);
+
+  store = loadUsAnnouncementStoreSync();
+  const limit = Math.min(40, Math.max(1, Number(opts.limit) || 20));
+  const force = opts.force === true;
+  let enriched = 0;
+
+  for (const card of store.cards.slice(0, limit)) {
+    if (!force && card.headline && card.detail) continue;
+    try {
+      const copy = await enrichAnnouncementCopy({
+        form: card.form,
+        kind: card.kind,
+        title: card.title,
+        symbol: card.symbol,
+        edgarUrl: card.links?.edgar,
+        metrics: card.metrics,
+      });
+      card.headline = copy.headline;
+      card.detail = copy.detail;
+      card.enrichedAt = copy.enrichedAt;
+      enriched += 1;
+    } catch (e) {
+      liveTradeLogWarn(
+        "[us-announcement] enrich fail",
+        card.symbol,
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+  saveUsAnnouncementStoreSync(store);
+  liveTradeLogInfo(
+    "[us-announcement] cleanup/enrich",
+    `removed=${removed}`,
+    `enriched=${enriched}`,
+  );
+  return { removed, enriched, cardCount: store.cards.length };
 }
 
 /**
@@ -273,6 +339,15 @@ export async function scanConsensusForSymbol(symbol, opts = {}) {
  * @param {{ notify?: boolean; symbols?: string[]; sinceMs?: number }} [opts]
  */
 export async function tickUsAnnouncementInbox(opts = {}) {
+  try {
+    await cleanupAndEnrichAnnouncementInbox({ limit: 12, force: false });
+  } catch (e) {
+    liveTradeLogWarn(
+      "[us-announcement] cleanup skip",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
   const store = loadUsAnnouncementStoreSync();
   const symbols = (
     Array.isArray(opts.symbols) && opts.symbols.length

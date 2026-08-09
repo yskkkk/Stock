@@ -32,6 +32,9 @@ const MAX_CARDS = 400;
  *     numAnalysts?: number | null;
  *   };
  *   ai: { summary: string; generatedAt: number; engine?: string };
+ *   headline?: string | null;
+ *   detail?: string | null;
+ *   enrichedAt?: number | null;
  *   links: { edgar?: string | null; yahooAnalysis?: string | null; ir?: string | null };
  *   notified?: {
  *     telegramAt?: number | null;
@@ -291,6 +294,48 @@ export function insertAnnouncementCard(store, card, dedupeKey) {
   store.seenKeys[dedupeKey] = Date.now();
   store.cards = [card, ...store.cards].slice(0, MAX_CARDS);
   return { store, inserted: true, card };
+}
+
+/**
+ * Form 3/4/5 등 중복성 카드 제거 + accession 중복 정리
+ * @param {UsAnnouncementStore} store
+ */
+export function dedupeRegisteredAnnouncementCards(store) {
+  const before = store.cards.length;
+  /** @type {Set<string>} */
+  const seenAcc = new Set();
+  /** @type {UsAnnouncementCard[]} */
+  const kept = [];
+
+  for (const card of store.cards) {
+    const form = String(card?.form ?? "")
+      .trim()
+      .toUpperCase();
+    if (form === "3" || form === "4" || form === "5") continue;
+
+    const acc = String(card?.accession ?? "").trim();
+    const key = acc
+      ? `${card.symbol}|${acc}`
+      : `${card.symbol}|${card.kind}|${card.id}`;
+    if (seenAcc.has(key)) continue;
+    seenAcc.add(key);
+    kept.push(card);
+  }
+
+  store.cards = kept.slice(0, MAX_CARDS);
+  /** @type {Record<string, number>} */
+  const nextSeen = {};
+  for (const c of store.cards) {
+    const part = c.accession || `${c.form || ""}|${c.filedAt}`;
+    nextSeen[buildAnnouncementDedupeKey(c.symbol, c.kind, part)] =
+      store.seenKeys?.[
+        buildAnnouncementDedupeKey(c.symbol, c.kind, part)
+      ] ||
+      c.createdAt ||
+      Date.now();
+  }
+  store.seenKeys = nextSeen;
+  return { store, removed: Math.max(0, before - store.cards.length) };
 }
 
 /**
