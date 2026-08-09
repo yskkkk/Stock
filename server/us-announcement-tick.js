@@ -12,6 +12,8 @@ import {
   saveUsAnnouncementStoreSync,
   setWatchlistSync,
   shouldNotifyAnnouncement,
+  shouldSendAnnouncementAlert,
+  markAnnouncementNotified,
 } from "./us-announcement-inbox-store.js";
 import { fetchRecentSecFilingsForSymbol } from "./us-announcement-edgar.js";
 import {
@@ -64,13 +66,38 @@ async function commitCard(card, dedupeKey, notify = true) {
     return { inserted: false, card: null };
   }
   store = result.store;
-  if (notify) {
+
+  const alert = shouldSendAnnouncementAlert({
+    notifyOpt: notify,
+    store,
+    symbol: result.card.symbol,
+    kind: result.card.kind,
+    form: result.card.form,
+  });
+
+  if (alert.send) {
     const notified = await notifyUsAnnouncementCard(result.card);
     result.card.notified = notified;
+    if (alert.key && (notified.telegramAt || notified.emailAt)) {
+      markAnnouncementNotified(store, alert.key);
+    } else if (alert.key) {
+      // 발송 시도는 했으나 채널 미설정 — 쿨다운만 걸어 중복 시도 폭주 방지
+      markAnnouncementNotified(store, alert.key);
+    }
+    store.cards = store.cards.map((c) =>
+      c.id === result.card.id ? result.card : c,
+    );
+  } else {
+    result.card.notified = {
+      telegramAt: null,
+      emailAt: null,
+      skipped: alert.reason,
+    };
     store.cards = store.cards.map((c) =>
       c.id === result.card.id ? result.card : c,
     );
   }
+
   saveUsAnnouncementStoreSync(store);
   return { inserted: true, card: result.card };
 }

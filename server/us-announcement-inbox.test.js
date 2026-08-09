@@ -9,10 +9,14 @@ import {
   emptyUsAnnouncementStore,
   hasSeenAnnouncementKey,
   insertAnnouncementCard,
+  isQuietAnnouncementForm,
   isSymbolAnnouncementPrimed,
   listAnnouncementCards,
+  markAnnouncementNotified,
   markSymbolAnnouncementPrimed,
   shouldNotifyAnnouncement,
+  shouldSendAnnouncementAlert,
+  wasAnnouncementRecentlyNotified,
 } from "./us-announcement-inbox-store.js";
 import { classifySecForm, buildEdgarDocumentUrl } from "./us-announcement-edgar.js";
 import { consensusEpsChangedEnough } from "./us-announcement-consensus.js";
@@ -102,6 +106,48 @@ describe("primed backfill — no notify until primed", () => {
     expect(isSymbolAnnouncementPrimed(store, "AAPL")).toBe(true);
     expect(shouldNotifyAnnouncement(true, store, "AAPL")).toBe(true);
     expect(shouldNotifyAnnouncement(false, store, "AAPL")).toBe(false);
+  });
+});
+
+describe("notify cooldown / quiet forms", () => {
+  it("skips Form 4 alerts", () => {
+    expect(isQuietAnnouncementForm("4")).toBe(true);
+    expect(isQuietAnnouncementForm("DEF 14A")).toBe(false);
+    const store = emptyUsAnnouncementStore();
+    markSymbolAnnouncementPrimed(store, "AAPL");
+    const r = shouldSendAnnouncementAlert({
+      notifyOpt: true,
+      store,
+      symbol: "AAPL",
+      kind: "governance",
+      form: "4",
+    });
+    expect(r.send).toBe(false);
+    expect(r.reason).toBe("quiet_form");
+  });
+
+  it("cooldown blocks second governance alert same day", () => {
+    const store = emptyUsAnnouncementStore();
+    markSymbolAnnouncementPrimed(store, "MSFT");
+    const first = shouldSendAnnouncementAlert({
+      notifyOpt: true,
+      store,
+      symbol: "MSFT",
+      kind: "governance",
+      form: "DEF 14A",
+    });
+    expect(first.send).toBe(true);
+    markAnnouncementNotified(store, first.key);
+    expect(wasAnnouncementRecentlyNotified(store, first.key)).toBe(true);
+    const second = shouldSendAnnouncementAlert({
+      notifyOpt: true,
+      store,
+      symbol: "MSFT",
+      kind: "governance",
+      form: "DEFA14A",
+    });
+    expect(second.send).toBe(false);
+    expect(second.reason).toBe("cooldown");
   });
 });
 

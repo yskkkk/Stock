@@ -33,7 +33,11 @@ const MAX_CARDS = 400;
  *   };
  *   ai: { summary: string; generatedAt: number; engine?: string };
  *   links: { edgar?: string | null; yahooAnalysis?: string | null; ir?: string | null };
- *   notified?: { telegramAt?: number | null; emailAt?: number | null };
+ *   notified?: {
+ *     telegramAt?: number | null;
+ *     emailAt?: number | null;
+ *     skipped?: string;
+ *   };
  *   createdAt: number;
  * }} UsAnnouncementCard
  */
@@ -45,6 +49,7 @@ const MAX_CARDS = 400;
  *   cards: UsAnnouncementCard[];
  *   seenKeys: Record<string, number>;
  *   primedSymbols: Record<string, number>;
+ *   notifySentAt: Record<string, number>;
  *   consensusSnapshots: Record<string, {
  *     at: number;
  *     forwardEps: number | null;
@@ -77,6 +82,7 @@ export function emptyUsAnnouncementStore() {
     cards: [],
     seenKeys: {},
     primedSymbols: {},
+    notifySentAt: {},
     consensusSnapshots: {},
     updatedAt: Date.now(),
   };
@@ -108,12 +114,17 @@ function normalizeStore(raw) {
     o.primedSymbols && typeof o.primedSymbols === "object"
       ? /** @type {Record<string, number>} */ (o.primedSymbols)
       : {};
+  const notifySentAt =
+    o.notifySentAt && typeof o.notifySentAt === "object"
+      ? /** @type {Record<string, number>} */ (o.notifySentAt)
+      : {};
   return {
     version: 1,
     watchlist: watch.length ? [...new Set(watch)] : [...DEFAULT_WATCH],
     cards,
     seenKeys,
     primedSymbols,
+    notifySentAt,
     consensusSnapshots,
     updatedAt: Number(o.updatedAt) || Date.now(),
   };
@@ -201,6 +212,82 @@ export function markSymbolAnnouncementPrimed(store, symbol) {
 export function shouldNotifyAnnouncement(notifyOpt, store, symbol) {
   if (notifyOpt === false) return false;
   return isSymbolAnnouncementPrimed(store, symbol);
+}
+
+/** 종목+종류 알림 쿨다운 기본 24h (거버넌스·실적 Form 폭주 방지) */
+export function getAnnouncementNotifyCooldownMs() {
+  const n = Number(process.env.STOCK_US_ANNOUNCEMENT_NOTIFY_COOLDOWN_MS ?? 86_400_000);
+  return Number.isFinite(n) && n >= 60_000 ? Math.min(n, 30 * 86_400_000) : 86_400_000;
+}
+
+/**
+ * @param {string} symbol
+ * @param {string} kind
+ */
+export function buildNotifyCooldownKey(symbol, kind) {
+  return `${String(symbol).toUpperCase()}|${String(kind).toLowerCase()}`;
+}
+
+/**
+ * Form 3/4/5 내부자 매매 — 인박스 등록은 하되 알림은 보내지 않음
+ * @param {string | null | undefined} form
+ */
+export function isQuietAnnouncementForm(form) {
+  const f = String(form ?? "")
+    .trim()
+    .toUpperCase();
+  return f === "3" || f === "4" || f === "5";
+}
+
+/**
+ * @param {UsAnnouncementStore} store
+ * @param {string} cooldownKey
+ * @param {number} [cooldownMs]
+ */
+export function wasAnnouncementRecentlyNotified(
+  store,
+  cooldownKey,
+  cooldownMs = getAnnouncementNotifyCooldownMs(),
+) {
+  const at = Number(store.notifySentAt?.[cooldownKey]);
+  if (!Number.isFinite(at) || at <= 0) return false;
+  return Date.now() - at < cooldownMs;
+}
+
+/**
+ * @param {UsAnnouncementStore} store
+ * @param {string} cooldownKey
+ */
+export function markAnnouncementNotified(store, cooldownKey) {
+  if (!store.notifySentAt || typeof store.notifySentAt !== "object") {
+    store.notifySentAt = {};
+  }
+  store.notifySentAt[cooldownKey] = Date.now();
+  return store;
+}
+
+/**
+ * 카드 삽입 후 실제 메일/텔레그램을 보낼지
+ * @param {{
+ *   notifyOpt?: boolean;
+ *   store: UsAnnouncementStore;
+ *   symbol: string;
+ *   kind: string;
+ *   form?: string | null;
+ * }} args
+ */
+export function shouldSendAnnouncementAlert(args) {
+  if (!shouldNotifyAnnouncement(args.notifyOpt, args.store, args.symbol)) {
+    return { send: false, reason: "not_primed_or_disabled" };
+  }
+  if (isQuietAnnouncementForm(args.form)) {
+    return { send: false, reason: "quiet_form" };
+  }
+  const key = buildNotifyCooldownKey(args.symbol, args.kind);
+  if (wasAnnouncementRecentlyNotified(args.store, key)) {
+    return { send: false, reason: "cooldown", key };
+  }
+  return { send: true, key };
 }
 
 /**
