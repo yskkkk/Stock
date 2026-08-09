@@ -3,11 +3,11 @@
  */
 import { fetchEdgarFilingPlainText } from "./us-announcement-filing-text.js";
 
-/** 카드 링크 분석 스키마 버전 (9 = 목차 + 영문→한글 해석, TOC 노이즈 제거) */
-export const ANNOUNCEMENT_ANALYSIS_VERSION = 9;
+/** 카드 링크 분석 스키마 버전 (10 = 구체 수치·세그먼트 중심 상세 분석) */
+export const ANNOUNCEMENT_ANALYSIS_VERSION = 10;
 
 /** 상세 분석 최대 글자 (긴 10-Q 요약용) */
-export const DEEP_ANALYSIS_MAX_CHARS = 18_000;
+export const DEEP_ANALYSIS_MAX_CHARS = 22_000;
 
 /** UI에서 페이지(전문)로 열 최소 길이 */
 export const DEEP_ANALYSIS_PAGE_CHARS = 1_800;
@@ -32,7 +32,7 @@ function fmtNum(n, d = 2) {
 }
 
 /**
- * 공시 평문에서 자주 쓰는 수치 패턴 추출
+ * 공시 평문에서 자주 쓰는 수치 패턴 추출 (구체 숫자 위주)
  * @param {string} text
  * @returns {string[]}
  */
@@ -41,26 +41,98 @@ export function extractFilingNumberLines(text) {
   if (!body) return [];
   /** @type {string[]} */
   const hits = [];
+  /**
+   * @param {string} line
+   */
+  const push = (line) => {
+    const t = String(line).replace(/\s+/g, " ").trim().slice(0, 160);
+    if (!t || hits.includes(t)) return;
+    hits.push(t);
+  };
   const patterns = [
     {
       re: /(?:diluted\s+)?(?:net\s+)?(?:income|earnings)\s+(?:per\s+(?:common\s+)?share|EPS)[^.]{0,40}?\$?\s*([0-9]+(?:\.[0-9]+)?)/gi,
       label: "희석/주당이익(EPS)",
     },
     {
-      re: /(?:basic|diluted)\s+EPS[^.]{0,30}?\$?\s*([0-9]+(?:\.[0-9]+)?)/gi,
+      re: /(?:basic|diluted)\s+(?:net\s+income\s+per\s+common\s+share|EPS)[^.]{0,30}?\$?\s*([0-9]+(?:\.[0-9]+)?)/gi,
       label: "EPS",
     },
     {
       re: /(?:total\s+)?revenues?(?:\s+was|\s+were|\s+of|:)?[^.]{0,40}?\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million|bn|mn)?/gi,
-      label: "매출",
+      label: "연결 매출",
     },
     {
-      re: /operating\s+(?:income|profit)[^.]{0,40}?\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million|bn|mn)?/gi,
+      re: /operating\s+(?:income|profit|margin)[^.]{0,40}?\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million|bn|mn|%)?/gi,
       label: "영업이익",
     },
     {
-      re: /net\s+income[^.]{0,40}?\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million|bn|mn)?/gi,
+      re: /net\s+income(?:\s+available\s+to\s+common\s+stockholders)?[^.]{0,40}?\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million|bn|mn)?/gi,
       label: "순이익",
+    },
+    {
+      re: /Google Search\s*(?:&|and)?\s*other[^$0-9]{0,30}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)/gi,
+      label: "검색 등 매출",
+    },
+    {
+      re: /YouTube ads[^$0-9]{0,30}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)/gi,
+      label: "YouTube 광고 매출",
+    },
+    {
+      re: /Google (?:advertising|Network)[^$0-9]{0,30}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)/gi,
+      label: "광고 합계/네트워크",
+    },
+    {
+      re: /Google Cloud[^.]{0,80}?(?:increased|grew|was|were|of|:)?[^$0-9%]{0,20}(\d+(?:\.\d+)?)\s*%[^$]{0,40}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million)?/gi,
+      label: "Google Cloud",
+      format: (m) =>
+        `Google Cloud ${m[2] ? `$${m[2]}${m[3] ? ` ${m[3]}` : ""}` : ""}${m[1] ? ` · 성장 ${m[1]}%` : ""}`.trim(),
+    },
+    {
+      re: /Google Cloud[^$0-9]{0,40}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million)?/gi,
+      label: "Google Cloud 매출",
+    },
+    {
+      re: /(?:subscriptions?|platforms?|devices?)[^$0-9]{0,40}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)/gi,
+      label: "구독·플랫폼·기기",
+    },
+    {
+      re: /other income(?:\s*\(expense\))?(?:,?\s*net)?[^$0-9]{0,40}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million)?/gi,
+      label: "기타이익(순)",
+    },
+    {
+      re: /(?:unrealized|gain|loss).{0,40}equity securit[^$0-9]{0,40}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million)?/gi,
+      label: "지분 평가손익",
+    },
+    {
+      re: /purchases of property and equipment[^$0-9]{0,40}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million)?/gi,
+      label: "설비투자(CapEx)",
+    },
+    {
+      re: /(?:capital expenditures?|capex)[^$0-9]{0,40}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million)?/gi,
+      label: "설비투자(CapEx)",
+    },
+    {
+      re: /(?:free cash flow|net cash provided by operating activities)[^$0-9-]{0,40}\(?\$?-?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\)?\s*(billion|million)?/gi,
+      label: "영업CF/FCF",
+    },
+    {
+      re: /(?:cash and cash equivalents|total cash[^,]{0,40}marketable securities)[^$0-9]{0,40}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million)?/gi,
+      label: "현금·유가증권",
+    },
+    {
+      re: /(?:long-term debt|total long-term debt)[^$0-9]{0,40}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million)?/gi,
+      label: "장기부채",
+    },
+    {
+      re: /(?:revenue backlog|remaining performance obligations?)[^$0-9]{0,40}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million)?/gi,
+      label: "매출 백로그",
+    },
+    {
+      re: /(?:acquisition|acquired)\s+(?:of\s+)?([A-Za-z][A-Za-z0-9 .-]{1,40}?)(?:\s+for|\s+at)?[^$0-9]{0,30}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million)?/gi,
+      label: "인수",
+      format: (m) =>
+        `인수 ${String(m[1]).trim()} $${m[2]}${m[3] ? ` ${m[3]}` : ""}`,
     },
     {
       re: /(?:full[- ]year|FY\s*\d{2,4}|fiscal\s+year)[^.]{0,80}?(?:EPS|earnings per share|revenue)[^.]{0,60}?\$?\s*([0-9]+(?:\.[0-9]+)?)/gi,
@@ -70,22 +142,139 @@ export function extractFilingNumberLines(text) {
       re: /(?:expects?|guides?|outlook)[^.]{0,100}?\$?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:to|-|–)\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/gi,
       label: "가이던스 레인지",
     },
+    {
+      re: /(?:employees|number of employees)[^0-9]{0,30}([0-9]{1,3}(?:,[0-9]{3})+)/gi,
+      label: "직원 수",
+    },
   ];
 
-  for (const { re, label } of patterns) {
+  for (const row of patterns) {
+    const re = row.re;
     re.lastIndex = 0;
     let m;
     let guard = 0;
-    while ((m = re.exec(body)) && guard < 3) {
+    while ((m = re.exec(body)) && guard < 4) {
       guard += 1;
+      if (typeof row.format === "function") {
+        push(row.format(m));
+        continue;
+      }
       const unit = m[2] ? ` ${m[2]}` : "";
       const range = m[3] ? `–${m[3]}` : "";
       const val = `${m[1]}${range}${unit}`.trim();
-      const line = `${label} ${val}`.slice(0, 120);
-      if (!hits.includes(line)) hits.push(line);
+      push(`${row.label} ${val}`);
     }
   }
-  return hits.slice(0, 6);
+  return hits.slice(0, 18);
+}
+
+/**
+ * 주제별 구체 사실(숫자 포함 한글)을 공시에서 대량 수집
+ * @param {string} text
+ * @returns {{
+ *   segments: string[];
+ *   special: string[];
+ *   balance: string[];
+ *   risks: string[];
+ *   extras: string[];
+ * }}
+ */
+export function extractConcreteFilingFacts(text) {
+  const body = String(text ?? "").replace(/\s+/g, " ").trim();
+  /** @type {{ segments: string[]; special: string[]; balance: string[]; risks: string[]; extras: string[] }} */
+  const out = {
+    segments: [],
+    special: [],
+    balance: [],
+    risks: [],
+    extras: [],
+  };
+  if (!body) return out;
+
+  /**
+   * @param {string[]} bucket
+   * @param {string | null} line
+   * @param {number} max
+   */
+  const add = (bucket, line, max) => {
+    const t = String(line ?? "").replace(/\s+/g, " ").trim();
+    if (!t || t.length < 8) return;
+    if (bucket.some((x) => x.slice(0, 36) === t.slice(0, 36))) return;
+    if (bucket.length >= max) return;
+    bucket.push(t.slice(0, 220));
+  };
+
+  const sentences = body
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 35 && s.length <= 480)
+    .filter((s) => !isFilingNoise(s));
+
+  const segRe =
+    /Google (?:Search|Cloud|Network|Services)|YouTube|subscription|segment|advertising revenues?|operating income|Workspace|TPU/i;
+  const specialRe =
+    /other income|unrealized|equity securit|SpaceX|Anthropic|capital expenditure|purchases of property|acquisition|acquired|goodwill|Wiz|Intersect|repurchase|dividend|mandatory convertible|issued .+ notes|free cash flow/i;
+  const balRe =
+    /cash and cash equivalents|marketable securities|total assets|long-term debt|operating activities|investing activities|financing activities|backlog|remaining performance|inventory|property and equipment/i;
+  const riskRe =
+    /antitrust|Department of Justice|European Commission|litigation|Legal Proceedings|Risk Factors|fine|remed(?:y|ies)|General Court|appealed/i;
+
+  for (const s of sentences) {
+    const ko = koSummarizeFilingSentence(s);
+    if (!ko) continue;
+    // 숫자·고유명사 없는 너무 얇은 줄은 스킵
+    const hasMeat =
+      /\$|%|\d/.test(ko) ||
+      /인수|벌금|반독점|Cloud|YouTube|검색|CapEx|백로그|평가/.test(ko);
+    if (!hasMeat) continue;
+    if (segRe.test(s)) add(out.segments, ko, 10);
+    else if (specialRe.test(s)) add(out.special, ko, 10);
+    else if (balRe.test(s)) add(out.balance, ko, 8);
+    else if (riskRe.test(s)) add(out.risks, ko, 8);
+    else if (/\$\s*\d/.test(s) && /revenue|income|EPS|billion|million/i.test(s)) {
+      add(out.extras, ko, 8);
+    }
+  }
+
+  // 표 형태 세그먼트 숫자 보강
+  const tableLike = [
+    [
+      /Google Search\s*(?:&|and)?\s*other[^$0-9]{0,20}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+)/gi,
+      (m) => `검색 등(Search & other) 매출 $${m[1]}`,
+    ],
+    [
+      /YouTube ads[^$0-9]{0,20}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+)/gi,
+      (m) => `YouTube 광고 매출 $${m[1]}`,
+    ],
+    [
+      /Google Network[^$0-9]{0,20}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+)/gi,
+      (m) => `네트워크 광고 매출 $${m[1]}`,
+    ],
+    [
+      /Google advertising[^$0-9]{0,20}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+)/gi,
+      (m) => `광고 합계 $${m[1]}`,
+    ],
+    [
+      /Google Cloud[^$0-9]{0,20}\$?\s*([0-9]{1,3}(?:,[0-9]{3})+)/gi,
+      (m) => `Google Cloud 매출 $${m[1]}`,
+    ],
+    [
+      /Google Cloud[^.]{0,60}increased\s+(\d+(?:\.\d+)?)\s*%[^$]{0,30}\$?\s*([0-9,.]+)\s*(billion|million)?/gi,
+      (m) =>
+        `Google Cloud $${m[2]}${m[3] ? ` ${m[3]}` : ""} · 전년 대비 +${m[1]}%`,
+    ],
+  ];
+  for (const [re, fmt] of tableLike) {
+    re.lastIndex = 0;
+    let m;
+    let g = 0;
+    while ((m = re.exec(body)) && g < 3) {
+      g += 1;
+      add(out.segments, fmt(m), 12);
+    }
+  }
+
+  return out;
 }
 
 /**
@@ -119,87 +308,134 @@ export function koSummarizeFilingSentence(s) {
   const t = String(s ?? "").replace(/\s+/g, " ").trim();
   if (!t || isFilingNoise(t)) return null;
 
-  const money =
-    t.match(
-      /\$\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million|bn|mn)?/i,
-    ) || null;
-  const moneyStr = money
-    ? `$${money[1]}${money[2] ? ` ${money[2]}` : ""}`
-    : null;
-  const pct = t.match(/(\d+(?:\.\d+)?)\s*%/);
-  const pctStr = pct ? `${pct[1]}%` : null;
+  const moneys = [
+    ...t.matchAll(
+      /\$\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million|bn|mn)?/gi,
+    ),
+  ];
+  const moneyStr = (i = 0) => {
+    const money = moneys[i];
+    if (!money) return null;
+    return `$${money[1]}${money[2] ? ` ${money[2]}` : ""}`;
+  };
+  const pcts = [...t.matchAll(/(\d+(?:\.\d+)?)\s*%/g)];
+  const pctStr = (i = 0) => (pcts[i] ? `${pcts[i][1]}%` : null);
 
-  if (/google cloud/i.test(t)) {
-    const bits = ["Google Cloud"];
-    if (/(?:increased|grew|accelerat|up \d)/i.test(t) && pctStr) {
-      bits.push(`약 ${pctStr} 성장`);
+  const dirTo = t.match(
+    /(increased|decreased|grew|fell|rose|declined|accelerated)\s+(?:by\s+)?(\d+(?:\.\d+)?)\s*%[^.]{0,50}?(?:to|at)\s+\$?\s*([0-9,.]+)\s*(billion|million|bn|mn)?/i,
+  );
+  const dirOnly = t.match(
+    /(increased|decreased|grew|fell|rose|declined)\s+(?:by\s+)?(\d+(?:\.\d+)?)\s*%/i,
+  );
+  /**
+   * @param {string} base
+   */
+  const withGrowth = (base) => {
+    if (dirTo) {
+      const up = /increas|grew|rose|acceler/i.test(dirTo[1]);
+      return `${base} ${up ? "+" : "-"}${dirTo[2]}% → $${dirTo[3]}${dirTo[4] ? ` ${dirTo[4]}` : ""}`;
     }
-    if (moneyStr) bits.push(`규모 ${moneyStr}`);
-    return bits.join(" · ");
-  }
+    if (dirOnly) {
+      const up = /increas|grew|rose|acceler/i.test(dirOnly[1]);
+      return `${base}${moneyStr() ? ` ${moneyStr()}` : ""} (${up ? "+" : "-"}${dirOnly[2]}%)`;
+    }
+    const bits = [base];
+    if (moneyStr()) bits.push(moneyStr());
+    if (pctStr()) bits.push(pctStr());
+    return bits.filter(Boolean).join(" · ");
+  };
+
+  if (/google cloud/i.test(t)) return withGrowth("Google Cloud");
   if (/youtube/i.test(t) && /(?:ads?|advertis|revenue)/i.test(t)) {
-    return `YouTube 광고${moneyStr ? ` ${moneyStr}` : ""}${pctStr ? ` (${pctStr})` : ""}`.trim();
+    return withGrowth("YouTube 광고");
   }
-  if (/\bsearch\b/i.test(t) && /(?:revenue|ads?)/i.test(t)) {
-    return `검색·광고 매출${moneyStr ? ` ${moneyStr}` : ""}${pctStr ? ` (${pctStr})` : ""}`.trim();
+  if (/Google Search/i.test(t) || (/\bsearch\b/i.test(t) && /(?:revenue|ads?)/i.test(t))) {
+    return withGrowth("검색·광고(Search)");
   }
-  if (/total revenues?|consolidated revenues?|revenues? were/i.test(t)) {
-    return `연결 매출${moneyStr ? ` ${moneyStr}` : " 수치 언급"}${pctStr ? `, 변화 ${pctStr}` : ""}`;
+  if (/Google (?:advertising|Services)|advertising revenues?/i.test(t)) {
+    return withGrowth("광고/서비스 매출");
   }
-  if (/operating income|income from operations/i.test(t)) {
-    return `영업이익${moneyStr ? ` ${moneyStr}` : " 언급"}${pctStr ? ` (${pctStr})` : ""}`;
+  if (/subscription|platforms?|devices?/i.test(t) && /revenue/i.test(t)) {
+    return withGrowth("구독·플랫폼·기기");
+  }
+  if (/total revenues?|consolidated revenues?|revenues? were|revenues? increased/i.test(t)) {
+    return withGrowth("연결 매출");
+  }
+  if (/operating income|income from operations|operating margin/i.test(t)) {
+    return withGrowth("영업이익");
   }
   if (/net income/i.test(t) && !/comprehensive/i.test(t)) {
-    return `순이익${moneyStr ? ` ${moneyStr}` : " 언급"}`;
+    return withGrowth("순이익");
   }
-  if (/(?:diluted|basic).{0,20}(?:EPS|earnings per share)|earnings per share/i.test(t)) {
-    return `EPS${moneyStr ? ` ${moneyStr}` : ""}${pctStr ? ` (${pctStr})` : ""}`.trim() || "EPS 수치 언급";
+  if (/(?:diluted|basic).{0,40}(?:EPS|per common share)|earnings per share/i.test(t)) {
+    return withGrowth("EPS(희석/기본)");
   }
-  if (/other income|unrealized|equity securit/i.test(t)) {
-    return `기타이익·지분 평가손익${moneyStr ? ` (${moneyStr})` : ""}이 언급됩니다. 영업이익과 분리해 보세요.`;
+  if (/other income|unrealized|equity securit|SpaceX|Anthropic/i.test(t)) {
+    const who = /SpaceX/i.test(t)
+      ? "SpaceX 지분"
+      : /Anthropic/i.test(t)
+        ? "Anthropic 지분"
+        : "지분·기타이익";
+    return withGrowth(`${who} 평가/기타이익`);
   }
   if (/purchases of property|capital expenditure|capex/i.test(t)) {
-    return `설비투자(유형자산 구매)${moneyStr ? ` ${moneyStr}` : ""}`;
+    return withGrowth("설비투자(CapEx·유형자산 구매)");
   }
-  if (/free cash flow/i.test(t)) {
-    return `잉여현금흐름(FCF)${moneyStr ? ` ${moneyStr}` : " 언급"}`;
+  if (/free cash flow/i.test(t)) return withGrowth("잉여현금흐름(FCF)");
+  if (/acquisition|acquired|goodwill|Wiz|Intersect/i.test(t)) {
+    const name = t.match(
+      /(?:acquisition of|acquired)\s+([A-Z][A-Za-z0-9 .-]{1,30})/i,
+    );
+    return withGrowth(name ? `인수 ${name[1].trim()}` : "인수·영업권");
   }
-  if (/acquisition|acquired|goodwill/i.test(t)) {
-    return `인수·영업권${moneyStr ? ` (${moneyStr})` : ""} 관련 내용`;
+  if (/repurchase|buyback/i.test(t)) return withGrowth("자사주 매입");
+  if (/dividend/i.test(t)) return withGrowth("배당");
+  if (/long-term debt|senior (?:unsecured )?notes|issued .+ notes|proceeds from issuance of debt/i.test(t)) {
+    return withGrowth("부채·채권 발행/잔액");
   }
-  if (/repurchase|buyback/i.test(t)) return "자사주 매입 관련 내용";
-  if (/dividend/i.test(t)) return "배당 관련 내용";
-  if (/long-term debt|senior (?:unsecured )?notes|issued .+ notes/i.test(t)) {
-    return `부채·채권 발행${moneyStr ? ` ${moneyStr}` : ""}`;
+  if (/cash and cash equivalents|marketable securities/i.test(t)) {
+    return withGrowth("현금·유가증권");
   }
-  if (/cash and cash equivalents/i.test(t)) {
-    return `현금성자산${moneyStr ? ` ${moneyStr}` : ""}`;
-  }
-  if (/total assets/i.test(t)) return `총자산${moneyStr ? ` ${moneyStr}` : ""}`;
+  if (/total assets/i.test(t)) return withGrowth("총자산");
   if (/backlog|remaining performance obligation/i.test(t)) {
-    return `매출 백로그(미이행 계약)${moneyStr ? ` ${moneyStr}` : ""}`;
+    return withGrowth("매출 백로그(미이행 계약)");
   }
   if (/operating activities/i.test(t) && /cash/i.test(t)) {
-    return `영업현금흐름${moneyStr ? ` ${moneyStr}` : ""}`;
+    return withGrowth("영업현금흐름");
   }
-  if (/investing activities/i.test(t)) return `투자현금흐름${moneyStr ? ` ${moneyStr}` : ""}`;
-  if (/financing activities/i.test(t)) return `재무현금흐름${moneyStr ? ` ${moneyStr}` : ""}`;
+  if (/investing activities/i.test(t)) return withGrowth("투자현금흐름");
+  if (/financing activities/i.test(t)) return withGrowth("재무현금흐름");
+  if (/inventory/i.test(t) && moneyStr()) return withGrowth("재고");
+  if (/property and equipment/i.test(t) && moneyStr()) {
+    return withGrowth("유형자산");
+  }
   if (/antitrust|department of justice|\bDOJ\b/i.test(t)) {
-    return "미국 반독점(DOJ 등) 소송·구제명령 관련 내용이 있습니다.";
+    const detail = moneyStr() ? ` (관련 금액 ${moneyStr()})` : "";
+    return `미국 반독점(DOJ 등) 소송·구제명령 관련${detail}`;
   }
-  if (/european commission|\bEC\b.{0,40}fine|€[0-9]|euro.+fine/i.test(t)) {
-    return "유럽 경쟁당국(EC) 벌금·규제 관련 내용이 있습니다.";
+  if (/european commission|€|euro.+fine|General Court|EC decision/i.test(t)) {
+    const detail = moneyStr() ? ` (관련 금액 ${moneyStr()})` : "";
+    return `유럽 경쟁당국(EC) 벌금·규제·항소 관련${detail}`;
   }
   if (/legal proceedings|litigation|remed(?:y|ies)/i.test(t)) {
-    return "소송·법적 절차·구제(remedy) 관련 업데이트가 있습니다.";
+    return `소송·법적 절차·구제(remedy) 업데이트${moneyStr() ? ` · ${moneyStr()}` : ""}`;
   }
-  if (/risk factor/i.test(t)) return "위험요인(Risk Factors) 업데이트가 있습니다.";
+  if (/risk factor/i.test(t)) return "위험요인(Risk Factors) 업데이트";
   if (/guidance|outlook|expects?/i.test(t)) {
-    return `가이던스·아웃룩${moneyStr ? ` ${moneyStr}` : ""}${pctStr ? ` (${pctStr})` : ""}`.trim();
+    return withGrowth("가이던스·아웃룩");
+  }
+  if (/employees|headcount/i.test(t) && /\d{3,}/.test(t)) {
+    const n = t.match(/([0-9]{1,3}(?:,[0-9]{3})+)/);
+    return n ? `직원 수 ${n[1]}명` : null;
   }
 
   const hangul = (t.match(/[가-힣]/g) || []).length;
-  if (hangul >= 12) return t.slice(0, 220);
+  if (hangul >= 12 && /\$|%|\d/.test(t)) return t.slice(0, 220);
+
+  // 숫자 있는 미분류 문장: 짧은 한글 라벨 + 금액
+  if (moneyStr() && /revenue|income|EPS|billion|million|cash|debt/i.test(t)) {
+    return `공시 수치 ${moneyStr()}${pctStr() ? ` (${pctStr()})` : ""}`;
+  }
 
   return null;
 }
@@ -470,24 +706,48 @@ export function buildDeepAnalysisFromFiling(args) {
   const isEarningsDoc =
     kind === "earnings" || /^10-[QK]/.test(f) || /8-K/i.test(f);
   const numberLines = extractFilingNumberLines(filingText);
-  const excerpts = pickFilingExcerpts(filingText, kind, isEarningsDoc ? 8 : 5);
+  const facts = extractConcreteFilingFacts(filingText);
+  const excerpts = pickFilingExcerpts(filingText, kind, isEarningsDoc ? 12 : 6);
   const m = metrics && typeof metrics === "object" ? metrics : null;
 
   /** @type {string[]} */
   const sections = [];
 
+  /**
+   * @param {string[]} lines
+   * @param {string} emptyMsg
+   */
+  const bulletBlock = (lines, emptyMsg) => {
+    if (lines.length) {
+      return lines.map((s, i) => `${i + 1}. ${s}`).join("\n");
+    }
+    return emptyMsg;
+  };
+
   sections.push("## 목차");
   sections.push(DEEP_TOC_ITEMS.map((t, i) => `${i + 1}. ${t}`).join("\n"));
 
+  // —— 한줄 요약: 구체 숫자 2~4개 박기 ——
   sections.push("## 한줄 요약");
-  sections.push(
-    `${sym} ${f || title || kind} 공시입니다. ${about}${
+  /** @type {string[]} */
+  const headlineBits = [];
+  if (numberLines[0]) headlineBits.push(numberLines[0]);
+  if (facts.segments[0]) headlineBits.push(facts.segments[0]);
+  if (facts.special[0]) headlineBits.push(facts.special[0]);
+  const summaryLead = `${sym} ${f || title || kind} 공시입니다. ${about}`;
+  if (headlineBits.length) {
+    sections.push(
+      `${summaryLead}\n이번 공시에서 눈에 띄는 구체 수치: ${headlineBits.slice(0, 4).join(" · ")}.`,
+    );
+  } else {
+    sections.push(
       hasFilingText
-        ? " EDGAR 원문을 바탕으로 핵심 숫자·사업·재무·리스크를 한글로 나눠 정리했습니다."
-        : " 원문 HTML을 충분히 읽지 못해 Yahoo 지표·메타 중심이며, EDGAR 링크와 대조가 필요합니다."
-    }`,
-  );
+        ? `${summaryLead} 아래에서 공시에 나온 숫자·사업·재무·리스크를 항목별로 적습니다.`
+        : `${summaryLead} 원문 HTML 미수집 — Yahoo 지표 중심이며 EDGAR과 대조가 필요합니다.`,
+    );
+  }
 
+  // —— 핵심 실적 ——
   sections.push("## 핵심 실적·수치");
   /** @type {string[]} */
   const metricBits = [];
@@ -497,150 +757,167 @@ export function buildDeepAnalysisFromFiling(args) {
     const chg = fmtPct(/** @type {number|null} */ (m.consensusChangePct));
     const rep = fmtNum(/** @type {number|null} */ (m.reportedEps));
     const fwd = fmtNum(/** @type {number|null} */ (m.consensusEps));
+    const q = fmtNum(/** @type {number|null} */ (m.quarterConsensusEps));
+    const trail = fmtNum(/** @type {number|null} */ (m.trailingEps));
     if (rep) metricBits.push(`Yahoo 최근 확정 EPS ${rep}`);
+    if (q) metricBits.push(`당분기 컨센 EPS ${q}`);
     if (fwd) metricBits.push(`전방 컨센 EPS ${fwd}`);
+    if (trail) metricBits.push(`트레일링 EPS ${trail}`);
     if (vs) {
       metricBits.push(
-        `컨센 대비 ${vs}${m.vsConsensusLabel ? ` (${m.vsConsensusLabel})` : ""}`,
+        `컨센 대비 ${vs}${m.vsConsensusLabel ? ` — ${m.vsConsensusLabel}` : ""}`,
       );
     }
     if (yoy) {
       metricBits.push(
-        `전년 대비 ${yoy}${m.yoyLabel ? ` (${m.yoyLabel})` : ""}`,
+        `전년 대비 ${yoy}${m.yoyLabel ? ` — ${m.yoyLabel}` : ""}`,
       );
     }
     if (chg) metricBits.push(`컨센 변동 ${chg}`);
   }
-  if (numberLines.length) {
+  /** @type {string[]} */
+  const numBlock = [
+    ...metricBits,
+    ...numberLines.map((l) => (l.startsWith("공시") ? l : `공시: ${l}`)),
+    ...facts.extras,
+  ];
+  // dedupe
+  const numUnique = [];
+  for (const line of numBlock) {
+    if (!numUnique.some((x) => x.slice(0, 40) === line.slice(0, 40))) {
+      numUnique.push(line);
+    }
+  }
+  if (numUnique.length) {
     sections.push(
-      [...metricBits, ...numberLines.map((l) => `공시 추출: ${l}`)].join("\n"),
+      "공시·Yahoo에서 확인된 숫자입니다.\n" +
+        numUnique
+          .slice(0, 16)
+          .map((s, i) => `${i + 1}. ${s}`)
+          .join("\n"),
     );
   } else if (
     numbersBrief &&
     !String(numbersBrief).includes("표시하지 않습니다")
   ) {
-    sections.push(
-      [...metricBits, String(numbersBrief)]
-        .filter(Boolean)
-        .join("\n") ||
-        "수치 요약을 공시에서 충분히 뽑지 못했습니다. 손익계산서·EPS 표를 원문에서 확인하세요.",
-    );
+    sections.push(String(numbersBrief));
   } else {
     sections.push(
-      metricBits.length
-        ? metricBits.join("\n")
-        : "실적 Beat/Miss 수치를 카드 메트릭에서 확보하지 못했습니다. 손익·현금흐름표를 원문에서 확인하세요.",
+      "손익계산서 핵심 행(매출·영업이익·순이익·EPS) 숫자를 공시 표에서 특정하지 못했습니다.",
     );
   }
 
+  // —— 사업 ——
   sections.push("## 사업·세그먼트 포인트");
-  const segHits = pickTopicSentencesKo(
-    filingText,
-    /(?:Google Cloud|YouTube|Search|segment|subscription|advertising|revenue(?:s)? (?:increased|decreased|were)|operating income)/i,
-    4,
-  );
-  if (segHits.length) {
-    sections.push(
-      "사업·세그먼트 관련 핵심(한글 해석):\n" +
-        segHits.map((s, i) => `${i + 1}. ${s}`).join("\n"),
-    );
-  } else {
-    /** @type {string[]} */
-    const fromEx = [];
-    for (const ex of excerpts.slice(0, 5)) {
+  /** @type {string[]} */
+  const segLines = [...facts.segments];
+  if (segLines.length < 4) {
+    for (const ex of excerpts) {
+      if (!/cloud|youtube|search|segment|advertis|subscription|revenue|operating/i.test(ex)) {
+        continue;
+      }
       const ko = koSummarizeFilingSentence(ex);
-      if (ko && !fromEx.includes(ko)) fromEx.push(ko);
-    }
-    if (fromEx.length) {
-      sections.push(
-        "공시에서 읽은 사업 포인트:\n" +
-          fromEx.map((s, i) => `${i + 1}. ${s}`).join("\n"),
-      );
-    } else {
-      sections.push(
-        kind === "governance"
-          ? "거버넌스·Proxy 안건(보수·이사회·주주제안 등)을 중심으로 읽으세요. 실적 세그먼트 표는 보통 없습니다."
-          : "세그먼트별 매출·영업이익 표가 원문에 있으면 Search/Cloud/광고 비중 변화를 우선 확인하세요.",
-      );
+      if (ko && !segLines.some((x) => x.slice(0, 28) === ko.slice(0, 28))) {
+        segLines.push(ko);
+      }
+      if (segLines.length >= 10) break;
     }
   }
+  sections.push(
+    bulletBlock(
+      segLines.slice(0, 12),
+      kind === "governance"
+        ? "거버넌스·Proxy 안건 중심 공시라 세그먼트 매출 표는 보통 없습니다."
+        : "세그먼트별 매출·성장률 문장을 공시에서 충분히 특정하지 못했습니다.",
+    ),
+  );
 
+  // —— 특이 ——
   sections.push("## 특이 항목 (기타이익·투자·CapEx·M&A)");
-  const specialHits = pickTopicSentencesKo(
-    filingText,
-    /(?:other income|unrealized|equity securit|SpaceX|Anthropic|capital expenditure|purchases of property|acquisition|goodwill|free cash flow|repurchase|dividend|debt issued|mandatory convertible)/i,
-    4,
-  );
-  if (specialHits.length) {
-    sections.push(
-      "순이익만 보면 왜곡될 수 있는 항목입니다.\n" +
-        specialHits.map((s, i) => `${i + 1}. ${s}`).join("\n"),
-    );
-  } else {
-    sections.push(
+  sections.push(
+    bulletBlock(
+      facts.special.slice(0, 12),
       isEarningsDoc
-        ? "기타이익(투자자산 평가)·CapEx·인수·자사주/배당·부채 발행이 있는지 MD&A·현금흐름표를 확인하세요. 평가이익이 크면 영업이익과 순이익을 분리해서 봐야 합니다."
-        : "해당 공시 유형에서는 설비투자·인수 특이사항이 제한적일 수 있습니다. 관련 Item이 있으면 원문에서 확인하세요.",
-    );
-  }
+        ? "기타이익(평가)·CapEx·인수·자사주/배당·채권 발행에 대한 구체 금액을 공시 문장에서 충분히 못 찾았습니다. 현금흐름표·주석의 CapEx·인수 항목을 원문에서 확인하세요."
+        : "해당 공시 유형에서 CapEx·인수 특이 금액이 제한적이거나 추출되지 않았습니다.",
+    ),
+  );
 
+  // —— 재무 ——
   sections.push("## 재무상태·현금흐름");
-  const bsHits = pickTopicSentencesKo(
-    filingText,
-    /(?:cash and cash equivalents|total assets|long-term debt|operating activities|investing activities|financing activities|backlog|remaining performance obligation)/i,
-    3,
+  sections.push(
+    bulletBlock(
+      facts.balance.slice(0, 10),
+      "현금·부채·영업/투자/재무 CF·백로그 구체 금액을 공시에서 충분히 못 찾았습니다.",
+    ),
   );
-  if (bsHits.length) {
-    sections.push(bsHits.map((s, i) => `${i + 1}. ${s}`).join("\n"));
-  } else {
-    sections.push(
-      "현금·부채·영업/투자/재무 현금흐름, (클라우드라면) 매출 백로그를 대차대조표·현금흐름표에서 확인하세요.",
-    );
-  }
 
+  // —— 리스크 ——
   sections.push("## 리스크·소송·규제");
-  const riskHits = pickTopicSentencesKo(
-    filingText,
-    /(?:antitrust|Department of Justice|European Commission|litigation|legal proceedings|risk factor|fine|remed(?:y|ies)|regulatory)/i,
-    3,
-  );
-  if (riskHits.length) {
-    sections.push(riskHits.map((s, i) => `${i + 1}. ${s}`).join("\n"));
+  if (facts.risks.length) {
+    sections.push(
+      "공시에 적힌 소송·규제 관련 내용:\n" +
+        facts.risks
+          .slice(0, 10)
+          .map((s, i) => `${i + 1}. ${s}`)
+          .join("\n"),
+    );
   } else if (kind === "governance") {
     sections.push(
       "Proxy·거버넌스 공시는 총회 안건·보수 정책·주주제안이 리스크 포인트입니다.",
     );
   } else {
     sections.push(
-      "소송(Legal Proceedings)·위험요인(Risk Factors)·반독점/벌금 관련 업데이트가 있는지 10-Q/10-K Part II를 확인하세요.",
+      "반독점·벌금·Legal Proceedings 구체 문장을 이번 평문 추출에서 잡지 못했습니다. Part II 원문을 확인하세요.",
     );
   }
 
+  // —— 해석 ——
   sections.push("## 해석·투자 관점");
+  /** @type {string[]} */
+  const takeaways = [];
+  if (facts.segments.some((s) => /Cloud|\+\d/.test(s))) {
+    takeaways.push(
+      `성장 축: ${facts.segments.find((s) => /Cloud|\+\d/.test(s))}`,
+    );
+  }
+  if (facts.special.some((s) => /평가|기타이익|CapEx|인수/.test(s))) {
+    takeaways.push(
+      `왜곡·투자 포인트: ${facts.special.find((s) => /평가|기타이익|CapEx|인수/.test(s))}`,
+    );
+  }
+  if (facts.risks[0]) takeaways.push(`규제 리스크: ${facts.risks[0]}`);
   const interp = String(interpretation || "")
     .split(/\n+/)
     .map((s) => s.trim())
     .filter((s) => s && !/^근거:/.test(s) && !isFilingNoise(s));
-  if (interp.length) {
+  if (takeaways.length) {
+    sections.push(
+      takeaways.map((s, i) => `${i + 1}. ${s}`).join("\n") +
+        (interp.length ? `\n\n${interp.join("\n\n")}` : ""),
+    );
+  } else if (interp.length) {
     sections.push(interp.join("\n\n"));
   } else if (article) {
-    const artKo = String(article)
-      .split(/\n+/)
-      .map((s) => s.trim())
-      .filter((s) => s && !isFilingNoise(s))
-      .slice(0, 8)
-      .join("\n\n");
-    sections.push(artKo.slice(0, 1200) || "원문과 메트릭을 함께 확인해 주세요.");
+    sections.push(
+      String(article)
+        .split(/\n+/)
+        .map((s) => s.trim())
+        .filter((s) => s && !isFilingNoise(s))
+        .slice(0, 10)
+        .join("\n\n")
+        .slice(0, 1600),
+    );
   } else {
     sections.push(
-      "숫자(영업이익·세그먼트)와 일회성/평가이익·CapEx 가이던스를 분리해 읽고, 원문 EDGAR와 컨퍼런스 콜 톤을 함께 보세요.",
+      "영업이익·세그먼트 숫자와 평가이익·CapEx를 분리해 읽고, 원문·컨퍼런스 콜과 대조하세요.",
     );
   }
 
   sections.push("## 근거");
   sections.push(
     hasFilingText
-      ? `EDGAR${f ? ` (${f})` : ""} 평문을 한글로 해석·요약했고 Yahoo 메트릭을 보조로 썼습니다. 최종 판단은 원문·실적 발표 자료를 우선하세요.`
+      ? `EDGAR${f ? ` (${f})` : ""} 평문에서 숫자·고유명사·성장률이 있는 문장을 한글로 번역·요약했습니다. Yahoo 메트릭은 보조입니다. 표 단위 확정치는 원문 표를 우선하세요.`
       : "링크 본문 미수집 — EDGAR/Yahoo 원문 확인이 필요합니다.",
   );
 
@@ -1202,9 +1479,9 @@ export async function enrichAnnouncementCopy(cardLike) {
   if (key && (text || cardLike.metrics)) {
     try {
       const systemDeep =
-        'Reply in Korean JSON only (no English body text): {"headline":"<=40 chars Korean","about":"2 short Korean sentences","numbers":"Korean bullets with \\n","interpretation":"2-4 short Korean judgments","article":"5-8 Korean paragraphs \\n\\n","deepAnalysis":"Korean only. Start with ## 목차 listing numbered section titles, then ## headings in order: ## 목차, ## 한줄 요약, ## 핵심 실적·수치, ## 사업·세그먼트 포인트, ## 특이 항목 (기타이익·투자·CapEx·M&A), ## 재무상태·현금흐름, ## 리스크·소송·규제, ## 해석·투자 관점, ## 근거. Translate filing facts into Korean; NEVER paste English TOC, checkboxes, Form cover text, or raw EDGAR sentences. Separate paragraphs with \\n\\n. Do NOT invent facts."}';
+        'Reply in Korean JSON only (no English body): {"headline":"<=40 chars Korean","about":"2 Korean sentences","numbers":"Korean bullets with concrete $/% figures \\n","interpretation":"2-4 Korean judgments with numbers","article":"5-8 Korean paragraphs \\n\\n","deepAnalysis":"Korean investor brief. MUST start with ## 목차 then ## 한줄 요약, ## 핵심 실적·수치, ## 사업·세그먼트 포인트, ## 특이 항목 (기타이익·투자·CapEx·M&A), ## 재무상태·현금흐름, ## 리스크·소송·규제, ## 해석·투자 관점, ## 근거. EVERY section after 목차 must list concrete facts from the filing: dollar amounts, %, segment names, deal names, lawsuit parties — like a detailed 10-Q memo. Do NOT write vague advice such as 확인하세요 without numbers. Do NOT paste English TOC/checkboxes/raw EDGAR. Separate with \\n\\n."}';
       const systemShort =
-        'Reply in Korean JSON only (no English body text): {"headline":"<=40 chars Korean","about":"2 short Korean sentences","numbers":"Korean bullets with \\n","interpretation":"2-4 short Korean judgments","article":"5-8 Korean paragraphs \\n\\n grounded in filing","deepAnalysis":"Korean ## 목차 then same section headings as a short brief; translate facts; never paste English TOC/checkbox/raw EDGAR."}';
+        'Reply in Korean JSON only: {"headline":"<=40 chars","about":"2 Korean sentences","numbers":"Korean bullets with figures","interpretation":"2-4 Korean judgments with numbers","article":"5-8 Korean paragraphs with concrete facts","deepAnalysis":"## 목차 then same ## sections; each section must cite concrete $/%/names from filing; no vague filler; no English dump."}';
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -1216,7 +1493,7 @@ export async function enrichAnnouncementCopy(cardLike) {
             process.env.STOCK_ANNOUNCEMENT_LLM_MODEL ?? "gpt-4o-mini",
           ).trim(),
           temperature: 0.25,
-          max_tokens: wantsDeep ? 3600 : 1800,
+          max_tokens: wantsDeep ? 4200 : 2000,
           messages: [
             {
               role: "system",
@@ -1232,8 +1509,9 @@ Draft interpretation: ${interpretation}
 Draft article (improve into natural Korean prose grounded in filing): ${article.slice(0, 2500)}
 Draft deepAnalysis outline (improve; keep ## headings): ${deepAnalysis.slice(0, wantsDeep ? 4500 : 2000)}
 EDGAR plain text (primary source — stay faithful):
-${text.slice(0, wantsDeep ? 28000 : 14000)}
-Yahoo link: ${cardLike.yahooUrl || ""}`,
+${text.slice(0, wantsDeep ? 36000 : 14000)}
+Yahoo link: ${cardLike.yahooUrl || ""}
+Write deepAnalysis with MANY concrete figures from the EDGAR text (revenues by segment, opex, OI&E, capex, cash, debt, backlog, M&A amounts, legal fines). Korean only.`,
             },
           ],
         }),

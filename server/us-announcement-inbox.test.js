@@ -490,9 +490,9 @@ describe("filing headline/detail", () => {
     expect(article.length).toBeGreaterThan(120);
   });
 
-  it("builds deep analysis with ## 목차 and Korean (no English dump)", () => {
+  it("builds deep analysis with ## 목차 and concrete Korean figures", () => {
     const text =
-      "Consolidated revenues were $119.8 billion. Google Cloud revenues increased 82% to $24.8 billion. Operating income was $40.8 billion. Other income included unrealized gains on equity securities. Purchases of property and equipment were $44.9 billion. The company is subject to antitrust litigation by the Department of Justice. Indicate by check mark whether the registrant is a shell company. Table of Contents Item 1 Legal Proceedings 57 Item 1A Risk Factors 57.";
+      "Consolidated revenues were $119.8 billion. Google Search & other $63,271. YouTube ads $11,055. Google Cloud revenues increased 82% to $24.8 billion. Operating income was $40.8 billion. Other income included unrealized gains on equity securities of $99.0 billion. Purchases of property and equipment were $44.9 billion. Cash and cash equivalents $55,911. Long-term debt $98,165. Revenue backlog $519.5 billion. Acquisition of Wiz for $29.5 billion. The company is subject to antitrust litigation by the Department of Justice. Indicate by check mark whether the registrant is a shell company. Table of Contents Item 1 Legal Proceedings 57 Item 1A Risk Factors 57.";
     const deep = buildDeepAnalysisFromFiling({
       kind: "earnings",
       symbol: "GOOGL",
@@ -503,17 +503,18 @@ describe("filing headline/detail", () => {
       interpretation: "해석: Cloud 성장과 CapEx를 분리해서 보세요.",
       filingText: text,
       hasFilingText: true,
-      metrics: { vsConsensusPct: 2.1, yoyPct: 24 },
+      metrics: { vsConsensusPct: 2.1, yoyPct: 24, reportedEps: 9.11 },
     });
     expect(deep).toMatch(/## 목차/);
     expect(deep).toMatch(/## 한줄 요약/);
     expect(deep).toMatch(/## 핵심 실적/);
     expect(deep).toMatch(/## 사업/);
     expect(deep).toMatch(/GOOGL/);
-    expect(deep).toMatch(/Google Cloud|반독점|설비투자|영업이익|연결 매출/);
+    expect(deep).toMatch(/119\.8|63,271|Cloud|24\.8|82/);
+    expect(deep).toMatch(/CapEx|44\.9|평가|99|Wiz|29\.5|백로그|519|반독점/);
     expect(deep).not.toMatch(/Indicate by check mark/);
     expect(deep).not.toMatch(/Table of Contents Item 1 Legal/);
-    expect(deep.length).toBeGreaterThan(400);
+    expect(deep.length).toBeGreaterThan(600);
   });
 
   it("ko-summarizes filing sentences and filters TOC noise", () => {
