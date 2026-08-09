@@ -100,7 +100,7 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
       card.about = copy.about;
       card.numbersBrief = copy.numbersBrief;
       card.detail = copy.detail;
-      card.analysisVersion = 3;
+      card.analysisVersion = ANNOUNCEMENT_ANALYSIS_VERSION;
       card.enrichedAt = Date.now();
       linkInterpretation = copy.interpretation;
     }

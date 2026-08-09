@@ -4,7 +4,7 @@
 import { fetchEdgarFilingPlainText } from "./us-announcement-filing-text.js";
 
 /** 카드 링크 분석 스키마 버전 */
-export const ANNOUNCEMENT_ANALYSIS_VERSION = 3;
+export const ANNOUNCEMENT_ANALYSIS_VERSION = 4;
 
 /**
  * @param {number | null | undefined} pct
@@ -185,7 +185,7 @@ export function buildNumbersBrief(metrics, filingLines) {
   if (!parts.length) {
     return "링크·Yahoo에서 바로 뽑을 핵심 수치가 부족합니다. EDGAR 원문과 Yahoo Analysis를 함께 확인하세요.";
   }
-  return parts.slice(0, 8).join(" · ");
+  return parts.slice(0, 8).join("\n");
 }
 
 /**
@@ -202,37 +202,44 @@ export function buildNumbersBrief(metrics, filingLines) {
  * }} args
  */
 export function buildInterpretationFromBrief(args) {
-  const { kind, symbol, form, about, numbersBrief, hasFilingText } = args;
-  const parts = [];
-  parts.push(`${symbol}: ${about}`);
-  if (numbersBrief) {
-    parts.push(`수치 요약 — ${numbersBrief}`);
-  }
+  const { kind, form, hasFilingText } = args;
+  /** @type {string[]} */
+  const paras = [];
+
   if (kind === "earnings") {
-    parts.push(
-      "해석: 정기보고서 숫자는 GAAP/Non-GAAP·일회성 여부에 따라 Yahoo 컨센과 어긋날 수 있습니다. Beat/Miss·전년 동기·가이던스 톤을 함께 보고, 세그먼트·현금흐름까지 원문에서 확인하세요.",
+    paras.push(
+      "정기보고서 숫자는 GAAP/Non-GAAP·일회성 여부에 따라 Yahoo 컨센과 어긋날 수 있습니다.",
+    );
+    paras.push(
+      "Beat/Miss·전년 동기·가이던스 톤을 함께 보고, 세그먼트·현금흐름까지 원문에서 확인하세요.",
     );
   } else if (kind === "guidance") {
-    parts.push(
-      "해석: 가이던스가 컨센보다 보수/낙관이면 이후 컨센 조정·배수 재평가 재료가 됩니다. 레인지 중앙값과 전제 가정을 원문에서 확인하세요.",
+    paras.push(
+      "가이던스가 컨센보다 보수/낙관이면 이후 컨센 조정·배수 재평가 재료가 됩니다.",
     );
+    paras.push("레인지 중앙값과 전제 가정을 원문에서 확인하세요.");
   } else if (kind === "consensus") {
-    parts.push(
-      "해석: 애널 컨센 이동은 실적·가이던스·매크로 반영일 수 있습니다. 이미 주가에 선반영됐는지 Analysis·차트와 함께 보세요.",
+    paras.push(
+      "애널 컨센 이동은 실적·가이던스·매크로 반영일 수 있습니다.",
     );
+    paras.push("이미 주가에 선반영됐는지 Analysis·차트와 함께 보세요.");
   } else if (kind === "governance") {
-    parts.push(
-      "해석: 배당·자사주·희석·이사회 변화가 자본배분·지배구조에 미치는 영향을 원문 안건 기준으로 판단하세요.",
+    paras.push(
+      "배당·자사주·희석·이사회 변화가 자본배분·지배구조에 미치는 영향을 원문 안건 기준으로 판단하세요.",
     );
-  }
-  if (hasFilingText) {
-    parts.push(`근거: EDGAR${form ? ` (${form})` : ""} 본문을 읽어 요지·수치를 정리했습니다.`);
   } else {
-    parts.push(
-      "근거: 공시 본문 수집이 안 되어 Yahoo 메트릭·양식 메타 중심입니다. 링크를 열어 원문을 확인하세요.",
-    );
+    paras.push("공시 내용과 카드 상단 수치를 함께 보고 원문으로 교차 확인하세요.");
   }
-  return parts.join(" ").slice(0, 1600);
+
+  if (hasFilingText) {
+    paras.push(
+      `근거: EDGAR${form ? ` (${form})` : ""} 본문 + Yahoo 메트릭`,
+    );
+  } else {
+    paras.push("근거: Yahoo 메트릭·양식 메타 (공시 본문 미수집 — 링크 원문 확인)");
+  }
+
+  return paras.join("\n\n").slice(0, 1200);
 }
 
 /**
@@ -358,18 +365,18 @@ export async function enrichAnnouncementCopy(cardLike) {
             {
               role: "system",
               content:
-                'Reply in Korean JSON only: {"headline":"<=40 chars","about":"2-3 sentences: what this announcement is","numbers":"2-4 sentences: key figures only from inputs","interpretation":"3-5 sentences: what it means for investors"}. Do not invent numbers not present in metrics or text.',
+                'Reply in Korean JSON only: {"headline":"<=40 chars","about":"1-2 short sentences what this filing is","numbers":"one bullet per line (use \\n), key figures only","interpretation":"2-4 short sentences separated by \\n\\n; do NOT repeat about or numbers"}. Do not invent numbers not present in metrics or text.',
             },
             {
               role: "user",
               content: `Symbol ${symbol} form ${form} kind ${kind} title ${title}
 Yahoo/metrics JSON: ${JSON.stringify(cardLike.metrics || {})}
 Draft about: ${about}
-Draft numbers: ${numbersBrief}
-Draft interpretation: ${interpretation}
+Draft numbers (prefer keep as lines): ${numbersBrief}
+Draft interpretation (interpretation only): ${interpretation}
 EDGAR/link text (may be empty):
 ${text.slice(0, 9000)}
-Yahoo link (context only, may not be fetched): ${cardLike.yahooUrl || ""}`,
+Yahoo link (context only): ${cardLike.yahooUrl || ""}`,
             },
           ],
         }),

@@ -49,6 +49,32 @@ function formatWhen(ms: number): string {
   }
 }
 
+/** 수치/해석 텍스트를 줄 단위로 (구 · / 줄바꿈 모두 지원) */
+function splitBriefLines(text: string | null | undefined): string[] {
+  const raw = String(text ?? "").trim();
+  if (!raw) return [];
+  return raw
+    .split(/\n+|(?:\s·\s)/)
+    .map((s) => s.replace(/^수치 요약\s*[—–-]\s*/, "").trim())
+    .filter(Boolean);
+}
+
+function splitAiParas(text: string | null | undefined): string[] {
+  const raw = String(text ?? "").trim();
+  if (!raw) return [];
+  if (/\n/.test(raw)) {
+    return raw
+      .split(/\n+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  // 예전 한 줄 뭉치: "해석:" / "근거:" 앞에서 끊기
+  return raw
+    .split(/(?=(?:해석|근거)\s*[:：])|(?<=\.)\s+(?=[가-힣A-Z])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function formatPct(pct: number | null | undefined): string {
   if (pct == null || !Number.isFinite(pct)) return "—";
   const sign = pct > 0 ? "+" : "";
@@ -442,17 +468,25 @@ export default function UsAnnouncementInboxTab() {
                   <span className="us-ann-inbox__numbers-label">
                     {ko.usAnnouncement.numbersLabel}
                   </span>
-                  <p className="us-ann-inbox__numbers-body">{card.numbersBrief}</p>
+                  <ul className="us-ann-inbox__numbers-list">
+                    {splitBriefLines(card.numbersBrief).map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
                 </div>
               ) : null}
 
               {card.ai?.summary ? (
-                <p className="us-ann-inbox__ai">
+                <div className="us-ann-inbox__ai">
                   <span className="us-ann-inbox__ai-label">
                     {ko.usAnnouncement.aiLabel}
                   </span>
-                  {card.ai.summary}
-                </p>
+                  <div className="us-ann-inbox__ai-body">
+                    {splitAiParas(card.ai.summary).map((para) => (
+                      <p key={para.slice(0, 48)}>{para}</p>
+                    ))}
+                  </div>
+                </div>
               ) : null}
 
               {!card.about && card.detail ? (

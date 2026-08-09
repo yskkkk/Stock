@@ -367,6 +367,22 @@
   line-height: 1.5;
 }
 
+.us-ann-inbox__numbers-list {
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  list-style: disc;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.us-ann-inbox__numbers-list li {
+  margin: 0 0 6px;
+}
+
+.us-ann-inbox__numbers-list li:last-child {
+  margin-bottom: 0;
+}
+
 .us-ann-inbox__pct--up {
   color: #15803d;
 }
@@ -386,11 +402,21 @@
 
 .us-ann-inbox__ai-label {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-size: 0.7rem;
   font-weight: 750;
   color: var(--accent, #0f766e);
   letter-spacing: 0.03em;
+}
+
+.us-ann-inbox__ai-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.us-ann-inbox__ai-body p {
+  margin: 0;
 }
 
 .us-ann-inbox__links {

@@ -356,8 +356,10 @@ describe("filing headline/detail", () => {
     );
     expect(pack.headline).toMatch(/10-Q|분기/);
     expect(pack.about).toMatch(/10-Q|분기/);
-    expect(pack.numbersBrief).toMatch(/컨센 대비|전년 대비|EPS|매출/);
-    expect(pack.interpretation.length).toBeGreaterThan(40);
+    expect(pack.numbersBrief).toMatch(/컨센 대비/);
+    expect(pack.numbersBrief).toContain("\n");
+    expect(pack.interpretation).not.toMatch(/수치 요약/);
+    expect(pack.interpretation).toMatch(/GAAP|Beat|근거/);
   });
 
   it("extracts EPS and revenue lines from filing text", () => {
