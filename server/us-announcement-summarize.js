@@ -3,8 +3,8 @@
  */
 import { fetchEdgarFilingPlainText } from "./us-announcement-filing-text.js";
 
-/** 카드 링크 분석 스키마 버전 (11 = 원문 없을 때도 메트릭·종류별 구체 분석) */
-export const ANNOUNCEMENT_ANALYSIS_VERSION = 11;
+/** 카드 링크 분석 스키마 버전 (12 = 확인하세요 숙제 카피 제거·사실 문장만) */
+export const ANNOUNCEMENT_ANALYSIS_VERSION = 12;
 
 /** 상세 분석 최대 글자 (긴 10-Q 요약용) */
 export const DEEP_ANALYSIS_MAX_CHARS = 22_000;
@@ -553,7 +553,7 @@ export function buildArticleFromFiling(args) {
     }
   } else if (!hasFilingText) {
     paras.push(
-      "EDGAR HTML 본문을 이번 수집에서 못 읽었습니다. 아래는 Yahoo 지표·카드 요지로 채운 요약이며, EDGAR 링크로 숫자를 재확인하세요.",
+      "EDGAR HTML 본문 미확보 — 아래 수치는 Yahoo·카드 메트릭으로 작성했습니다.",
     );
   }
 
@@ -600,8 +600,8 @@ export function buildArticleFromFiling(args) {
 
   paras.push(
     hasFilingText
-      ? `근거 자료: EDGAR${form ? ` (${form})` : ""} 본문을 읽어 정리했습니다. 최종 판단은 원문 링크를 우선하세요.`
-      : "근거 자료: Yahoo 메트릭·카드 메타(EDGAR HTML 미수집). EDGAR/Yahoo 원문과 교차 확인하세요.",
+      ? `근거: EDGAR${form ? ` (${form})` : ""} 평문 추출 + Yahoo 메트릭.`
+      : "근거: Yahoo 메트릭·카드 메타(EDGAR HTML 미확보).",
   );
 
   return paras.join("\n\n").slice(0, 6000);
@@ -669,6 +669,7 @@ export function sanitizeDeepAnalysisKo(text) {
         continue;
       }
       if (isFilingNoise(trim)) continue;
+      if (isHomeworkAnalysisLine(trim)) continue;
       const letters = trim.replace(/[^a-zA-Z가-힣]/g, "");
       if (letters.length >= 24) {
         const latin = (letters.match(/[a-zA-Z]/g) || []).length;
@@ -692,8 +693,21 @@ export function sanitizeDeepAnalysisKo(text) {
   return body.slice(0, DEEP_ANALYSIS_MAX_CHARS);
 }
 
+/** 사용자에게 숙제 떠넘기는 문장 (분석에 넣지 않음) */
+const HOMEWORK_LINE_RE =
+  /확인하세요|대조하세요|함께 보세요|열어보세요|재확인하세요|확인해야 합니다|우선하세요|원문에서 특정|링크를 여세요|별도 확인이 필요/;
+
 /**
- * LLM이 만든 상세 분석이 '못 찾음' 위주면 규칙 버전으로 교체
+ * @param {string} line
+ */
+export function isHomeworkAnalysisLine(line) {
+  const t = String(line ?? "").trim();
+  if (!t) return false;
+  return HOMEWORK_LINE_RE.test(t);
+}
+
+/**
+ * LLM이 만든 상세 분석이 '못 찾음'/숙제 위주면 규칙 버전으로 교체
  * @param {string} text
  */
 export function isThinDeepAnalysis(text) {
@@ -703,6 +717,10 @@ export function isThinDeepAnalysis(text) {
     /충분히 특정하지 못|못 찾았|추출되지 않았|구성하지 못|링크 본문 미수집|표시할 EPS·컨센·가이던스 수치가 카드에도 없/g;
   const hits = body.match(emptyRe) || [];
   if (hits.length >= 2) return true;
+  const homework = body.match(
+    /확인하세요|대조하세요|재확인하세요|원문에서 확인/g,
+  );
+  if ((homework?.length || 0) >= 2) return true;
   const hasConcrete =
     /\d+\.\d+%|컨센 대비|가이던스 EPS|확정 EPS|전방 컨센|YoY|\+\d|-\d|\$\d/.test(
       body,
@@ -792,7 +810,7 @@ export function buildMetricDrivenSectionFills(args) {
 
   if (kind === "guidance" || (/8-K/i.test(f) && kind !== "earnings")) {
     out.segments.push(
-      `${sym} ${f || "8-K"}는 세그먼트 매출표(10-Q)가 아니라 가이던스·실적 업데이트 성격입니다.`,
+      `${sym} ${f || "8-K"} — 세그먼트 매출표(10-Q)가 아닌 가이던스·실적 업데이트 공시.`,
     );
     if (guide && fwd) {
       out.segments.push(
@@ -801,59 +819,71 @@ export function buildMetricDrivenSectionFills(args) {
       );
     } else if (vs) {
       out.segments.push(
-        `가이던스/실적 숫자가 시장 컨센 대비 ${vs}로 카드에 잡혀 있습니다` +
+        `가이던스/실적 vs 컨센 ${vs}` +
           (m?.vsConsensusLabel ? ` — ${m.vsConsensusLabel}` : ""),
       );
     }
     if (q && yearAgo) {
       out.segments.push(
-        `성장 감각: 당분기 컨센 ${q} vs 전년 동기 ${yearAgo}` +
+        `성장: 당분기 컨센 ${q} vs 전년 동기 ${yearAgo}` +
           (yoy ? ` (${yoy})` : ""),
       );
     }
     if (about) out.segments.push(`발표 요지: ${about}`);
     if (title && title !== f) out.segments.push(`공시 제목: ${title.slice(0, 120)}`);
 
-    out.special.push(
-      "8-K에서 흔히 같이 보는 항목: 연간/분기 가이던스 레인지, 매출·마진 전제(환율·수요), 일회성 비용, 자사주·배당 코멘트.",
-    );
+    if (guide || rep || fwd) {
+      out.special.push(
+        `손익 포인트(Yahoo): 가이던스 ${guide || "—"} / 확정 ${rep || "—"} / 전방 컨센 ${fwd || "—"}` +
+          (vs ? ` · 컨센 대비 ${vs}` : ""),
+      );
+    }
     if (vs && Number(m?.vsConsensusPct) > 2) {
       out.special.push(
-        `컨센 대비 낙관(+): 시장 추정치보다 가이던스가 높아 컨센 상향 여지를 줄 수 있습니다. 이미 주가에 반영됐는지는 별도 확인이 필요합니다.`,
+        `컨센 대비 낙관(${vs}): 시장 추정치보다 가이던스가 높아 컨센 상향 여지가 있는 구간.`,
       );
     } else if (vs && Number(m?.vsConsensusPct) < -2) {
       out.special.push(
-        `컨센 대비 보수(-): 가이던스 미스 인식이 나올 수 있습니다. 가이던스 하향 폭과 다음 분기 전제를 원문 Item에서 확인하세요.`,
+        `컨센 대비 보수(${vs}): 가이던스 미스 인식·추가 하향 압력 구간.`,
       );
     }
-    out.special.push(
-      "원문 Item 2.02(실적)·7.01/8.01(기타) 중 어디에 숫자가 있는지 EDGAR에서 대조하세요.",
-    );
+    if (yoy) {
+      out.special.push(
+        `성장률 지표 ${yoy}` +
+          (q && yearAgo ? ` (당분기 컨센 ${q} / 전년 ${yearAgo})` : "") +
+          " — CapEx·인수 달러 행은 이번 카드 메트릭에 없음.",
+      );
+    } else {
+      out.special.push(
+        "CapEx·M&A·기타이익 달러 금액은 이번 Yahoo 스냅에 없고, EPS·컨센 괴리만 확보됨.",
+      );
+    }
 
-    out.balance.push(
-      "가이던스 8-K는 대차대조표 전면 개정이 아닌 경우가 많습니다. 현금·부채 표는 직전 10-Q/10-K와 함께 보세요.",
-    );
     if (trail || fwd) {
       out.balance.push(
-        `밸류에이션 감각용 Yahoo EPS: 트레일링 ${trail || "—"} / 전방 ${fwd || "—"} (배수 계산은 시가와 별도).`,
+        `EPS 밸류 감각: 트레일링 ${trail || "—"} / 전방 ${fwd || "—"}` +
+          (period ? ` (기간 ${period})` : ""),
       );
     }
     out.balance.push(
-      "현금흐름·CapEx 구체 금액은 이번 카드에 EDGAR 본문이 없으면 비어 있을 수 있습니다. 링크 원문·실적자료 PDF를 우선하세요.",
+      "가이던스 8-K 특성상 대차대조표·FCF 전면 갱신 숫자가 카드에 잡히지 않은 상태. 현금·부채·CapEx는 직전 10-Q 숫자가 기준선.",
     );
 
     out.risks.push(
-      "가이던스 미달·전제(수요/환율/공급망) 훼손 시 컨센·주가 동반 조정 위험.",
-    );
-    out.risks.push(
-      "낙관 가이던스라도 마진·일회성·회계 전제가 보수/공격적인지 원문 각주를 확인해야 합니다.",
+      vs && Number(m?.vsConsensusPct) > 2
+        ? `낙관 가이던스(${vs})라도 수요·환율·마진 전제가 깨지면 컨센·주가 동반 조정.`
+        : vs && Number(m?.vsConsensusPct) < -2
+          ? `보수 가이던스(${vs}): 추가 하향·목표가 조정 리스크.`
+          : "가이던스 전제(수요/환율/공급망) 훼손 시 컨센·주가 동반 조정 위험.",
     );
     if (Number.isFinite(nAnal) && nAnal < 10) {
-      out.risks.push(`애널 커버리지가 ${nAnal}명으로 적어 컨센 신뢰도가 낮을 수 있습니다.`);
+      out.risks.push(`애널 커버리지 ${nAnal}명 — 컨센 표본이 얇음.`);
+    } else if (Number.isFinite(nAnal)) {
+      out.risks.push(`애널 커버리지 ${nAnal}명 기준 컨센.`);
     }
   } else if (kind === "consensus") {
     out.segments.push(
-      `${sym} 컨센서스 변경 이벤트입니다. 공시 세그먼트표가 아니라 Yahoo Analysis 추정치 스냅샷 기준입니다.`,
+      `${sym} 컨센서스 변경 — Yahoo Analysis 추정치 스냅샷 기준(세그먼트표 아님).`,
     );
     if (chg) {
       out.segments.push(
@@ -864,78 +894,116 @@ export function buildMetricDrivenSectionFills(args) {
     if (fwd && prior) out.segments.push(`전방 EPS ${prior} → ${fwd}`);
     if (q) out.segments.push(`당분기 컨센 EPS ${q}`);
     out.special.push(
-      "컨센 상·하향은 실적·가이던스·매크로 반영 또는 애널 모델 수정이 원인일 수 있습니다.",
+      chg
+        ? `컨센 ${chg}: 실적·가이던스·매크로 또는 애널 모델 수정이 반영된 움직임.`
+        : "컨센 스냅 변동. CapEx·인수 금액은 이 이벤트 유형에 포함되지 않음.",
     );
-    out.special.push(
-      "목표가·투자의견 변경이 같은 시점에 있는지 Yahoo Analysis·리포트 헤더를 확인하세요.",
-    );
+    if (fwd || q || trail) {
+      out.special.push(
+        `현재 추정: 당분기 ${q || "—"} / 전방 ${fwd || "—"} / 트레일링 ${trail || "—"}`,
+      );
+    }
     out.balance.push(
-      "컨센 카드만으로는 현금·부채·CapEx를 특정하지 않습니다. 최근 10-Q와 함께 보세요.",
+      `밸류 감각 EPS — 트레일링 ${trail || "—"} / 전방 ${fwd || "—"}` +
+        (period ? ` (${period})` : ""),
     );
     out.risks.push(
       chg && Number(m?.consensusChangePct) <= -2
-        ? "컨센 하향이 이어지면 실적 시즌 전 추가 하향·목표가 조정 위험이 커집니다."
-        : "컨센만 움직이고 실적 가시성이 없으면 변동성만 키울 수 있습니다.",
+        ? `컨센 하향(${chg}): 실적 시즌 전 추가 하향·목표가 조정 위험.`
+        : chg && Number(m?.consensusChangePct) >= 2
+          ? `컨센 상향(${chg}): 선반영 여부·상향 지속성이 관건.`
+          : "컨센만 움직이면 실적 가시성 없이 변동성만 커질 수 있음.",
     );
   } else if (kind === "governance") {
     out.segments.push(
-      `${sym} 거버넌스·Proxy 공시(${f || title || "DEF 14A"})입니다. 실적 세그먼트표가 목적이 아닙니다.`,
+      `${sym} 거버넌스·Proxy(${f || title || "DEF 14A"}) — 실적 세그먼트표 목적 아님.`,
     );
     if (about) out.segments.push(about);
     if (title) out.segments.push(`제목: ${title.slice(0, 140)}`);
-    out.special.push(
-      "임원 보수·스톡·희석, 이사회 구성, 주주제안, 배당·자사주 승인 여부를 원문 안건 목록에서 확인하세요.",
-    );
+    const bodyHint = `${title} ${about}`;
+    if (/compensat|보수|pay|say.?on.?pay/i.test(bodyHint)) {
+      out.special.push("안건 신호: 임원 보수·Say-on-Pay 관련.");
+    }
+    if (/dividend|buyback|자사주|배당|repurchase/i.test(bodyHint)) {
+      out.special.push("안건 신호: 배당·자사주 등 자본배분.");
+    }
+    if (/director|board|이사회|nominee/i.test(bodyHint)) {
+      out.special.push("안건 신호: 이사회·이사 선임.");
+    }
+    if (!out.special.length) {
+      out.special.push(
+        "Proxy 안건(보수·이사회·주주제안·자본배분) 중심. CapEx·M&A 손익 표는 이 양식의 핵심이 아님.",
+      );
+    }
     out.balance.push(
-      "자본배분(배당·자사주) 안건이 있으면 환원 규모·기간이 밸류에이션에 영향을 줍니다.",
+      "자본배분(배당·자사주) 안건이면 환원 규모·기간이 주주가치·배수에 직접 연결.",
     );
     out.risks.push(
-      "보수·희석·관련 당사자 거래·주주제안 부결/가결이 거버넌스 리스크 포인트입니다.",
+      "보수·희석·관련 당사자 거래·주주제안 가결/부결이 거버넌스 리스크.",
     );
   } else {
-    // earnings / 10-Q style without filing text
+    // earnings / 10-Q style
     out.segments.push(
-      `${sym} ${f || "실적"} 카드입니다. EDGAR 본문이 없어 세그먼트 표 숫자를 직접 읽지 못했습니다.`,
+      `${sym} ${f || "실적"} — Yahoo EPS·컨센 기준 정리` +
+        (vs ? ` · vs 컨센 ${vs}` : "") +
+        (yoy ? ` · YoY ${yoy}` : ""),
     );
-    if (vs) {
-      out.segments.push(
-        `확정 실적 vs 컨센 ${vs}` +
-          (m?.vsConsensusLabel ? ` — ${m.vsConsensusLabel}` : ""),
+    if (rep && q) out.segments.push(`확정 EPS ${rep} / 분기 컨센 ${q}`);
+    if (fwd) out.segments.push(`전방 컨센 EPS ${fwd}`);
+    if (about) out.segments.push(about);
+
+    if (rep || guide || fwd) {
+      out.special.push(
+        `손익 숫자: 확정 ${rep || "—"} / 가이던스 ${guide || "—"} / 전방 컨센 ${fwd || "—"}` +
+          (vs ? ` · 컨센 대비 ${vs}` : ""),
       );
     }
     if (yoy) {
-      out.segments.push(
-        `성장 ${yoy}` + (m?.yoyLabel ? ` — ${m.yoyLabel}` : ""),
+      out.special.push(
+        `성장 ${yoy}` +
+          (yearAgo && q ? ` (전년 ${yearAgo} → 당분기 컨센 ${q})` : "") +
+          ". 순이익≪영업이익이면 평가이익·일회성 왜곡 가능.",
       );
     }
-    if (rep && q) out.segments.push(`확정 EPS ${rep} / 분기 컨센 ${q}`);
     out.special.push(
-      "10-Q/8-K 원문에서 매출·영업이익·순이익·EPS, 기타이익, CapEx, 인수 금액을 확인하세요.",
+      "CapEx·인수·기타이익(평가) 달러 행은 이번 카드 메트릭에 없음 — EPS Beat/Miss·성장률로 특이 항목을 대체 서술.",
     );
-    out.special.push(
-      "순이익이 영업이익과 크게 다르면 평가이익·일회성 항목 분리 여부가 핵심입니다.",
-    );
-    out.balance.push(
-      "현금·부채·FCF·백로그는 EDGAR 대차대조표·현금흐름표가 필요합니다. 카드의 EDGAR 링크를 여세요.",
-    );
-    if (fwd || trail) {
+
+    if (trail || fwd) {
       out.balance.push(
-        `참고 Yahoo EPS — 트레일링 ${trail || "—"} / 전방 ${fwd || "—"}`,
+        `EPS 밸류 감각: 트레일링 ${trail || "—"} / 전방 ${fwd || "—"}`,
       );
     }
-    out.risks.push(
-      "실적 Beat여도 가이던스 톤이 약하면 주가가 약할 수 있습니다. Miss면 일회성 여부·다음 가이던스를 확인하세요.",
+    out.balance.push(
+      "현금·부채·FCF·백로그 달러는 EDGAR 대차·CF표 추출분이 없어 이번 섹션에 금액 없음.",
     );
+
+    if (vs && Number(m?.vsConsensusPct) > 0.5) {
+      out.risks.push(
+        `Beat(${vs}): 가이던스·마진이 약하면 주가 반응이 제한될 수 있음.`,
+      );
+    } else if (vs && Number(m?.vsConsensusPct) < -0.5) {
+      out.risks.push(
+        `Miss(${vs}): 일회성 비용 여부·다음 분기 가이던스가 하방 폭을 가름.`,
+      );
+    } else {
+      out.risks.push(
+        "실적 숫자와 가이던스 톤이 어긋나면 컨센·주가가 같이 흔들릴 수 있음.",
+      );
+    }
   }
 
   const interp = String(args.interpretation ?? "")
     .split(/\n+/)
     .map((s) => s.trim())
-    .filter((s) => s && !/^근거:/.test(s));
+    .filter((s) => s && !/^근거:/.test(s) && !isHomeworkAnalysisLine(s));
   out.takeaways.push(...interp.slice(0, 8));
   if (!out.takeaways.length && vs) {
     out.takeaways.push(
-      `${sym} 컨센 대비 ${vs} — 숫자 괴리의 원인(가이던스/실적/컨센 스냅)을 원문과 함께 보세요.`,
+      `${sym} 컨센 대비 ${vs}` +
+        (m?.vsConsensusLabel ? ` (${m.vsConsensusLabel})` : "") +
+        (yoy ? ` · YoY ${yoy}` : "") +
+        (rep ? ` · 확정 EPS ${rep}` : ""),
     );
   }
 
@@ -979,7 +1047,7 @@ export function buildDeepAnalysisFromFiling(args) {
   const numberLines = extractFilingNumberLines(filingText);
   const facts = extractConcreteFilingFacts(filingText);
   const excerpts = pickFilingExcerpts(filingText, kind, isEarningsDoc ? 12 : 6);
-  const fill = buildMetricDrivenSectionFills({
+  const fillRaw = buildMetricDrivenSectionFills({
     kind,
     symbol: sym,
     form,
@@ -989,6 +1057,14 @@ export function buildDeepAnalysisFromFiling(args) {
     interpretation,
     metrics,
   });
+  const fill = {
+    numbers: fillRaw.numbers.filter((s) => !isHomeworkAnalysisLine(s)),
+    segments: fillRaw.segments.filter((s) => !isHomeworkAnalysisLine(s)),
+    special: fillRaw.special.filter((s) => !isHomeworkAnalysisLine(s)),
+    balance: fillRaw.balance.filter((s) => !isHomeworkAnalysisLine(s)),
+    risks: fillRaw.risks.filter((s) => !isHomeworkAnalysisLine(s)),
+    takeaways: fillRaw.takeaways.filter((s) => !isHomeworkAnalysisLine(s)),
+  };
   const m = metrics && typeof metrics === "object" ? metrics : null;
 
   /** @type {string[]} */
@@ -1050,7 +1126,7 @@ export function buildDeepAnalysisFromFiling(args) {
   }
   if (!hasFilingText) {
     sections.push(
-      "참고: 이번 분석은 EDGAR HTML 본문 수집이 안 된 상태라 Yahoo·카드 지표 비중이 큽니다. EDGAR 링크 원문으로 숫자를 반드시 재확인하세요.",
+      "참고: EDGAR HTML 미확보 — 아래 항목은 Yahoo·카드 지표로 채웠습니다.",
     );
   }
 
@@ -1193,11 +1269,11 @@ export function buildDeepAnalysisFromFiling(args) {
   sections.push("## 근거");
   if (hasFilingText) {
     sections.push(
-      `EDGAR${f ? ` (${f})` : ""} 평문 추출 + Yahoo 메트릭을 함께 썼습니다. 표 단위 확정치는 원문 표를 우선하세요.`,
+      `EDGAR${f ? ` (${f})` : ""} 평문 추출 + Yahoo 메트릭. 표 단위 확정치는 EDGAR 표 수치가 기준.`,
     );
   } else {
     sections.push(
-      `EDGAR HTML 본문은 이번  enrichment에서 수집되지 않았습니다. Yahoo 메트릭·카드 요지(${kind}/${f || title || "—"})로 섹션을 채웠습니다. 카드의 EDGAR·Yahoo 링크에서 원문 숫자를 재확인하세요.`,
+      `근거: Yahoo 메트릭·카드 요지(${kind}/${f || title || "—"}). EDGAR HTML은 이번 enrich에서 미확보.`,
     );
   }
 
@@ -1760,8 +1836,8 @@ export async function enrichAnnouncementCopy(cardLike) {
   if (key && (text || cardLike.metrics)) {
     try {
       const systemDeep = filingFetchOk
-        ? 'Reply in Korean JSON only (no English body): {"headline":"<=40 chars Korean","about":"2 Korean sentences","numbers":"Korean bullets with concrete $/% figures \\n","interpretation":"2-4 Korean judgments with numbers","article":"5-8 Korean paragraphs \\n\\n","deepAnalysis":"Korean investor brief. MUST start with ## 목차 then ## 한줄 요약, ## 핵심 실적·수치, ## 사업·세그먼트 포인트, ## 특이 항목 (기타이익·투자·CapEx·M&A), ## 재무상태·현금흐름, ## 리스크·소송·규제, ## 해석·투자 관점, ## 근거. EVERY section after 목차 must list concrete facts from the filing: dollar amounts, %, segment names, deal names, lawsuit parties — like a detailed 10-Q memo. Do NOT write vague advice such as 확인하세요 without numbers. Do NOT paste English TOC/checkboxes/raw EDGAR. Separate with \\n\\n."}'
-        : 'Reply in Korean JSON only: {"headline":"<=40 chars Korean","about":"2 Korean sentences","numbers":"Korean bullets from Yahoo metrics with figures","interpretation":"2-4 Korean judgments with numbers","article":"5-8 Korean paragraphs using metrics","deepAnalysis":"## 목차 then same ## sections. EDGAR body is MISSING — fill EVERY section using Yahoo metrics JSON and the draft outline (guidance vs consensus, EPS, YoY). NEVER write empty fillers like 못 찾았습니다 / 특정하지 못했습니다. Explain what 8-K/guidance cards typically mean when segment tables are absent. Korean only."}';
+        ? 'Reply in Korean JSON only (no English body): {"headline":"<=40 chars Korean","about":"2 Korean sentences","numbers":"Korean bullets with concrete $/% figures \\n","interpretation":"2-4 Korean judgments with numbers","article":"5-8 Korean paragraphs \\n\\n","deepAnalysis":"Korean investor brief. MUST start with ## 목차 then ## 한줄 요약, ## 핵심 실적·수치, ## 사업·세그먼트 포인트, ## 특이 항목 (기타이익·투자·CapEx·M&A), ## 재무상태·현금흐름, ## 리스크·소송·규제, ## 해석·투자 관점, ## 근거. EVERY section lists concrete facts YOU extracted ($/%/names). FORBIDDEN: 확인하세요/대조하세요/원문에서 확인 — never assign homework to the reader. No English TOC dump. Separate with \\n\\n."}'
+        : 'Reply in Korean JSON only: {"headline":"<=40 chars Korean","about":"2 Korean sentences","numbers":"Korean bullets from Yahoo metrics with figures","interpretation":"2-4 Korean judgments with numbers","article":"5-8 Korean paragraphs using metrics","deepAnalysis":"## 목차 then same ## sections. EDGAR body MISSING — fill EVERY section with Yahoo metrics (EPS, %, guidance). FORBIDDEN phrases: 확인하세요, 대조하세요, 못 찾았습니다, 특정하지 못했습니다. State facts only. Korean only."}';
       const systemShort = filingFetchOk
         ? 'Reply in Korean JSON only: {"headline":"<=40 chars","about":"2 Korean sentences","numbers":"Korean bullets with figures","interpretation":"2-4 Korean judgments with numbers","article":"5-8 Korean paragraphs with concrete facts","deepAnalysis":"## 목차 then same ## sections; each section must cite concrete $/%/names from filing; no vague filler; no English dump."}'
         : 'Reply in Korean JSON only: {"headline":"<=40 chars","about":"2 Korean sentences","numbers":"Korean bullets from metrics","interpretation":"2-4 Korean judgments","article":"5-8 Korean paragraphs","deepAnalysis":"## sections filled from Yahoo metrics; no empty 못 찾음 fillers."}';

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   addUsAnnouncementWatch,
@@ -82,6 +88,48 @@ function splitAiParas(text: string | null | undefined): string[] {
 }
 
 type AnalysisBlock = { heading?: string; paras: string[] };
+
+/** 번호 목록이면 ol, 아니면 p 묶음으로 렌더 */
+function renderAnalysisParas(
+  paras: string[],
+  classPrefix: "page" | "modal",
+) {
+  const nodes: ReactNode[] = [];
+  let i = 0;
+  while (i < paras.length) {
+    const m = paras[i].match(/^\d+[.)]\s+(.+)$/);
+    if (m) {
+      const items: string[] = [];
+      while (i < paras.length) {
+        const nm = paras[i].match(/^\d+[.)]\s+(.+)$/);
+        if (!nm) break;
+        items.push(nm[1].trim());
+        i += 1;
+      }
+      nodes.push(
+        <ol
+          key={`ol-${items[0]?.slice(0, 24) ?? i}`}
+          className={`us-ann-inbox__${classPrefix}-list`}
+        >
+          {items.map((item) => (
+            <li key={item.slice(0, 48)}>{item}</li>
+          ))}
+        </ol>,
+      );
+      continue;
+    }
+    nodes.push(
+      <p
+        key={paras[i].slice(0, 64)}
+        className={`us-ann-inbox__${classPrefix}-p`}
+      >
+        {paras[i]}
+      </p>,
+    );
+    i += 1;
+  }
+  return nodes;
+}
 
 /** 섹션 제목 → 스크롤용 id */
 function sectionAnchorId(heading: string): string {
@@ -378,8 +426,9 @@ export default function UsAnnouncementInboxTab() {
                   {block.heading}
                 </h4>
               ) : null}
-              {isToc
-                ? block.paras.map((para) => {
+              {isToc ? (
+                <div className={`us-ann-inbox__${classPrefix}-content`}>
+                  {block.paras.map((para) => {
                     const target = tocTargetHeading(para);
                     if (!target) return null;
                     return (
@@ -392,15 +441,13 @@ export default function UsAnnouncementInboxTab() {
                         {para}
                       </button>
                     );
-                  })
-                : block.paras.map((para) => (
-                    <p
-                      key={para.slice(0, 64)}
-                      className={`us-ann-inbox__${classPrefix}-p`}
-                    >
-                      {para}
-                    </p>
-                  ))}
+                  })}
+                </div>
+              ) : (
+                <div className={`us-ann-inbox__${classPrefix}-content`}>
+                  {renderAnalysisParas(block.paras, classPrefix)}
+                </div>
+              )}
             </section>
           );
         })

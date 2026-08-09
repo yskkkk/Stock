@@ -552,7 +552,26 @@ describe("filing headline/detail", () => {
     expect(deep).not.toMatch(/세그먼트별 매출·성장률 문장을 공시에서 충분히 특정하지 못/);
     expect(deep).not.toMatch(/CapEx·인수 특이 금액이 제한적이거나 추출되지 않/);
     expect(deep).not.toMatch(/링크 본문 미수집 — EDGAR\/Yahoo 원문 확인이 필요합니다/);
+    expect(deep).not.toMatch(/확인하세요|대조하세요|재확인하세요/);
+    expect(deep).toMatch(/특이 항목/);
+    expect(deep).toMatch(/손익|가이던스|CapEx|컨센/);
     expect(deep.length).toBeGreaterThan(500);
+  });
+
+  it("rejects homework-only deep analysis as thin", async () => {
+    const { isThinDeepAnalysis, isHomeworkAnalysisLine } = await import(
+      "./us-announcement-summarize.js"
+    );
+    expect(
+      isHomeworkAnalysisLine(
+        "10-Q/8-K 원문에서 매출·영업이익·순이익·EPS를 확인하세요.",
+      ),
+    ).toBe(true);
+    expect(
+      isThinDeepAnalysis(
+        "## 목차\n1. x\n\n## 특이 항목\n1. 확인하세요.\n2. 원문에서 대조하세요.\n3. 재확인하세요.",
+      ),
+    ).toBe(true);
   });
 
   it("ko-summarizes filing sentences and filters TOC noise", () => {

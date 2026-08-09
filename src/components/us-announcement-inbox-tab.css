@@ -508,6 +508,33 @@ html:not([data-theme="light"]) .us-ann-inbox__page-lead {
   color: #94a3b8;
 }
 
+html:not([data-theme="light"]) .us-ann-inbox__page-content {
+  border-left-color: rgba(148, 163, 184, 0.28);
+}
+
+html:not([data-theme="light"]) .us-ann-inbox__modal-content {
+  border-left-color: rgba(148, 163, 184, 0.28);
+}
+
+@media (max-width: 900px) {
+  .us-ann-inbox__page {
+    padding: 14px 14px 22px;
+  }
+
+  .us-ann-inbox__page-content {
+    padding-left: 10px;
+  }
+
+  .us-ann-inbox__page-list {
+    padding-left: 1.1rem;
+  }
+
+  .us-ann-inbox__page-toc-link,
+  .us-ann-inbox__modal-toc-link {
+    min-height: 44px;
+  }
+}
+
 .us-ann-inbox__page-body {
   margin-top: 20px;
   padding-top: 4px;
@@ -546,22 +573,54 @@ html:not([data-theme="light"]) .us-ann-inbox__page-block--toc {
 
 .us-ann-inbox__page-h {
   margin: 0 0 10px;
-  font-size: 0.92rem;
+  padding: 0 0 0 10px;
+  border-left: 3px solid color-mix(in srgb, var(--accent, #0f766e) 70%, #0f766e);
+  font-size: 0.95rem;
   font-weight: 750;
   letter-spacing: -0.01em;
   line-height: 1.35;
   color: inherit;
 }
 
+.us-ann-inbox__page-content {
+  margin: 0 0 0 4px;
+  padding: 2px 0 2px 14px;
+  border-left: 1px solid color-mix(in srgb, #94a3b8 35%, transparent);
+}
+
+.us-ann-inbox__page-block--toc .us-ann-inbox__page-content {
+  margin-left: 0;
+  padding-left: 4px;
+  border-left: 0;
+}
+
 .us-ann-inbox__page-p {
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   font-size: 0.84rem;
-  line-height: 1.65;
+  line-height: 1.68;
   white-space: pre-wrap;
   color: inherit;
 }
 
 .us-ann-inbox__page-p:last-child {
+  margin-bottom: 0;
+}
+
+.us-ann-inbox__page-list {
+  margin: 0 0 12px;
+  padding: 0 0 0 1.25rem;
+  list-style: decimal;
+  font-size: 0.84rem;
+  line-height: 1.65;
+  color: inherit;
+}
+
+.us-ann-inbox__page-list li {
+  margin: 0 0 8px;
+  padding-left: 4px;
+}
+
+.us-ann-inbox__page-list li:last-child {
   margin-bottom: 0;
 }
 
@@ -608,8 +667,35 @@ html:not([data-theme="light"]) .us-ann-inbox__page-block--toc {
 
 .us-ann-inbox__modal-h {
   margin: 0 0 8px;
-  font-size: 0.88rem;
+  padding: 0 0 0 8px;
+  border-left: 3px solid color-mix(in srgb, #0f766e 75%, #0f766e);
+  font-size: 0.9rem;
   font-weight: 750;
+}
+
+.us-ann-inbox__modal-content {
+  margin: 0 0 0 2px;
+  padding: 2px 0 2px 12px;
+  border-left: 1px solid color-mix(in srgb, #94a3b8 35%, transparent);
+}
+
+.us-ann-inbox__modal-block--toc .us-ann-inbox__modal-content {
+  margin-left: 0;
+  padding-left: 2px;
+  border-left: 0;
+}
+
+.us-ann-inbox__modal-list {
+  margin: 0 0 10px;
+  padding: 0 0 0 1.2rem;
+  list-style: decimal;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.us-ann-inbox__modal-list li {
+  margin: 0 0 7px;
+  padding-left: 2px;
 }
 
 .us-ann-inbox__modal-toc-link {
@@ -734,11 +820,15 @@ html:not([data-theme="light"]) .us-ann-inbox__modal-section {
 }
 
 .us-ann-inbox__modal-p {
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   font-size: 0.84rem;
   line-height: 1.65;
   white-space: pre-wrap;
   color: inherit;
+}
+
+.us-ann-inbox__modal-p:last-child {
+  margin-bottom: 0;
 }
 
 .us-ann-inbox__modal-footer {
