@@ -342,12 +342,17 @@ export function fetchUsAnnouncements(opts?: {
 export function tickUsAnnouncements(body?: {
   notify?: boolean;
   symbols?: string[];
+  historyImport?: boolean;
+  historyDays?: number;
+  filingLimit?: number;
 }) {
   return fetchJson<{
     ok: boolean;
     watched: number;
     inserted: number;
     backfilled?: number;
+    historyImport?: boolean;
+    historyDays?: number | null;
     cards: UsAnnouncementCard[];
     errors: unknown[];
   }>("/api/us-announcements/tick", {

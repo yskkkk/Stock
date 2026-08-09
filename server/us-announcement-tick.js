@@ -26,7 +26,7 @@ import {
   generateAnnouncementAiSummary,
   pctChange,
 } from "./us-announcement-analyze.js";
-import { enrichAnnouncementCopy } from "./us-announcement-summarize.js";
+import { enrichAnnouncementCopy, buildFilingHeadlineAndDetail } from "./us-announcement-summarize.js";
 import { notifyUsAnnouncementCard } from "./us-announcement-notify.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
@@ -46,8 +46,9 @@ function yahooAnalysisUrl(symbol) {
  * @param {import("./us-announcement-inbox-store.js").UsAnnouncementCard} card
  * @param {string} dedupeKey
  * @param {boolean} [notify]
+ * @param {{ deepEnrich?: boolean }} [opts]
  */
-async function commitCard(card, dedupeKey, notify = true) {
+async function commitCard(card, dedupeKey, notify = true, opts = {}) {
   let store = loadUsAnnouncementStoreSync();
   if (hasSeenAnnouncementKey(store, dedupeKey)) {
     return { inserted: false, card: null };
@@ -64,18 +65,31 @@ async function commitCard(card, dedupeKey, notify = true) {
     engine: ai.engine,
   };
 
+  const deepEnrich = opts.deepEnrich !== false;
   try {
-    const copy = await enrichAnnouncementCopy({
-      form: card.form,
-      kind: card.kind,
-      title: card.title,
-      symbol: card.symbol,
-      edgarUrl: card.links?.edgar,
-      metrics: card.metrics,
-    });
-    card.headline = copy.headline;
-    card.detail = copy.detail;
-    card.enrichedAt = copy.enrichedAt;
+    if (deepEnrich) {
+      const copy = await enrichAnnouncementCopy({
+        form: card.form,
+        kind: card.kind,
+        title: card.title,
+        symbol: card.symbol,
+        edgarUrl: card.links?.edgar,
+        metrics: card.metrics,
+      });
+      card.headline = copy.headline;
+      card.detail = copy.detail;
+      card.enrichedAt = copy.enrichedAt;
+    } else {
+      const copy = buildFilingHeadlineAndDetail(
+        card.form ?? "",
+        card.kind,
+        card.title,
+        "",
+      );
+      card.headline = copy.headline;
+      card.detail = copy.detail;
+      card.enrichedAt = Date.now();
+    }
   } catch {
     card.headline = card.title || null;
     card.detail = ai.summary || null;
@@ -166,19 +180,38 @@ export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
 
 /**
  * @param {string} symbol
- * @param {{ notify?: boolean; sinceMs?: number }} [opts]
+ * @param {{
+ *   notify?: boolean;
+ *   sinceMs?: number;
+ *   filingLimit?: number;
+ *   deepEnrich?: boolean;
+ *   forceNotifyOff?: boolean;
+ * }} [opts]
  */
 export async function scanSecFilingsForSymbol(symbol, opts = {}) {
   const sym = String(symbol ?? "")
     .trim()
     .toUpperCase();
   const storeAtStart = loadUsAnnouncementStoreSync();
-  const notify = shouldNotifyAnnouncement(opts.notify, storeAtStart, sym);
-  const backfill = !isSymbolAnnouncementPrimed(storeAtStart, sym);
+  const notify = opts.forceNotifyOff
+    ? false
+    : shouldNotifyAnnouncement(opts.notify, storeAtStart, sym);
+  const backfill =
+    opts.forceNotifyOff === true || !isSymbolAnnouncementPrimed(storeAtStart, sym);
+  const filingLimit = Math.min(60, Math.max(1, Number(opts.filingLimit) || 15));
   const pack = await fetchRecentSecFilingsForSymbol(sym, {
-    limit: 15,
+    limit: filingLimit,
     sinceMs: opts.sinceMs,
   });
+
+  /** @type {Awaited<ReturnType<typeof fetchYahooConsensusSnapshot>> | null} */
+  let snap = null;
+  try {
+    snap = await fetchYahooConsensusSnapshot(sym);
+  } catch {
+    snap = null;
+  }
+
   /** @type {import("./us-announcement-inbox-store.js").UsAnnouncementCard[]} */
   const inserted = [];
   for (const f of pack.filings) {
@@ -193,19 +226,10 @@ export async function scanSecFilingsForSymbol(symbol, opts = {}) {
     let metrics = buildAnnouncementMetrics({
       kind: f.kind,
       symbol: sym,
+      consensusEps: snap?.forwardEps ?? null,
+      trailingEps: snap?.trailingEps ?? null,
+      period: "0y",
     });
-    try {
-      const snap = await fetchYahooConsensusSnapshot(sym);
-      metrics = buildAnnouncementMetrics({
-        kind: f.kind,
-        symbol: sym,
-        consensusEps: snap.forwardEps,
-        trailingEps: snap.trailingEps,
-        period: "0y",
-      });
-    } catch {
-      /* consensus optional for filings */
-    }
 
     const card = {
       id: `ann_${sym}_${f.accession || f.filedAt}_${f.kind}`,
@@ -226,7 +250,9 @@ export async function scanSecFilingsForSymbol(symbol, opts = {}) {
       createdAt: Date.now(),
       ...(backfill ? { notified: { telegramAt: null, emailAt: null } } : {}),
     };
-    const res = await commitCard(card, dedupeKey, notify);
+    const res = await commitCard(card, dedupeKey, notify, {
+      deepEnrich: opts.deepEnrich !== false,
+    });
     if (res.inserted && res.card) inserted.push(res.card);
   }
   return { symbol: sym, inserted, backfill, notified: notify };
@@ -336,16 +362,45 @@ export async function scanConsensusForSymbol(symbol, opts = {}) {
 }
 
 /**
- * @param {{ notify?: boolean; symbols?: string[]; sinceMs?: number }} [opts]
+ * @param {{
+ *   notify?: boolean;
+ *   symbols?: string[];
+ *   sinceMs?: number;
+ *   historyImport?: boolean;
+ *   historyDays?: number;
+ *   filingLimit?: number;
+ * }} [opts]
  */
 export async function tickUsAnnouncementInbox(opts = {}) {
-  try {
-    await cleanupAndEnrichAnnouncementInbox({ limit: 12, force: false });
-  } catch (e) {
-    liveTradeLogWarn(
-      "[us-announcement] cleanup skip",
-      e instanceof Error ? e.message : e,
-    );
+  const historyImport = opts.historyImport === true;
+  const historyDays = Math.min(
+    730,
+    Math.max(14, Number(opts.historyDays) || (historyImport ? 180 : 14)),
+  );
+  const sinceMs =
+    Number(opts.sinceMs) ||
+    Date.now() - historyDays * 24 * 60 * 60 * 1000;
+  const filingLimit = historyImport
+    ? Math.min(80, Math.max(20, Number(opts.filingLimit) || 40))
+    : Math.min(40, Math.max(8, Number(opts.filingLimit) || 15));
+
+  if (historyImport) {
+    try {
+      let store = loadUsAnnouncementStoreSync();
+      dedupeRegisteredAnnouncementCards(store);
+      saveUsAnnouncementStoreSync(store);
+    } catch {
+      /* ignore */
+    }
+  } else {
+    try {
+      await cleanupAndEnrichAnnouncementInbox({ limit: 12, force: false });
+    } catch (e) {
+      liveTradeLogWarn(
+        "[us-announcement] cleanup skip",
+        e instanceof Error ? e.message : e,
+      );
+    }
   }
 
   const store = loadUsAnnouncementStoreSync();
@@ -371,10 +426,13 @@ export async function tickUsAnnouncementInbox(opts = {}) {
     try {
       const a = await scanSecFilingsForSymbol(sym, {
         notify: opts.notify,
-        sinceMs: opts.sinceMs,
+        sinceMs,
+        filingLimit,
+        deepEnrich: !historyImport,
+        forceNotifyOff: historyImport,
       });
       allInserted.push(...a.inserted);
-      if (a.backfill) backfilled += a.inserted.length;
+      if (a.backfill || historyImport) backfilled += a.inserted.length;
       else notifiedInserts += a.notified ? a.inserted.length : 0;
     } catch (e) {
       errors.push({ symbol: sym, stage: "edgar", error: String(e?.message ?? e) });
@@ -385,9 +443,11 @@ export async function tickUsAnnouncementInbox(opts = {}) {
       );
     }
     try {
-      const b = await scanConsensusForSymbol(sym, { notify: opts.notify });
+      const b = await scanConsensusForSymbol(sym, {
+        notify: historyImport ? false : opts.notify,
+      });
       allInserted.push(...b.inserted);
-      if (wasPrimed && b.inserted.length) {
+      if (wasPrimed && b.inserted.length && !historyImport) {
         notifiedInserts +=
           opts.notify === false ? 0 : b.inserted.length;
       }
@@ -404,7 +464,6 @@ export async function tickUsAnnouncementInbox(opts = {}) {
       );
     }
 
-    // 기존 공시·컨센 기준선 등록 완료 → 이후 신규만 알림
     let s = loadUsAnnouncementStoreSync();
     if (!isSymbolAnnouncementPrimed(s, sym)) {
       s = markSymbolAnnouncementPrimed(s, sym);
@@ -413,11 +472,23 @@ export async function tickUsAnnouncementInbox(opts = {}) {
     }
   }
 
+  if (historyImport && allInserted.length) {
+    try {
+      await cleanupAndEnrichAnnouncementInbox({
+        limit: Math.min(20, allInserted.length),
+        force: false,
+      });
+    } catch {
+      /* optional deep enrich */
+    }
+  }
+
   liveTradeLogInfo(
     "[us-announcement] tick done",
     `symbols=${symbols.length}`,
     `inserted=${allInserted.length}`,
     `backfill=${backfilled}`,
+    `history=${historyImport ? historyDays : 0}`,
     `errors=${errors.length}`,
   );
 
@@ -426,6 +497,8 @@ export async function tickUsAnnouncementInbox(opts = {}) {
     watched: symbols.length,
     inserted: allInserted.length,
     backfilled,
+    historyImport,
+    historyDays: historyImport ? historyDays : null,
     cards: allInserted,
     errors,
     updatedAt: Date.now(),

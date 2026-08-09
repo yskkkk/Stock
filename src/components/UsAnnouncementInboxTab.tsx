@@ -113,30 +113,45 @@ export default function UsAnnouncementInboxTab() {
   }, [load]);
 
   const onRefreshScan = async () => {
+    const sym = symbolFilter.trim().toUpperCase();
+    if (!sym) {
+      setError(ko.usAnnouncement.scanNeedTicker);
+      setScanStatus(null);
+      return;
+    }
     setBusy(true);
     setError(null);
-    setScanStatus(null);
+    setScanStatus(ko.usAnnouncement.scanningTicker.replace("{sym}", sym));
     try {
-      const tick = await tickUsAnnouncements({ notify: true });
+      const tick = await tickUsAnnouncements({
+        symbols: [sym],
+        historyImport: true,
+        historyDays: 180,
+        filingLimit: 40,
+        notify: false,
+      });
       const inserted = Number(tick.inserted) || 0;
       const errN = Array.isArray(tick.errors) ? tick.errors.length : 0;
 
-      // 스캔 후 전체 목록을 보여 필터 때문에 "안 늘어난 것처럼" 보이는 경우 방지
-      setSymbolFilter("");
+      const res = await load({ symbol: sym, kind: "" });
       setKind("");
-
-      const res = await load({ symbol: "", kind: "" });
       const total = res?.cards?.length ?? 0;
+      const days = tick.historyDays ?? 180;
 
       if (inserted > 0) {
         setScanStatus(
-          ko.usAnnouncement.scanOkNew
+          ko.usAnnouncement.scanOkTickerNew
+            .replace("{sym}", sym)
             .replace("{n}", String(inserted))
+            .replace("{days}", String(days))
             .replace("{total}", String(total)),
         );
       } else {
         setScanStatus(
-          ko.usAnnouncement.scanOkNone.replace("{total}", String(total)),
+          ko.usAnnouncement.scanOkTickerNone
+            .replace("{sym}", sym)
+            .replace("{days}", String(days))
+            .replace("{total}", String(total)),
         );
       }
       if (errN > 0) {
@@ -207,10 +222,25 @@ export default function UsAnnouncementInboxTab() {
           <button
             type="button"
             className="us-ann-inbox__btn us-ann-inbox__btn--primary"
-            disabled={busy}
+            disabled={busy || !symbolFilter.trim()}
+            title={
+              symbolFilter.trim()
+                ? ko.usAnnouncement.scanTickerTitle.replace(
+                    "{sym}",
+                    symbolFilter.trim().toUpperCase(),
+                  )
+                : ko.usAnnouncement.scanNeedTicker
+            }
             onClick={() => void onRefreshScan()}
           >
-            {busy ? ko.usAnnouncement.scanning : ko.usAnnouncement.scanNow}
+            {busy
+              ? ko.usAnnouncement.scanning
+              : symbolFilter.trim()
+                ? ko.usAnnouncement.scanTicker.replace(
+                    "{sym}",
+                    symbolFilter.trim().toUpperCase(),
+                  )
+                : ko.usAnnouncement.scanPickTicker}
           </button>
           <button
             type="button"

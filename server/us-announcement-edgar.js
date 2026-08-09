@@ -118,7 +118,7 @@ export async function fetchRecentSecFilingsForSymbol(symbol, opts = {}) {
   const sym = String(symbol ?? "")
     .trim()
     .toUpperCase();
-  const limit = Math.min(40, Math.max(1, Number(opts.limit) || 12));
+  const limit = Math.min(80, Math.max(1, Number(opts.limit) || 12));
   const sinceMs =
     Number(opts.sinceMs) || Date.now() - 14 * 24 * 60 * 60 * 1000;
 

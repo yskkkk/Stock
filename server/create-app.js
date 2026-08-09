@@ -1587,9 +1587,23 @@ export function createApp() {
     "/api/us-announcements/tick",
     asyncRoute(async (req, res) => {
       const body = req.body && typeof req.body === "object" ? req.body : {};
-      const notify = body.notify !== false;
+      const historyImport = body.historyImport === true;
+      const notify = historyImport ? false : body.notify !== false;
       const symbols = Array.isArray(body.symbols) ? body.symbols : undefined;
-      const result = await tickUsAnnouncementInbox({ notify, symbols });
+      if (historyImport && (!symbols || !symbols.length)) {
+        res.status(400).json({
+          ok: false,
+          error: "historyImport requires symbols (one ticker)",
+        });
+        return;
+      }
+      const result = await tickUsAnnouncementInbox({
+        notify,
+        symbols,
+        historyImport,
+        historyDays: body.historyDays,
+        filingLimit: body.filingLimit,
+      });
       res.json(result);
     }),
   );
