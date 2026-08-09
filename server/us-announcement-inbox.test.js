@@ -517,6 +517,44 @@ describe("filing headline/detail", () => {
     expect(deep.length).toBeGreaterThan(600);
   });
 
+  it("fills guidance deep analysis from Yahoo metrics when EDGAR text is missing", () => {
+    const deep = buildDeepAnalysisFromFiling({
+      kind: "guidance",
+      symbol: "AAPL",
+      form: "8-K",
+      title: "8-K",
+      about: "실적·가이던스 성격의 8-K입니다.",
+      numbersBrief:
+        "가이던스 낙관 · 컨센 대비 +4.5%\n성장 · YoY +6.8%\nYahoo 최근 확정 EPS 1.85 vs 컨센 1.77",
+      interpretation:
+        "AAPL 가이던스는 낙관(+4.5% 컨센 대비)입니다.\n성장: +6.8% YoY (당분기 컨센 EPS 1.98 vs 전년 동기 1.85).",
+      filingText: "",
+      hasFilingText: false,
+      metrics: {
+        guidanceEps: 1.85,
+        reportedEps: 1.85,
+        consensusEps: 1.77,
+        quarterConsensusEps: 1.98,
+        yearAgoEps: 1.85,
+        vsConsensusPct: 4.5,
+        vsConsensusLabel: "낙관",
+        yoyPct: 6.8,
+        yoyLabel: "성장",
+        period: "0q",
+      },
+    });
+    expect(deep).toMatch(/## 목차/);
+    expect(deep).toMatch(/AAPL/);
+    expect(deep).toMatch(/\+4\.5%|4\.5%/);
+    expect(deep).toMatch(/가이던스|8-K/);
+    expect(deep).toMatch(/## 사업/);
+    expect(deep).toMatch(/## 특이|## 재무|## 리스크/);
+    expect(deep).not.toMatch(/세그먼트별 매출·성장률 문장을 공시에서 충분히 특정하지 못/);
+    expect(deep).not.toMatch(/CapEx·인수 특이 금액이 제한적이거나 추출되지 않/);
+    expect(deep).not.toMatch(/링크 본문 미수집 — EDGAR\/Yahoo 원문 확인이 필요합니다/);
+    expect(deep.length).toBeGreaterThan(500);
+  });
+
   it("ko-summarizes filing sentences and filters TOC noise", () => {
     expect(
       isFilingNoise(
