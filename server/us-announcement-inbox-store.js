@@ -171,11 +171,76 @@ export function saveUsAnnouncementStoreSync(store) {
 
 /**
  * @param {string} symbol
- * @param {UsAnnouncementKind} kind
+ * @param {UsAnnouncementKind | string} kind
  * @param {string} keyPart
  */
 export function buildAnnouncementDedupeKey(symbol, kind, keyPart) {
   return `${String(symbol).toUpperCase()}|${kind}|${String(keyPart)}`;
+}
+
+/**
+ * 같은 날·같은 종류는 1건만 (겹침 방지)
+ * @param {string} symbol
+ * @param {string} kind
+ * @param {number} filedAt
+ */
+export function buildDayKindDedupeKey(symbol, kind, filedAt) {
+  const ms = Number(filedAt);
+  const day = Number.isFinite(ms) && ms > 0
+    ? new Date(ms).toISOString().slice(0, 10)
+    : "unknown";
+  return `${String(symbol).toUpperCase()}|${String(kind)}|day|${day}`;
+}
+
+/**
+ * 제목 기반 (데모/시드 등 accession 없는 카드)
+ * @param {string} symbol
+ * @param {string} kind
+ * @param {string} title
+ */
+export function buildTitleDedupeKey(symbol, kind, title) {
+  const t = String(title ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  return `${String(symbol).toUpperCase()}|${String(kind)}|title|${t}`;
+}
+
+/**
+ * 카드 등록에 쓸 중복 키 목록 (하나라도 있으면 스킵)
+ * @param {{
+ *   symbol: string;
+ *   kind: string;
+ *   title?: string;
+ *   form?: string | null;
+ *   accession?: string | null;
+ *   filedAt?: number;
+ * }} card
+ */
+export function buildAnnouncementDedupeKeys(card) {
+  const sym = String(card.symbol ?? "")
+    .trim()
+    .toUpperCase();
+  const kind = String(card.kind ?? "");
+  /** @type {string[]} */
+  const keys = [];
+  const acc = String(card.accession ?? "").trim();
+  if (acc) {
+    keys.push(buildAnnouncementDedupeKey(sym, kind, acc));
+  }
+  keys.push(buildDayKindDedupeKey(sym, kind, Number(card.filedAt) || Date.now()));
+  const title = String(card.title ?? "").trim();
+  if (title) {
+    keys.push(buildTitleDedupeKey(sym, kind, title));
+  }
+  const form = String(card.form ?? "")
+    .trim()
+    .toUpperCase();
+  if (form) {
+    const day = buildDayKindDedupeKey(sym, kind, Number(card.filedAt) || Date.now());
+    keys.push(`${day}|form|${form}`);
+  }
+  return [...new Set(keys.filter(Boolean))];
 }
 
 /**
@@ -184,6 +249,14 @@ export function buildAnnouncementDedupeKey(symbol, kind, keyPart) {
  */
 export function hasSeenAnnouncementKey(store, dedupeKey) {
   return Boolean(store.seenKeys[dedupeKey]);
+}
+
+/**
+ * @param {UsAnnouncementStore} store
+ * @param {string[]} keys
+ */
+export function hasAnyAnnouncementDedupeKey(store, keys) {
+  return keys.some((k) => hasSeenAnnouncementKey(store, k));
 }
 
 /**
@@ -285,54 +358,63 @@ export function shouldSendAnnouncementAlert(args) {
 /**
  * @param {UsAnnouncementStore} store
  * @param {UsAnnouncementCard} card
- * @param {string} dedupeKey
+ * @param {string | string[]} [extraKeys]
  */
-export function insertAnnouncementCard(store, card, dedupeKey) {
-  if (store.seenKeys[dedupeKey]) {
+export function insertAnnouncementCard(store, card, extraKeys = []) {
+  const allKeys = [
+    ...new Set([
+      ...(Array.isArray(extraKeys) ? extraKeys : [String(extraKeys || "")]),
+      ...buildAnnouncementDedupeKeys(card),
+    ].filter(Boolean)),
+  ];
+  if (hasAnyAnnouncementDedupeKey(store, allKeys)) {
     return { store, inserted: false, card: null };
   }
-  store.seenKeys[dedupeKey] = Date.now();
+  const now = Date.now();
+  for (const k of allKeys) {
+    store.seenKeys[k] = now;
+  }
   store.cards = [card, ...store.cards].slice(0, MAX_CARDS);
   return { store, inserted: true, card };
 }
 
 /**
- * Form 3/4/5 등 중복성 카드 제거 + accession 중복 정리
+ * Form 3/4/5·같은 날 같은 종류·동일 제목 중복 제거
  * @param {UsAnnouncementStore} store
  */
 export function dedupeRegisteredAnnouncementCards(store) {
   const before = store.cards.length;
   /** @type {Set<string>} */
-  const seenAcc = new Set();
+  const seen = new Set();
   /** @type {UsAnnouncementCard[]} */
   const kept = [];
 
-  for (const card of store.cards) {
+  // 최신 우선으로 남기기
+  const ordered = [...store.cards].sort(
+    (a, b) => Number(b.filedAt || b.createdAt || 0) - Number(a.filedAt || a.createdAt || 0),
+  );
+
+  for (const card of ordered) {
     const form = String(card?.form ?? "")
       .trim()
       .toUpperCase();
     if (form === "3" || form === "4" || form === "5") continue;
 
-    const acc = String(card?.accession ?? "").trim();
-    const key = acc
-      ? `${card.symbol}|${acc}`
-      : `${card.symbol}|${card.kind}|${card.id}`;
-    if (seenAcc.has(key)) continue;
-    seenAcc.add(key);
+    const keys = buildAnnouncementDedupeKeys(card);
+    if (keys.some((k) => seen.has(k))) continue;
+    for (const k of keys) seen.add(k);
     kept.push(card);
   }
 
+  // 원래 타임라인 순서(최신 위) 유지
   store.cards = kept.slice(0, MAX_CARDS);
   /** @type {Record<string, number>} */
   const nextSeen = {};
+  const now = Date.now();
   for (const c of store.cards) {
-    const part = c.accession || `${c.form || ""}|${c.filedAt}`;
-    nextSeen[buildAnnouncementDedupeKey(c.symbol, c.kind, part)] =
-      store.seenKeys?.[
-        buildAnnouncementDedupeKey(c.symbol, c.kind, part)
-      ] ||
-      c.createdAt ||
-      Date.now();
+    for (const k of buildAnnouncementDedupeKeys(c)) {
+      nextSeen[k] = store.seenKeys?.[k] || c.createdAt || now;
+    }
   }
   store.seenKeys = nextSeen;
   return { store, removed: Math.max(0, before - store.cards.length) };

@@ -4,7 +4,9 @@
 import {
   addWatchSymbolSync,
   buildAnnouncementDedupeKey,
+  buildAnnouncementDedupeKeys,
   dedupeRegisteredAnnouncementCards,
+  hasAnyAnnouncementDedupeKey,
   hasSeenAnnouncementKey,
   insertAnnouncementCard,
   isSymbolAnnouncementPrimed,
@@ -50,7 +52,12 @@ function yahooAnalysisUrl(symbol) {
  */
 async function commitCard(card, dedupeKey, notify = true, opts = {}) {
   let store = loadUsAnnouncementStoreSync();
-  if (hasSeenAnnouncementKey(store, dedupeKey)) {
+  const keys = [
+    ...new Set(
+      [dedupeKey, ...buildAnnouncementDedupeKeys(card)].filter(Boolean),
+    ),
+  ];
+  if (hasAnyAnnouncementDedupeKey(store, keys)) {
     return { inserted: false, card: null };
   }
   const ai = await generateAnnouncementAiSummary({
@@ -96,7 +103,7 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
     card.enrichedAt = Date.now();
   }
 
-  const result = insertAnnouncementCard(store, card, dedupeKey);
+  const result = insertAnnouncementCard(store, card, keys);
   if (!result.inserted || !result.card) {
     return { inserted: false, card: null };
   }
@@ -221,7 +228,15 @@ export async function scanSecFilingsForSymbol(symbol, opts = {}) {
       f.accession || `${f.form}|${f.filedAt}`,
     );
     const store = loadUsAnnouncementStoreSync();
-    if (hasSeenAnnouncementKey(store, dedupeKey)) continue;
+    const keys = buildAnnouncementDedupeKeys({
+      symbol: sym,
+      kind: f.kind,
+      title: f.title,
+      form: f.form,
+      accession: f.accession,
+      filedAt: f.filedAt,
+    });
+    if (hasAnyAnnouncementDedupeKey(store, keys)) continue;
 
     let metrics = buildAnnouncementMetrics({
       kind: f.kind,
@@ -523,7 +538,7 @@ export async function seedUsAnnouncementCard(partial, opts = {}) {
     buildAnnouncementDedupeKey(
       sym,
       kind,
-      partial.accession || partial.id || `${partial.title}|${Date.now()}`,
+      partial.accession || `title:${String(partial.title).trim().toLowerCase()}`,
     );
   const card = {
     id: partial.id || `ann_seed_${sym}_${Date.now()}`,

@@ -83,6 +83,8 @@ describe("us-announcement-store dedupe", () => {
       symbol: "AAPL",
       kind: /** @type {const} */ ("guidance"),
       title: "8-K",
+      form: "8-K",
+      accession: "acc-1",
       filedAt: Date.now(),
       source: "test",
       metrics: {},
@@ -90,12 +92,76 @@ describe("us-announcement-store dedupe", () => {
       links: {},
       createdAt: Date.now(),
     };
-    const a = insertAnnouncementCard(store, card, key);
+    const a = insertAnnouncementCard(store, card, [key]);
     expect(a.inserted).toBe(true);
     expect(hasSeenAnnouncementKey(store, key)).toBe(true);
-    const b = insertAnnouncementCard(store, { ...card, id: "c2" }, key);
+    const b = insertAnnouncementCard(store, { ...card, id: "c2" }, [key]);
     expect(b.inserted).toBe(false);
     expect(listAnnouncementCards(store, { symbol: "AAPL" })).toHaveLength(1);
+  });
+
+  it("blocks same day same kind even with different accession", () => {
+    const store = emptyUsAnnouncementStore();
+    const day = Date.parse("2026-07-30T16:00:00-04:00");
+    const a = insertAnnouncementCard(
+      store,
+      {
+        id: "a",
+        symbol: "AAPL",
+        kind: "guidance",
+        title: "8-K",
+        form: "8-K",
+        accession: "acc-a",
+        filedAt: day,
+        source: "t",
+        metrics: {},
+        ai: { summary: "", generatedAt: 0 },
+        links: {},
+        createdAt: day,
+      },
+      [],
+    );
+    expect(a.inserted).toBe(true);
+    const b = insertAnnouncementCard(
+      store,
+      {
+        id: "b",
+        symbol: "AAPL",
+        kind: "guidance",
+        title: "8-K/A",
+        form: "8-K/A",
+        accession: "acc-b",
+        filedAt: day,
+        source: "t",
+        metrics: {},
+        ai: { summary: "", generatedAt: 0 },
+        links: {},
+        createdAt: day,
+      },
+      [],
+    );
+    expect(b.inserted).toBe(false);
+  });
+
+  it("blocks identical demo titles", () => {
+    const store = emptyUsAnnouncementStore();
+    const filedAt = Date.now();
+    const mk = (id) => ({
+      id,
+      symbol: "AAPL",
+      kind: /** @type {const} */ ("guidance"),
+      title: "Demo · 가이던스 vs 컨센",
+      form: null,
+      accession: null,
+      filedAt,
+      source: "seed",
+      metrics: {},
+      ai: { summary: "", generatedAt: 0 },
+      links: {},
+      createdAt: filedAt,
+    });
+    expect(insertAnnouncementCard(store, mk("1"), []).inserted).toBe(true);
+    expect(insertAnnouncementCard(store, mk("2"), []).inserted).toBe(false);
   });
 });
 
