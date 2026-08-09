@@ -530,6 +530,19 @@ html:not([data-theme="light"]) .us-ann-inbox__page-section {
   margin: 0 0 18px;
 }
 
+.us-ann-inbox__page-block--toc {
+  margin: 0 0 22px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent, #0f766e) 7%, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--accent, #0f766e) 18%, #e2e8f0);
+}
+
+html:not([data-theme="light"]) .us-ann-inbox__page-block--toc {
+  background: color-mix(in srgb, #8fb5aa 12%, #1c2128);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
 .us-ann-inbox__page-h {
   margin: 0 0 8px;
   font-size: 1.05rem;

@@ -335,7 +335,11 @@ export default function UsAnnouncementInboxTab() {
         analysisBlocks.map((block, i) => (
           <section
             key={`${block.heading ?? "p"}-${i}`}
-            className={`us-ann-inbox__${classPrefix}-block`}
+            className={
+              block.heading === "목차"
+                ? `us-ann-inbox__${classPrefix}-block us-ann-inbox__${classPrefix}-block--toc`
+                : `us-ann-inbox__${classPrefix}-block`
+            }
           >
             {block.heading ? (
               <h4 className={`us-ann-inbox__${classPrefix}-h`}>

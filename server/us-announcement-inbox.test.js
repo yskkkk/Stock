@@ -22,7 +22,7 @@ import {
 import { classifySecForm, buildEdgarDocumentUrl } from "./us-announcement-edgar.js";
 import { consensusEpsChangedEnough, metricsFromYahooSnapshot } from "./us-announcement-consensus.js";
 import { buildAnnouncementNotifyText } from "./us-announcement-notify.js";
-import { buildFilingHeadlineAndDetail, extractFilingNumberLines, buildArticleFromFiling, buildDeepAnalysisFromFiling, pickFilingExcerpts } from "./us-announcement-summarize.js";
+import { buildFilingHeadlineAndDetail, extractFilingNumberLines, buildArticleFromFiling, buildDeepAnalysisFromFiling, pickFilingExcerpts, isFilingNoise, koSummarizeFilingSentence } from "./us-announcement-summarize.js";
 import { htmlToPlainText } from "./us-announcement-filing-text.js";
 
 describe("us-announcement-analyze", () => {
@@ -490,9 +490,9 @@ describe("filing headline/detail", () => {
     expect(article.length).toBeGreaterThan(120);
   });
 
-  it("builds deep analysis with ## sections for 10-Q", () => {
+  it("builds deep analysis with ## 목차 and Korean (no English dump)", () => {
     const text =
-      "Consolidated revenues were $119.8 billion. Google Cloud revenues increased 82% to $24.8 billion. Operating income was $40.8 billion. Other income included unrealized gains on equity securities. Purchases of property and equipment were $44.9 billion. The company is subject to antitrust litigation by the Department of Justice.";
+      "Consolidated revenues were $119.8 billion. Google Cloud revenues increased 82% to $24.8 billion. Operating income was $40.8 billion. Other income included unrealized gains on equity securities. Purchases of property and equipment were $44.9 billion. The company is subject to antitrust litigation by the Department of Justice. Indicate by check mark whether the registrant is a shell company. Table of Contents Item 1 Legal Proceedings 57 Item 1A Risk Factors 57.";
     const deep = buildDeepAnalysisFromFiling({
       kind: "earnings",
       symbol: "GOOGL",
@@ -505,11 +505,33 @@ describe("filing headline/detail", () => {
       hasFilingText: true,
       metrics: { vsConsensusPct: 2.1, yoyPct: 24 },
     });
+    expect(deep).toMatch(/## 목차/);
     expect(deep).toMatch(/## 한줄 요약/);
     expect(deep).toMatch(/## 핵심 실적/);
     expect(deep).toMatch(/## 사업/);
     expect(deep).toMatch(/GOOGL/);
+    expect(deep).toMatch(/Google Cloud|반독점|설비투자|영업이익|연결 매출/);
+    expect(deep).not.toMatch(/Indicate by check mark/);
+    expect(deep).not.toMatch(/Table of Contents Item 1 Legal/);
     expect(deep.length).toBeGreaterThan(400);
+  });
+
+  it("ko-summarizes filing sentences and filters TOC noise", () => {
+    expect(
+      isFilingNoise(
+        "Indicate by check mark whether the registrant is a shell company (as defined in Rule 12b-2).",
+      ),
+    ).toBe(true);
+    expect(
+      koSummarizeFilingSentence(
+        "Google Cloud revenues increased 82% to $24.8 billion.",
+      ),
+    ).toMatch(/Google Cloud/);
+    expect(
+      koSummarizeFilingSentence(
+        "The company is subject to antitrust litigation by the Department of Justice.",
+      ),
+    ).toMatch(/반독점/);
   });
 
   it("strips html", () => {
