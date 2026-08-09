@@ -451,8 +451,26 @@
 }
 
 .us-ann-inbox__page {
-  max-width: min(920px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  padding: 18px 20px 28px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border, var(--border, #e2e8f0));
+  /* 불투명 흰색 패널 — 목록 카드·모달과 동일 */
+  background: #ffffff;
+  color: #0f172a;
+  opacity: 1;
+  isolation: isolate;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+html:not([data-theme="light"]) .us-ann-inbox__page {
+  background: #1c2128;
+  color: #dce1e8;
+  border-color: rgba(148, 163, 184, 0.18);
+  box-shadow: none;
 }
 
 .us-ann-inbox__page-toolbar {
@@ -476,17 +494,23 @@
   font-weight: 750;
   line-height: 1.35;
   letter-spacing: -0.02em;
+  color: inherit;
 }
 
 .us-ann-inbox__page-lead {
   margin: 10px 0 0;
   font-size: 0.95rem;
   line-height: 1.55;
-  color: var(--muted, #64748b);
+  color: #64748b;
+}
+
+html:not([data-theme="light"]) .us-ann-inbox__page-lead {
+  color: #94a3b8;
 }
 
 .us-ann-inbox__page-body {
   margin-top: 20px;
+  padding-top: 4px;
 }
 
 .us-ann-inbox__page-section {
@@ -494,8 +518,12 @@
   font-size: 0.75rem;
   font-weight: 750;
   letter-spacing: 0.04em;
-  color: var(--accent, #0f766e);
+  color: #0f766e;
   text-transform: none;
+}
+
+html:not([data-theme="light"]) .us-ann-inbox__page-section {
+  color: #8fb5aa;
 }
 
 .us-ann-inbox__page-block {
@@ -508,6 +536,7 @@
   font-weight: 750;
   letter-spacing: -0.01em;
   line-height: 1.35;
+  color: inherit;
 }
 
 .us-ann-inbox__page-p {
@@ -515,6 +544,7 @@
   font-size: 0.95rem;
   line-height: 1.7;
   white-space: pre-wrap;
+  color: inherit;
 }
 
 .us-ann-inbox__modal-block {
@@ -679,5 +709,10 @@ html:not([data-theme="light"]) .us-ann-inbox__modal-section {
 
   .us-ann-inbox__source {
     margin-left: 0;
+  }
+
+  .us-ann-inbox__page {
+    padding: 14px 14px 22px;
+    border-radius: 12px;
   }
 }
