@@ -44,6 +44,7 @@ const MAX_CARDS = 400;
  *   watchlist: string[];
  *   cards: UsAnnouncementCard[];
  *   seenKeys: Record<string, number>;
+ *   primedSymbols: Record<string, number>;
  *   consensusSnapshots: Record<string, {
  *     at: number;
  *     forwardEps: number | null;
@@ -75,6 +76,7 @@ export function emptyUsAnnouncementStore() {
     watchlist: [...DEFAULT_WATCH],
     cards: [],
     seenKeys: {},
+    primedSymbols: {},
     consensusSnapshots: {},
     updatedAt: Date.now(),
   };
@@ -102,11 +104,16 @@ function normalizeStore(raw) {
     o.consensusSnapshots && typeof o.consensusSnapshots === "object"
       ? /** @type {UsAnnouncementStore["consensusSnapshots"]} */ (o.consensusSnapshots)
       : {};
+  const primedSymbols =
+    o.primedSymbols && typeof o.primedSymbols === "object"
+      ? /** @type {Record<string, number>} */ (o.primedSymbols)
+      : {};
   return {
     version: 1,
     watchlist: watch.length ? [...new Set(watch)] : [...DEFAULT_WATCH],
     cards,
     seenKeys,
+    primedSymbols,
     consensusSnapshots,
     updatedAt: Number(o.updatedAt) || Date.now(),
   };
@@ -155,6 +162,45 @@ export function buildAnnouncementDedupeKey(symbol, kind, keyPart) {
  */
 export function hasSeenAnnouncementKey(store, dedupeKey) {
   return Boolean(store.seenKeys[dedupeKey]);
+}
+
+/**
+ * @param {UsAnnouncementStore} store
+ * @param {string} symbol
+ */
+export function isSymbolAnnouncementPrimed(store, symbol) {
+  const sym = String(symbol ?? "")
+    .trim()
+    .toUpperCase();
+  if (!sym) return false;
+  return Boolean(store.primedSymbols?.[sym]);
+}
+
+/**
+ * 이미 나와 있던 발표 백필 후 — 이후 신규만 알림
+ * @param {UsAnnouncementStore} store
+ * @param {string} symbol
+ */
+export function markSymbolAnnouncementPrimed(store, symbol) {
+  const sym = String(symbol ?? "")
+    .trim()
+    .toUpperCase();
+  if (!sym) return store;
+  if (!store.primedSymbols || typeof store.primedSymbols !== "object") {
+    store.primedSymbols = {};
+  }
+  store.primedSymbols[sym] = Date.now();
+  return store;
+}
+
+/**
+ * @param {boolean | undefined} notifyOpt
+ * @param {UsAnnouncementStore} store
+ * @param {string} symbol
+ */
+export function shouldNotifyAnnouncement(notifyOpt, store, symbol) {
+  if (notifyOpt === false) return false;
+  return isSymbolAnnouncementPrimed(store, symbol);
 }
 
 /**

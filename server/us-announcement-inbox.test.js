@@ -9,7 +9,10 @@ import {
   emptyUsAnnouncementStore,
   hasSeenAnnouncementKey,
   insertAnnouncementCard,
+  isSymbolAnnouncementPrimed,
   listAnnouncementCards,
+  markSymbolAnnouncementPrimed,
+  shouldNotifyAnnouncement,
 } from "./us-announcement-inbox-store.js";
 import { classifySecForm, buildEdgarDocumentUrl } from "./us-announcement-edgar.js";
 import { consensusEpsChangedEnough } from "./us-announcement-consensus.js";
@@ -86,6 +89,19 @@ describe("us-announcement-store dedupe", () => {
     const b = insertAnnouncementCard(store, { ...card, id: "c2" }, key);
     expect(b.inserted).toBe(false);
     expect(listAnnouncementCards(store, { symbol: "AAPL" })).toHaveLength(1);
+  });
+});
+
+describe("primed backfill — no notify until primed", () => {
+  it("blocks notify before prime, allows after", () => {
+    const store = emptyUsAnnouncementStore();
+    expect(isSymbolAnnouncementPrimed(store, "AAPL")).toBe(false);
+    expect(shouldNotifyAnnouncement(true, store, "AAPL")).toBe(false);
+    expect(shouldNotifyAnnouncement(false, store, "AAPL")).toBe(false);
+    markSymbolAnnouncementPrimed(store, "AAPL");
+    expect(isSymbolAnnouncementPrimed(store, "AAPL")).toBe(true);
+    expect(shouldNotifyAnnouncement(true, store, "AAPL")).toBe(true);
+    expect(shouldNotifyAnnouncement(false, store, "AAPL")).toBe(false);
   });
 });
 

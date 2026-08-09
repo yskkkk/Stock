@@ -6,9 +6,12 @@ import {
   buildAnnouncementDedupeKey,
   hasSeenAnnouncementKey,
   insertAnnouncementCard,
+  isSymbolAnnouncementPrimed,
   loadUsAnnouncementStoreSync,
+  markSymbolAnnouncementPrimed,
   saveUsAnnouncementStoreSync,
   setWatchlistSync,
+  shouldNotifyAnnouncement,
 } from "./us-announcement-inbox-store.js";
 import { fetchRecentSecFilingsForSymbol } from "./us-announcement-edgar.js";
 import {
@@ -80,7 +83,9 @@ export async function scanSecFilingsForSymbol(symbol, opts = {}) {
   const sym = String(symbol ?? "")
     .trim()
     .toUpperCase();
-  const notify = opts.notify !== false;
+  const storeAtStart = loadUsAnnouncementStoreSync();
+  const notify = shouldNotifyAnnouncement(opts.notify, storeAtStart, sym);
+  const backfill = !isSymbolAnnouncementPrimed(storeAtStart, sym);
   const pack = await fetchRecentSecFilingsForSymbol(sym, {
     limit: 15,
     sinceMs: opts.sinceMs,
@@ -130,11 +135,12 @@ export async function scanSecFilingsForSymbol(symbol, opts = {}) {
         ir: null,
       },
       createdAt: Date.now(),
+      ...(backfill ? { notified: { telegramAt: null, emailAt: null } } : {}),
     };
     const res = await commitCard(card, dedupeKey, notify);
     if (res.inserted && res.card) inserted.push(res.card);
   }
-  return { symbol: sym, inserted };
+  return { symbol: sym, inserted, backfill, notified: notify };
 }
 
 /**
@@ -145,7 +151,8 @@ export async function scanConsensusForSymbol(symbol, opts = {}) {
   const sym = String(symbol ?? "")
     .trim()
     .toUpperCase();
-  const notify = opts.notify !== false;
+  const storeAtStart = loadUsAnnouncementStoreSync();
+  const notify = shouldNotifyAnnouncement(opts.notify, storeAtStart, sym);
   const snap = await fetchYahooConsensusSnapshot(sym);
   let store = loadUsAnnouncementStoreSync();
   const prev = store.consensusSnapshots[sym] ?? null;
@@ -170,8 +177,9 @@ export async function scanConsensusForSymbol(symbol, opts = {}) {
   };
   saveUsAnnouncementStoreSync(store);
 
+  // 첫 스냅샷(백필): 기준선만 저장, 카드·알림 없음
   if (!prev || !focusPeriod || !nextPeriod) {
-    return { symbol: sym, inserted: [] };
+    return { symbol: sym, inserted: [], baselineOnly: !prev };
   }
 
   if (!consensusEpsChangedEnough(prevPeriod, nextPeriod, CONSENSUS_MIN_PCT)) {
@@ -182,6 +190,11 @@ export async function scanConsensusForSymbol(symbol, opts = {}) {
         pctChange(snap.forwardEps, prev.forwardEps) ?? 0,
       ) >= CONSENSUS_MIN_PCT;
     if (!fwdChanged) return { symbol: sym, inserted: [] };
+  }
+
+  // 아직 백필 전이면 기준 갱신만 하고 컨센 변경 카드/알림 생략
+  if (!isSymbolAnnouncementPrimed(storeAtStart, sym)) {
+    return { symbol: sym, inserted: [], backfillSkip: true };
   }
 
   const consensusEps =
@@ -249,14 +262,22 @@ export async function tickUsAnnouncementInbox(opts = {}) {
   /** @type {import("./us-announcement-inbox-store.js").UsAnnouncementCard[]} */
   const allInserted = [];
   const errors = [];
+  let backfilled = 0;
+  let notifiedInserts = 0;
 
   for (const sym of symbols) {
+    const wasPrimed = isSymbolAnnouncementPrimed(
+      loadUsAnnouncementStoreSync(),
+      sym,
+    );
     try {
       const a = await scanSecFilingsForSymbol(sym, {
         notify: opts.notify,
         sinceMs: opts.sinceMs,
       });
       allInserted.push(...a.inserted);
+      if (a.backfill) backfilled += a.inserted.length;
+      else notifiedInserts += a.notified ? a.inserted.length : 0;
     } catch (e) {
       errors.push({ symbol: sym, stage: "edgar", error: String(e?.message ?? e) });
       liveTradeLogWarn(
@@ -268,6 +289,10 @@ export async function tickUsAnnouncementInbox(opts = {}) {
     try {
       const b = await scanConsensusForSymbol(sym, { notify: opts.notify });
       allInserted.push(...b.inserted);
+      if (wasPrimed && b.inserted.length) {
+        notifiedInserts +=
+          opts.notify === false ? 0 : b.inserted.length;
+      }
     } catch (e) {
       errors.push({
         symbol: sym,
@@ -280,12 +305,21 @@ export async function tickUsAnnouncementInbox(opts = {}) {
         e instanceof Error ? e.message : e,
       );
     }
+
+    // 기존 공시·컨센 기준선 등록 완료 → 이후 신규만 알림
+    let s = loadUsAnnouncementStoreSync();
+    if (!isSymbolAnnouncementPrimed(s, sym)) {
+      s = markSymbolAnnouncementPrimed(s, sym);
+      saveUsAnnouncementStoreSync(s);
+      liveTradeLogInfo("[us-announcement] primed (silent backfill)", sym);
+    }
   }
 
   liveTradeLogInfo(
     "[us-announcement] tick done",
     `symbols=${symbols.length}`,
     `inserted=${allInserted.length}`,
+    `backfill=${backfilled}`,
     `errors=${errors.length}`,
   );
 
@@ -293,6 +327,7 @@ export async function tickUsAnnouncementInbox(opts = {}) {
     ok: true,
     watched: symbols.length,
     inserted: allInserted.length,
+    backfilled,
     cards: allInserted,
     errors,
     updatedAt: Date.now(),

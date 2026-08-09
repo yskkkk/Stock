@@ -1407,7 +1407,7 @@ export const ko = {
   usAnnouncement: {
     title: "미국 발표",
     subtitle:
-      "관심 미국 종목의 가이던스·컨센 변경·거버넌스 공시를 타임라인으로 모읍니다. 텔레그램·메일 알림 포함.",
+      "관심 미국 종목의 가이던스·컨센 변경·거버넌스 공시를 타임라인으로 모읍니다. 이미 나온 발표는 알림 없이 등록되고, 이후 신규만 텔레그램·메일로 알립니다.",
     filterAll: "전체",
     kindGuidance: "가이던스",
     kindConsensus: "컨센",
@@ -1418,7 +1418,7 @@ export const ko = {
     watchAdd: "추가",
     seedDemo: "데모 카드",
     filters: "발표 종류",
-    scanNow: "지금 스캔",
+    scanNow: "지금 스캔(등록)",
     scanning: "스캔 중…",
     reload: "새로고침",
     loading: "불러오는 중…",
