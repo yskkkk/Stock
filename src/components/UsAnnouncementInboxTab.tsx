@@ -83,6 +83,31 @@ function splitAiParas(text: string | null | undefined): string[] {
 
 type AnalysisBlock = { heading?: string; paras: string[] };
 
+/** 섹션 제목 → 스크롤용 id */
+function sectionAnchorId(heading: string): string {
+  const slug = String(heading)
+    .trim()
+    .replace(/[^\w가-힣·\-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 72);
+  return `us-ann-sec-${slug || "x"}`;
+}
+
+/** 목차 줄 "1. 한줄 요약" → 섹션 제목 */
+function tocTargetHeading(line: string): string | null {
+  const t = String(line ?? "").trim();
+  if (!t) return null;
+  const m = t.match(/^\d+[.)]\s*(.+)$/);
+  return (m?.[1] ?? t).trim() || null;
+}
+
+function scrollToAnalysisSection(heading: string) {
+  const el = document.getElementById(sectionAnchorId(heading));
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 /** ## 섹션이 있으면 블록으로, 없으면 문단 리스트 */
 function parseAnalysisBlocks(text: string | null | undefined): AnalysisBlock[] {
   const raw = String(text ?? "").trim();
@@ -332,30 +357,53 @@ export default function UsAnnouncementInboxTab() {
           : ko.usAnnouncement.articleLabel}
       </h3>
       {analysisBlocks.length ? (
-        analysisBlocks.map((block, i) => (
-          <section
-            key={`${block.heading ?? "p"}-${i}`}
-            className={
-              block.heading === "목차"
-                ? `us-ann-inbox__${classPrefix}-block us-ann-inbox__${classPrefix}-block--toc`
-                : `us-ann-inbox__${classPrefix}-block`
-            }
-          >
-            {block.heading ? (
-              <h4 className={`us-ann-inbox__${classPrefix}-h`}>
-                {block.heading}
-              </h4>
-            ) : null}
-            {block.paras.map((para) => (
-              <p
-                key={para.slice(0, 64)}
-                className={`us-ann-inbox__${classPrefix}-p`}
-              >
-                {para}
-              </p>
-            ))}
-          </section>
-        ))
+        analysisBlocks.map((block, i) => {
+          const isToc = block.heading === "목차";
+          return (
+            <section
+              key={`${block.heading ?? "p"}-${i}`}
+              id={
+                block.heading && !isToc
+                  ? sectionAnchorId(block.heading)
+                  : undefined
+              }
+              className={
+                isToc
+                  ? `us-ann-inbox__${classPrefix}-block us-ann-inbox__${classPrefix}-block--toc`
+                  : `us-ann-inbox__${classPrefix}-block`
+              }
+            >
+              {block.heading ? (
+                <h4 className={`us-ann-inbox__${classPrefix}-h`}>
+                  {block.heading}
+                </h4>
+              ) : null}
+              {isToc
+                ? block.paras.map((para) => {
+                    const target = tocTargetHeading(para);
+                    if (!target) return null;
+                    return (
+                      <button
+                        key={para.slice(0, 64)}
+                        type="button"
+                        className={`us-ann-inbox__${classPrefix}-toc-link`}
+                        onClick={() => scrollToAnalysisSection(target)}
+                      >
+                        {para}
+                      </button>
+                    );
+                  })
+                : block.paras.map((para) => (
+                    <p
+                      key={para.slice(0, 64)}
+                      className={`us-ann-inbox__${classPrefix}-p`}
+                    >
+                      {para}
+                    </p>
+                  ))}
+            </section>
+          );
+        })
       ) : (
         <p className={`us-ann-inbox__${classPrefix}-p`}>
           {ko.usAnnouncement.articleEmpty}

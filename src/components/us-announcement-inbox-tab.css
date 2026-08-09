@@ -490,7 +490,7 @@ html:not([data-theme="light"]) .us-ann-inbox__page {
 
 .us-ann-inbox__page-title {
   margin: 8px 0 0;
-  font-size: clamp(1.2rem, 2.4vw, 1.55rem);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
   font-weight: 750;
   line-height: 1.35;
   letter-spacing: -0.02em;
@@ -499,7 +499,7 @@ html:not([data-theme="light"]) .us-ann-inbox__page {
 
 .us-ann-inbox__page-lead {
   margin: 10px 0 0;
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   line-height: 1.55;
   color: #64748b;
 }
@@ -514,8 +514,8 @@ html:not([data-theme="light"]) .us-ann-inbox__page-lead {
 }
 
 .us-ann-inbox__page-section {
-  margin: 22px 0 10px;
-  font-size: 0.75rem;
+  margin: 18px 0 8px;
+  font-size: 0.7rem;
   font-weight: 750;
   letter-spacing: 0.04em;
   color: #0f766e;
@@ -527,12 +527,13 @@ html:not([data-theme="light"]) .us-ann-inbox__page-section {
 }
 
 .us-ann-inbox__page-block {
-  margin: 0 0 18px;
+  margin: 0 0 28px;
+  scroll-margin-top: 16px;
 }
 
 .us-ann-inbox__page-block--toc {
-  margin: 0 0 22px;
-  padding: 12px 14px;
+  margin: 0 0 28px;
+  padding: 10px 12px 12px;
   border-radius: 10px;
   background: color-mix(in srgb, var(--accent, #0f766e) 7%, #ffffff);
   border: 1px solid color-mix(in srgb, var(--accent, #0f766e) 18%, #e2e8f0);
@@ -544,8 +545,8 @@ html:not([data-theme="light"]) .us-ann-inbox__page-block--toc {
 }
 
 .us-ann-inbox__page-h {
-  margin: 0 0 8px;
-  font-size: 1.05rem;
+  margin: 0 0 10px;
+  font-size: 0.92rem;
   font-weight: 750;
   letter-spacing: -0.01em;
   line-height: 1.35;
@@ -553,21 +554,86 @@ html:not([data-theme="light"]) .us-ann-inbox__page-block--toc {
 }
 
 .us-ann-inbox__page-p {
-  margin: 0 0 10px;
-  font-size: 0.95rem;
-  line-height: 1.7;
+  margin: 0 0 14px;
+  font-size: 0.84rem;
+  line-height: 1.65;
   white-space: pre-wrap;
   color: inherit;
 }
 
+.us-ann-inbox__page-p:last-child {
+  margin-bottom: 0;
+}
+
+.us-ann-inbox__page-toc-link {
+  display: block;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  min-height: 36px;
+}
+
+.us-ann-inbox__page-toc-link:hover,
+.us-ann-inbox__page-toc-link:focus-visible {
+  background: color-mix(in srgb, var(--accent, #0f766e) 12%, transparent);
+  color: var(--accent, #0f766e);
+  outline: none;
+}
+
+.us-ann-inbox__page-toc-link:last-child {
+  margin-bottom: 0;
+}
+
 .us-ann-inbox__modal-block {
-  margin: 0 0 14px;
+  margin: 0 0 20px;
+  scroll-margin-top: 12px;
+}
+
+.us-ann-inbox__modal-block--toc {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #0f766e 8%, transparent);
 }
 
 .us-ann-inbox__modal-h {
-  margin: 0 0 6px;
-  font-size: 0.95rem;
+  margin: 0 0 8px;
+  font-size: 0.88rem;
   font-weight: 750;
+}
+
+.us-ann-inbox__modal-toc-link {
+  display: block;
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  min-height: 36px;
+}
+
+.us-ann-inbox__modal-toc-link:hover,
+.us-ann-inbox__modal-toc-link:focus-visible {
+  background: color-mix(in srgb, #0f766e 12%, transparent);
+  color: #0f766e;
+  outline: none;
 }
 
 .us-ann-inbox__links {
@@ -668,8 +734,8 @@ html:not([data-theme="light"]) .us-ann-inbox__modal-section {
 }
 
 .us-ann-inbox__modal-p {
-  margin: 0 0 12px;
-  font-size: 0.92rem;
+  margin: 0 0 14px;
+  font-size: 0.84rem;
   line-height: 1.65;
   white-space: pre-wrap;
   color: inherit;
