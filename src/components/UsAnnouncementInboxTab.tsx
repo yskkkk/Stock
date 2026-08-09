@@ -8,8 +8,13 @@ import {
   type UsAnnouncementCard,
   type UsAnnouncementKind,
 } from "../api";
+import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { ko } from "../i18n/ko";
+import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
 import "./us-announcement-inbox-tab.css";
+
+/** 이 길이 이상(또는 deepAnalysis 존재)이면 모달 대신 인탭 페이지 */
+const PAGE_VIEW_CHARS = 1_800;
 
 const KIND_FILTERS: Array<{ id: "" | UsAnnouncementKind; label: string }> = [
   { id: "", label: ko.usAnnouncement.filterAll },
@@ -74,6 +79,56 @@ function splitAiParas(text: string | null | undefined): string[] {
     .split(/(?=(?:해석|근거)\s*[:：])|(?<=\.)\s+(?=[가-힣A-Z])/)
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+type AnalysisBlock = { heading?: string; paras: string[] };
+
+/** ## 섹션이 있으면 블록으로, 없으면 문단 리스트 */
+function parseAnalysisBlocks(text: string | null | undefined): AnalysisBlock[] {
+  const raw = String(text ?? "").trim();
+  if (!raw) return [];
+  if (!/^##\s/m.test(raw)) {
+    return [{ paras: splitAiParas(raw) }];
+  }
+  return raw
+    .split(/\n(?=##\s)/)
+    .map((part) => {
+      const lines = part.split("\n");
+      const first = lines[0] ?? "";
+      const m = first.match(/^##\s+(.+)$/);
+      if (m) {
+        return {
+          heading: m[1].trim(),
+          paras: splitAiParas(lines.slice(1).join("\n")),
+        };
+      }
+      return { paras: splitAiParas(part) };
+    })
+    .filter((b) => b.heading || b.paras.length);
+}
+
+function cardBodyText(card: UsAnnouncementCard | null): string {
+  if (!card) return "";
+  return (
+    card.deepAnalysis ||
+    card.article ||
+    card.detail ||
+    card.ai?.summary ||
+    ""
+  );
+}
+
+function shouldUsePageView(card: UsAnnouncementCard | null): boolean {
+  if (!card) return false;
+  const body = cardBodyText(card);
+  if (card.deepAnalysis && card.deepAnalysis.trim().length >= 400) return true;
+  if (
+    card.kind === "earnings" &&
+    body.trim().length >= Math.floor(PAGE_VIEW_CHARS / 2)
+  ) {
+    return true;
+  }
+  return body.trim().length >= PAGE_VIEW_CHARS;
 }
 
 function formatPct(pct: number | null | undefined): string {
@@ -234,6 +289,15 @@ export default function UsAnnouncementInboxTab() {
     }
   };
 
+  const closeSelected = useCallback(() => setSelected(null), []);
+  const pageMode = shouldUsePageView(selected);
+
+  useMobileBackHandler(
+    Boolean(selected && pageMode),
+    MOBILE_BACK_PRIORITY.WORKSPACE_PICK,
+    closeSelected,
+  );
+
   useEffect(() => {
     if (!selected) return;
     function onKey(e: KeyboardEvent) {
@@ -241,21 +305,17 @@ export default function UsAnnouncementInboxTab() {
     }
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (!pageMode) {
+      document.body.style.overflow = "hidden";
+    }
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [selected]);
+  }, [selected, pageMode]);
 
-  const articleParas = useMemo(
-    () =>
-      splitAiParas(
-        selected?.article ||
-          selected?.detail ||
-          selected?.ai?.summary ||
-          "",
-      ),
+  const analysisBlocks = useMemo(
+    () => parseAnalysisBlocks(cardBodyText(selected)),
     [selected],
   );
 
@@ -263,6 +323,122 @@ export default function UsAnnouncementInboxTab() {
     if (!cards.length) return ko.usAnnouncement.empty;
     return ko.usAnnouncement.count.replace("{n}", String(cards.length));
   }, [cards.length]);
+
+  const renderAnalysisBody = (classPrefix: "page" | "modal") => (
+    <>
+      <h3 className={`us-ann-inbox__${classPrefix}-section`}>
+        {selected?.deepAnalysis
+          ? ko.usAnnouncement.deepAnalysisLabel
+          : ko.usAnnouncement.articleLabel}
+      </h3>
+      {analysisBlocks.length ? (
+        analysisBlocks.map((block, i) => (
+          <section
+            key={`${block.heading ?? "p"}-${i}`}
+            className={`us-ann-inbox__${classPrefix}-block`}
+          >
+            {block.heading ? (
+              <h4 className={`us-ann-inbox__${classPrefix}-h`}>
+                {block.heading}
+              </h4>
+            ) : null}
+            {block.paras.map((para) => (
+              <p
+                key={para.slice(0, 64)}
+                className={`us-ann-inbox__${classPrefix}-p`}
+              >
+                {para}
+              </p>
+            ))}
+          </section>
+        ))
+      ) : (
+        <p className={`us-ann-inbox__${classPrefix}-p`}>
+          {ko.usAnnouncement.articleEmpty}
+        </p>
+      )}
+
+      {selected?.numbersBrief ? (
+        <>
+          <h3 className={`us-ann-inbox__${classPrefix}-section`}>
+            {ko.usAnnouncement.numbersLabel}
+          </h3>
+          <ul className="us-ann-inbox__numbers-list">
+            {splitBriefLines(selected.numbersBrief).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </>
+  );
+
+  if (selected && pageMode) {
+    return (
+      <div className="us-ann-inbox us-ann-inbox--page">
+        <article
+          className="us-ann-inbox__page"
+          aria-labelledby="us-ann-page-title"
+        >
+          <div className="us-ann-inbox__page-toolbar">
+            <button
+              type="button"
+              className="us-ann-inbox__btn"
+              onClick={closeSelected}
+            >
+              {ko.usAnnouncement.backToList}
+            </button>
+            <div className="us-ann-inbox__page-links">
+              {selected.links?.edgar ? (
+                <a
+                  className="us-ann-inbox__link"
+                  href={selected.links.edgar}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  EDGAR
+                </a>
+              ) : null}
+              {selected.links?.yahooAnalysis ? (
+                <a
+                  className="us-ann-inbox__link"
+                  href={selected.links.yahooAnalysis}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Yahoo
+                </a>
+              ) : null}
+            </div>
+          </div>
+          <div className="us-ann-inbox__card-top">
+            <span
+              className={`us-ann-inbox__badge us-ann-inbox__badge--${selected.kind}`}
+            >
+              {kindLabel(selected.kind)}
+            </span>
+            <span className="us-ann-inbox__sym">{selected.symbol}</span>
+            <time
+              className="us-ann-inbox__time"
+              dateTime={new Date(selected.filedAt).toISOString()}
+            >
+              {formatWhen(selected.filedAt)}
+            </time>
+          </div>
+          <h2 id="us-ann-page-title" className="us-ann-inbox__page-title">
+            {selected.headline || selected.title}
+          </h2>
+          {selected.form ? (
+            <p className="us-ann-inbox__card-sub">{selected.form}</p>
+          ) : null}
+          {selected.about ? (
+            <p className="us-ann-inbox__page-lead">{selected.about}</p>
+          ) : null}
+          <div className="us-ann-inbox__page-body">{renderAnalysisBody("page")}</div>
+        </article>
+      </div>
+    );
+  }
 
   return (
     <div className="us-ann-inbox">
@@ -437,153 +613,161 @@ export default function UsAnnouncementInboxTab() {
                     card.headline || card.title,
                   )}
                 >
-              <div className="us-ann-inbox__card-top">
-                <span
-                  className={`us-ann-inbox__badge us-ann-inbox__badge--${card.kind}`}
-                >
-                  {kindLabel(card.kind)}
-                </span>
-                <span className="us-ann-inbox__sym">{card.symbol}</span>
-                <time
-                  className="us-ann-inbox__time"
-                  dateTime={new Date(card.filedAt).toISOString()}
-                >
-                  {formatWhen(card.filedAt)}
-                </time>
-              </div>
-              <h3 className="us-ann-inbox__card-title">
-                {card.headline || card.title}
-              </h3>
-              {card.headline && card.title && card.headline !== card.title ? (
-                <p className="us-ann-inbox__card-sub">{card.title}</p>
-              ) : null}
-
-              {card.about ? (
-                <div className="us-ann-inbox__about">
-                  <span className="us-ann-inbox__about-label">
-                    {ko.usAnnouncement.aboutLabel}
-                  </span>
-                  <p className="us-ann-inbox__about-body">{card.about}</p>
-                </div>
-              ) : null}
-
-              <dl className="us-ann-inbox__metrics">
-                <div>
-                  <dt>{ko.usAnnouncement.vsConsensus}</dt>
-                  <dd className={pctClass(card.metrics?.vsConsensusPct)}>
-                    {formatPct(card.metrics?.vsConsensusPct)}
-                  </dd>
-                  <p className="us-ann-inbox__metric-hint">
-                    {card.metrics?.vsConsensusLabel ||
-                      (card.metrics?.vsConsensusPct == null
-                        ? card.kind === "governance"
-                          ? ko.usAnnouncement.metricNaGovernance
-                          : ko.usAnnouncement.metricNa
-                        : "")}
-                  </p>
-                </div>
-                <div>
-                  <dt>{ko.usAnnouncement.yoy}</dt>
-                  <dd className={pctClass(card.metrics?.yoyPct)}>
-                    {formatPct(card.metrics?.yoyPct)}
-                  </dd>
-                  <p className="us-ann-inbox__metric-hint">
-                    {card.metrics?.yoyLabel ||
-                      (card.metrics?.yoyPct == null
-                        ? card.kind === "governance"
-                          ? ko.usAnnouncement.metricNaGovernance
-                          : ko.usAnnouncement.metricNa
-                        : "")}
-                  </p>
-                </div>
-                <div>
-                  <dt>{ko.usAnnouncement.consensusChg}</dt>
-                  <dd className={pctClass(card.metrics?.consensusChangePct)}>
-                    {formatPct(card.metrics?.consensusChangePct)}
-                  </dd>
-                  <p className="us-ann-inbox__metric-hint">
-                    {card.metrics?.consensusChangeLabel ||
-                      (card.metrics?.consensusChangePct == null
-                        ? card.kind === "governance"
-                          ? ko.usAnnouncement.metricNaGovernance
-                          : ko.usAnnouncement.metricNa
-                        : "")}
-                  </p>
-                </div>
-              </dl>
-
-              {card.numbersBrief ? (
-                <div className="us-ann-inbox__numbers">
-                  <span className="us-ann-inbox__numbers-label">
-                    {ko.usAnnouncement.numbersLabel}
-                  </span>
-                  <ul className="us-ann-inbox__numbers-list">
-                    {splitBriefLines(card.numbersBrief).map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {card.ai?.summary ? (
-                <div className="us-ann-inbox__ai">
-                  <span className="us-ann-inbox__ai-label">
-                    {ko.usAnnouncement.aiLabel}
-                  </span>
-                  <div className="us-ann-inbox__ai-body">
-                    {splitAiParas(card.ai.summary)
-                      .slice(0, 2)
-                      .map((para) => (
-                        <p key={para.slice(0, 48)}>{para}</p>
-                      ))}
+                  <div className="us-ann-inbox__card-top">
+                    <span
+                      className={`us-ann-inbox__badge us-ann-inbox__badge--${card.kind}`}
+                    >
+                      {kindLabel(card.kind)}
+                    </span>
+                    <span className="us-ann-inbox__sym">{card.symbol}</span>
+                    <time
+                      className="us-ann-inbox__time"
+                      dateTime={new Date(card.filedAt).toISOString()}
+                    >
+                      {formatWhen(card.filedAt)}
+                    </time>
                   </div>
-                </div>
-              ) : null}
+                  <h3 className="us-ann-inbox__card-title">
+                    {card.headline || card.title}
+                  </h3>
+                  {card.headline &&
+                  card.title &&
+                  card.headline !== card.title ? (
+                    <p className="us-ann-inbox__card-sub">{card.title}</p>
+                  ) : null}
 
-              <p className="us-ann-inbox__open-hint">
-                {ko.usAnnouncement.openHint}
-              </p>
+                  {card.about ? (
+                    <div className="us-ann-inbox__about">
+                      <span className="us-ann-inbox__about-label">
+                        {ko.usAnnouncement.aboutLabel}
+                      </span>
+                      <p className="us-ann-inbox__about-body">{card.about}</p>
+                    </div>
+                  ) : null}
 
-              <div
-                className="us-ann-inbox__links"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-              >
-                {card.links?.edgar ? (
-                  <a
-                    className="us-ann-inbox__link"
-                    href={card.links.edgar}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <dl className="us-ann-inbox__metrics">
+                    <div>
+                      <dt>{ko.usAnnouncement.vsConsensus}</dt>
+                      <dd className={pctClass(card.metrics?.vsConsensusPct)}>
+                        {formatPct(card.metrics?.vsConsensusPct)}
+                      </dd>
+                      <p className="us-ann-inbox__metric-hint">
+                        {card.metrics?.vsConsensusLabel ||
+                          (card.metrics?.vsConsensusPct == null
+                            ? card.kind === "governance"
+                              ? ko.usAnnouncement.metricNaGovernance
+                              : ko.usAnnouncement.metricNa
+                            : "")}
+                      </p>
+                    </div>
+                    <div>
+                      <dt>{ko.usAnnouncement.yoy}</dt>
+                      <dd className={pctClass(card.metrics?.yoyPct)}>
+                        {formatPct(card.metrics?.yoyPct)}
+                      </dd>
+                      <p className="us-ann-inbox__metric-hint">
+                        {card.metrics?.yoyLabel ||
+                          (card.metrics?.yoyPct == null
+                            ? card.kind === "governance"
+                              ? ko.usAnnouncement.metricNaGovernance
+                              : ko.usAnnouncement.metricNa
+                            : "")}
+                      </p>
+                    </div>
+                    <div>
+                      <dt>{ko.usAnnouncement.consensusChg}</dt>
+                      <dd className={pctClass(card.metrics?.consensusChangePct)}>
+                        {formatPct(card.metrics?.consensusChangePct)}
+                      </dd>
+                      <p className="us-ann-inbox__metric-hint">
+                        {card.metrics?.consensusChangeLabel ||
+                          (card.metrics?.consensusChangePct == null
+                            ? card.kind === "governance"
+                              ? ko.usAnnouncement.metricNaGovernance
+                              : ko.usAnnouncement.metricNa
+                            : "")}
+                      </p>
+                    </div>
+                  </dl>
+
+                  {card.numbersBrief ? (
+                    <div className="us-ann-inbox__numbers">
+                      <span className="us-ann-inbox__numbers-label">
+                        {ko.usAnnouncement.numbersLabel}
+                      </span>
+                      <ul className="us-ann-inbox__numbers-list">
+                        {splitBriefLines(card.numbersBrief).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {card.ai?.summary ? (
+                    <div className="us-ann-inbox__ai">
+                      <span className="us-ann-inbox__ai-label">
+                        {ko.usAnnouncement.aiLabel}
+                      </span>
+                      <div className="us-ann-inbox__ai-body">
+                        {splitAiParas(card.ai.summary)
+                          .slice(0, 2)
+                          .map((para) => (
+                            <p key={para.slice(0, 48)}>{para}</p>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {card.deepAnalysis ? (
+                    <p className="us-ann-inbox__deep-teaser">
+                      {ko.usAnnouncement.deepTeaser}
+                    </p>
+                  ) : (
+                    <p className="us-ann-inbox__open-hint">
+                      {ko.usAnnouncement.openHint}
+                    </p>
+                  )}
+
+                  <div
+                    className="us-ann-inbox__links"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
                   >
-                    EDGAR
-                  </a>
-                ) : null}
-                {card.links?.yahooAnalysis ? (
-                  <a
-                    className="us-ann-inbox__link"
-                    href={card.links.yahooAnalysis}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Yahoo
-                  </a>
-                ) : null}
-                <span className="us-ann-inbox__source">{card.source}</span>
-              </div>
-            </li>
-          ))}
-        </ol>
+                    {card.links?.edgar ? (
+                      <a
+                        className="us-ann-inbox__link"
+                        href={card.links.edgar}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        EDGAR
+                      </a>
+                    ) : null}
+                    {card.links?.yahooAnalysis ? (
+                      <a
+                        className="us-ann-inbox__link"
+                        href={card.links.yahooAnalysis}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Yahoo
+                      </a>
+                    ) : null}
+                    <span className="us-ann-inbox__source">{card.source}</span>
+                  </div>
+                </li>
+              ))}
+            </ol>
           )}
         </div>
       </div>
 
-      {selected
+      {selected && !pageMode
         ? createPortal(
             <div
               className="us-ann-inbox__modal-backdrop"
               role="presentation"
-              onClick={() => setSelected(null)}
+              onClick={closeSelected}
             >
               <div
                 className="us-ann-inbox__modal"
@@ -608,7 +792,10 @@ export default function UsAnnouncementInboxTab() {
                         {formatWhen(selected.filedAt)}
                       </time>
                     </div>
-                    <h2 id="us-ann-article-title" className="us-ann-inbox__modal-title">
+                    <h2
+                      id="us-ann-article-title"
+                      className="us-ann-inbox__modal-title"
+                    >
                       {selected.headline || selected.title}
                     </h2>
                     {selected.form ? (
@@ -618,40 +805,14 @@ export default function UsAnnouncementInboxTab() {
                   <button
                     type="button"
                     className="us-ann-inbox__btn"
-                    onClick={() => setSelected(null)}
+                    onClick={closeSelected}
                   >
                     {ko.usAnnouncement.closeArticle}
                   </button>
                 </header>
 
                 <div className="us-ann-inbox__modal-body">
-                  <h3 className="us-ann-inbox__modal-section">
-                    {ko.usAnnouncement.articleLabel}
-                  </h3>
-                  {articleParas.length ? (
-                    articleParas.map((para) => (
-                      <p key={para.slice(0, 64)} className="us-ann-inbox__modal-p">
-                        {para}
-                      </p>
-                    ))
-                  ) : (
-                    <p className="us-ann-inbox__modal-p">
-                      {ko.usAnnouncement.articleEmpty}
-                    </p>
-                  )}
-
-                  {selected.numbersBrief ? (
-                    <>
-                      <h3 className="us-ann-inbox__modal-section">
-                        {ko.usAnnouncement.numbersLabel}
-                      </h3>
-                      <ul className="us-ann-inbox__numbers-list">
-                        {splitBriefLines(selected.numbersBrief).map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : null}
+                  {renderAnalysisBody("modal")}
                 </div>
 
                 <footer className="us-ann-inbox__modal-footer">

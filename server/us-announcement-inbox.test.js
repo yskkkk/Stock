@@ -22,7 +22,7 @@ import {
 import { classifySecForm, buildEdgarDocumentUrl } from "./us-announcement-edgar.js";
 import { consensusEpsChangedEnough, metricsFromYahooSnapshot } from "./us-announcement-consensus.js";
 import { buildAnnouncementNotifyText } from "./us-announcement-notify.js";
-import { buildFilingHeadlineAndDetail, extractFilingNumberLines, buildArticleFromFiling, pickFilingExcerpts } from "./us-announcement-summarize.js";
+import { buildFilingHeadlineAndDetail, extractFilingNumberLines, buildArticleFromFiling, buildDeepAnalysisFromFiling, pickFilingExcerpts } from "./us-announcement-summarize.js";
 import { htmlToPlainText } from "./us-announcement-filing-text.js";
 
 describe("us-announcement-analyze", () => {
@@ -488,6 +488,28 @@ describe("filing headline/detail", () => {
     expect(article).toMatch(/AMZN/);
     expect(article).toMatch(/EDGAR|원문/);
     expect(article.length).toBeGreaterThan(120);
+  });
+
+  it("builds deep analysis with ## sections for 10-Q", () => {
+    const text =
+      "Consolidated revenues were $119.8 billion. Google Cloud revenues increased 82% to $24.8 billion. Operating income was $40.8 billion. Other income included unrealized gains on equity securities. Purchases of property and equipment were $44.9 billion. The company is subject to antitrust litigation by the Department of Justice.";
+    const deep = buildDeepAnalysisFromFiling({
+      kind: "earnings",
+      symbol: "GOOGL",
+      form: "10-Q",
+      title: "10-Q",
+      about: "분기 보고서(10-Q) 제출입니다.",
+      numbersBrief: "매출 공시 추출",
+      interpretation: "해석: Cloud 성장과 CapEx를 분리해서 보세요.",
+      filingText: text,
+      hasFilingText: true,
+      metrics: { vsConsensusPct: 2.1, yoyPct: 24 },
+    });
+    expect(deep).toMatch(/## 한줄 요약/);
+    expect(deep).toMatch(/## 핵심 실적/);
+    expect(deep).toMatch(/## 사업/);
+    expect(deep).toMatch(/GOOGL/);
+    expect(deep.length).toBeGreaterThan(400);
   });
 
   it("strips html", () => {

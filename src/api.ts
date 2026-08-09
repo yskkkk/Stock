@@ -317,6 +317,8 @@ export type UsAnnouncementCard = {
   numbersBrief?: string | null;
   detail?: string | null;
   article?: string | null;
+  /** 긴 상세 분석 (## 섹션). 길면 카드 클릭 시 페이지로 표시 */
+  deepAnalysis?: string | null;
   analysisVersion?: number | null;
   enrichedAt?: number | null;
   links: {

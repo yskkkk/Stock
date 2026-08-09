@@ -30,7 +30,13 @@ import {
   generateAnnouncementAiSummary,
   pctChange,
 } from "./us-announcement-analyze.js";
-import { enrichAnnouncementCopy, buildFilingHeadlineAndDetail, buildArticleFromFiling, ANNOUNCEMENT_ANALYSIS_VERSION } from "./us-announcement-summarize.js";
+import {
+  enrichAnnouncementCopy,
+  buildFilingHeadlineAndDetail,
+  buildArticleFromFiling,
+  buildDeepAnalysisFromFiling,
+  ANNOUNCEMENT_ANALYSIS_VERSION,
+} from "./us-announcement-summarize.js";
 import { notifyUsAnnouncementCard } from "./us-announcement-notify.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
@@ -85,6 +91,7 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
       card.numbersBrief = copy.numbersBrief;
       card.detail = copy.detail;
       card.article = copy.article;
+      card.deepAnalysis = copy.deepAnalysis;
       card.analysisVersion = copy.analysisVersion;
       card.enrichedAt = copy.enrichedAt;
       linkInterpretation = copy.interpretation;
@@ -110,6 +117,19 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
         about: copy.about,
         numbersBrief: copy.numbersBrief,
         interpretation: copy.interpretation,
+        filingText: "",
+        hasFilingText: false,
+        metrics: card.metrics,
+      });
+      card.deepAnalysis = buildDeepAnalysisFromFiling({
+        kind: card.kind,
+        symbol: card.symbol,
+        form: card.form,
+        title: card.title,
+        about: copy.about,
+        numbersBrief: copy.numbersBrief,
+        interpretation: copy.interpretation,
+        article: card.article,
         filingText: "",
         hasFilingText: false,
         metrics: card.metrics,
@@ -226,6 +246,7 @@ export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
       !card.about ||
       !card.numbersBrief ||
       !card.article ||
+      !card.deepAnalysis ||
       analysisVer < ANNOUNCEMENT_ANALYSIS_VERSION ||
       needMetrics;
 
@@ -277,6 +298,7 @@ export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
       card.numbersBrief = copy.numbersBrief;
       card.detail = copy.detail;
       card.article = copy.article;
+      card.deepAnalysis = copy.deepAnalysis;
       card.analysisVersion = copy.analysisVersion;
       card.enrichedAt = copy.enrichedAt;
       card.ai = {

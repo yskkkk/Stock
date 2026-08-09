@@ -37,6 +37,7 @@ const MAX_CARDS = 400;
  *   numbersBrief?: string | null;
  *   detail?: string | null;
  *   article?: string | null;
+ *   deepAnalysis?: string | null;
  *   analysisVersion?: number | null;
  *   enrichedAt?: number | null;
  *   links: { edgar?: string | null; yahooAnalysis?: string | null; ir?: string | null };

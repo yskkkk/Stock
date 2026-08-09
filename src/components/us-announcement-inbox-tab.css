@@ -243,6 +243,13 @@
   color: var(--accent, #0f766e);
 }
 
+.us-ann-inbox__deep-teaser {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent, #0f766e);
+}
+
 .us-ann-inbox__card-top {
   display: flex;
   flex-wrap: wrap;
@@ -436,6 +443,88 @@
 
 .us-ann-inbox__ai-body p {
   margin: 0;
+}
+
+/* —— 긴 상세 분석: 인탭 페이지 —— */
+.us-ann-inbox--page {
+  padding-bottom: 64px;
+}
+
+.us-ann-inbox__page {
+  max-width: min(920px, 100%);
+  margin: 0 auto;
+}
+
+.us-ann-inbox__page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.us-ann-inbox__page-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.us-ann-inbox__page-title {
+  margin: 8px 0 0;
+  font-size: clamp(1.2rem, 2.4vw, 1.55rem);
+  font-weight: 750;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+
+.us-ann-inbox__page-lead {
+  margin: 10px 0 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--muted, #64748b);
+}
+
+.us-ann-inbox__page-body {
+  margin-top: 20px;
+}
+
+.us-ann-inbox__page-section {
+  margin: 22px 0 10px;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  color: var(--accent, #0f766e);
+  text-transform: none;
+}
+
+.us-ann-inbox__page-block {
+  margin: 0 0 18px;
+}
+
+.us-ann-inbox__page-h {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.us-ann-inbox__page-p {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.us-ann-inbox__modal-block {
+  margin: 0 0 14px;
+}
+
+.us-ann-inbox__modal-h {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 750;
 }
 
 .us-ann-inbox__links {

@@ -3,8 +3,14 @@
  */
 import { fetchEdgarFilingPlainText } from "./us-announcement-filing-text.js";
 
-/** 카드 링크 분석 스키마 버전 */
-export const ANNOUNCEMENT_ANALYSIS_VERSION = 7;
+/** 카드 링크 분석 스키마 버전 (8 = 상세 분석 deepAnalysis + 페이지 뷰) */
+export const ANNOUNCEMENT_ANALYSIS_VERSION = 8;
+
+/** 상세 분석 최대 글자 (긴 10-Q 요약용) */
+export const DEEP_ANALYSIS_MAX_CHARS = 18_000;
+
+/** UI에서 페이지(전문)로 열 최소 길이 */
+export const DEEP_ANALYSIS_PAGE_CHARS = 1_800;
 
 /**
  * @param {number | null | undefined} pct
@@ -215,6 +221,212 @@ export function buildArticleFromFiling(args) {
   );
 
   return paras.join("\n\n").slice(0, 6000);
+}
+
+/**
+ * 공시 평문에서 주제별 힌트 문장 수집
+ * @param {string} text
+ * @param {RegExp} re
+ * @param {number} [limit]
+ */
+function pickTopicSentences(text, re, limit = 3) {
+  const body = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (!body) return [];
+  /** @type {string[]} */
+  const out = [];
+  const sentences = body
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 50 && s.length <= 360);
+  for (const s of sentences) {
+    if (!re.test(s)) continue;
+    if (out.some((x) => x.slice(0, 40) === s.slice(0, 40))) continue;
+    out.push(s);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/**
+ * 10-Q/10-K·실적 수준의 긴 한글 상세 분석 (섹션 ## 헤더)
+ * @param {{
+ *   kind: string;
+ *   symbol: string;
+ *   form?: string | null;
+ *   title?: string;
+ *   about: string;
+ *   numbersBrief: string;
+ *   interpretation: string;
+ *   article?: string;
+ *   filingText?: string;
+ *   hasFilingText?: boolean;
+ *   metrics?: Record<string, unknown> | null;
+ * }} args
+ */
+export function buildDeepAnalysisFromFiling(args) {
+  const {
+    kind,
+    symbol,
+    form,
+    title,
+    about,
+    numbersBrief,
+    interpretation,
+    article = "",
+    filingText = "",
+    hasFilingText,
+    metrics,
+  } = args;
+  const sym = String(symbol || "").trim() || "해당 종목";
+  const f = String(form ?? "").toUpperCase();
+  const isEarningsDoc =
+    kind === "earnings" || /^10-[QK]/.test(f) || /8-K/i.test(f);
+  const numberLines = extractFilingNumberLines(filingText);
+  const excerpts = pickFilingExcerpts(filingText, kind, isEarningsDoc ? 8 : 5);
+  const m = metrics && typeof metrics === "object" ? metrics : null;
+
+  /** @type {string[]} */
+  const sections = [];
+
+  sections.push("## 한줄 요약");
+  sections.push(
+    `${sym} ${f || title || kind} 공시입니다. ${about}${
+      hasFilingText
+        ? " EDGAR 원문을 바탕으로 핵심 숫자·사업·재무·리스크를 나눠 정리했습니다."
+        : " 원문 HTML을 충분히 읽지 못해 Yahoo 지표·메타 중심이며, EDGAR 링크와 대조가 필요합니다."
+    }`,
+  );
+
+  sections.push("## 핵심 실적·수치");
+  /** @type {string[]} */
+  const metricBits = [];
+  if (m) {
+    const vs = fmtPct(/** @type {number|null} */ (m.vsConsensusPct));
+    const yoy = fmtPct(/** @type {number|null} */ (m.yoyPct));
+    const chg = fmtPct(/** @type {number|null} */ (m.consensusChangePct));
+    const rep = fmtNum(/** @type {number|null} */ (m.reportedEps));
+    const fwd = fmtNum(/** @type {number|null} */ (m.consensusEps));
+    if (rep) metricBits.push(`Yahoo 최근 확정 EPS ${rep}`);
+    if (fwd) metricBits.push(`전방 컨센 EPS ${fwd}`);
+    if (vs) metricBits.push(`컨센 대비 ${vs}${m.vsConsensusLabel ? ` (${m.vsConsensusLabel})` : ""}`);
+    if (yoy) metricBits.push(`전년 대비 ${yoy}${m.yoyLabel ? ` (${m.yoyLabel})` : ""}`);
+    if (chg) metricBits.push(`컨센 변동 ${chg}`);
+  }
+  if (numberLines.length) {
+    sections.push(
+      [...metricBits, ...numberLines.map((l) => `공시 추출: ${l}`)].join("\n"),
+    );
+  } else if (numbersBrief && !String(numbersBrief).includes("표시하지 않습니다")) {
+    sections.push(
+      [...metricBits, String(numbersBrief).replace(/\n/g, "\n")].filter(Boolean).join("\n") ||
+        "수치 요약을 공시에서 충분히 뽑지 못했습니다. 손익계산서·EPS 표를 원문에서 확인하세요.",
+    );
+  } else {
+    sections.push(
+      metricBits.length
+        ? metricBits.join("\n")
+        : "실적 Beat/Miss 수치를 카드 메트릭에서 확보하지 못했습니다. 손익·현금흐름표를 원문에서 확인하세요.",
+    );
+  }
+
+  sections.push("## 사업·세그먼트 포인트");
+  const segHits = pickTopicSentences(
+    filingText,
+    /(?:Google Cloud|YouTube|Search|segment|subscription|advertising|revenue(?:s)? (?:increased|decreased|were)|operating income)/i,
+    4,
+  );
+  if (segHits.length) {
+    sections.push(
+      "원문에서 사업·세그먼트 관련으로 눈에 띄는 문장입니다.\n" +
+        segHits.map((s, i) => `(${i + 1}) ${s}`).join("\n"),
+    );
+  } else if (excerpts.length) {
+    sections.push(
+      "공시 발췌(영문)를 바탕으로 한 사업 포인트입니다.\n" +
+        excerpts.slice(0, 5).map((s, i) => `(${i + 1}) ${s}`).join("\n"),
+    );
+  } else {
+    sections.push(
+      kind === "governance"
+        ? "거버넌스·Proxy 안건(보수·이사회·주주제안 등)을 중심으로 읽으세요. 실적 세그먼트 표는 보통 없습니다."
+        : "세그먼트별 매출·영업이익 표가 원문에 있으면 Search/Cloud/광고 비중 변화를 우선 확인하세요.",
+    );
+  }
+
+  sections.push("## 특이 항목 (기타이익·투자·CapEx·M&A)");
+  const specialHits = pickTopicSentences(
+    filingText,
+    /(?:other income|unrealized|equity securit|SpaceX|Anthropic|capital expenditure|purchases of property|acquisition|goodwill|free cash flow|repurchase|dividend|debt issued|mandatory convertible)/i,
+    4,
+  );
+  if (specialHits.length) {
+    sections.push(
+      "순이익만 보면 왜곡될 수 있는 항목(평가이익·설비투자·인수·자본조달) 후보입니다.\n" +
+        specialHits.map((s, i) => `(${i + 1}) ${s}`).join("\n"),
+    );
+  } else {
+    sections.push(
+      isEarningsDoc
+        ? "기타이익(투자자산 평가)·CapEx·인수·자사주/배당·부채 발행이 있는지 MD&A·현금흐름표를 확인하세요. 평가이익이 크면 영업이익과 순이익을 분리해서 봐야 합니다."
+        : "해당 공시 유형에서는 설비투자·인수 특이사항이 제한적일 수 있습니다. 관련 Item이 있으면 원문에서 확인하세요.",
+    );
+  }
+
+  sections.push("## 재무상태·현금흐름");
+  const bsHits = pickTopicSentences(
+    filingText,
+    /(?:cash and cash equivalents|total assets|long-term debt|operating activities|investing activities|financing activities|backlog|remaining performance obligation)/i,
+    3,
+  );
+  if (bsHits.length) {
+    sections.push(bsHits.map((s, i) => `(${i + 1}) ${s}`).join("\n"));
+  } else {
+    sections.push(
+      "현금·부채·영업/투자/재무 현금흐름, (클라우드라면) 매출 백로그를 대차대조표·현금흐름표에서 확인하세요.",
+    );
+  }
+
+  sections.push("## 리스크·소송·규제");
+  const riskHits = pickTopicSentences(
+    filingText,
+    /(?:antitrust|Department of Justice|European Commission|litigation|legal proceedings|risk factor|fine|remed(?:y|ies)|regulatory)/i,
+    3,
+  );
+  if (riskHits.length) {
+    sections.push(riskHits.map((s, i) => `(${i + 1}) ${s}`).join("\n"));
+  } else if (kind === "governance") {
+    sections.push(
+      "Proxy·거버넌스 공시는 총회 안건·보수 정책·주주제안이 리스크 포인트입니다.",
+    );
+  } else {
+    sections.push(
+      "Legal Proceedings·Risk Factors·반독점/벌금 관련 업데이트가 있는지 10-Q/10-K Part II를 확인하세요.",
+    );
+  }
+
+  sections.push("## 해석·투자 관점");
+  const interp = String(interpretation || "")
+    .split(/\n+/)
+    .map((s) => s.trim())
+    .filter((s) => s && !/^근거:/.test(s));
+  if (interp.length) {
+    sections.push(interp.join("\n\n"));
+  } else if (article) {
+    sections.push(String(article).slice(0, 1200));
+  } else {
+    sections.push(
+      "숫자(영업이익·세그먼트)와 일회성/평가이익·CapEx 가이던스를 분리해 읽고, 원문 EDGAR와 컨퍼런스 콜 톤을 함께 보세요.",
+    );
+  }
+
+  sections.push("## 근거");
+  sections.push(
+    hasFilingText
+      ? `EDGAR${f ? ` (${f})` : ""} 평문 추출·Yahoo 메트릭·규칙 기반 요약을 사용했습니다. 최종 판단은 원문·실적 발표 자료를 우선하세요.`
+      : "링크 본문 미수집 — EDGAR/Yahoo 원문 확인이 필요합니다.",
+  );
+
+  return sections.join("\n\n").slice(0, DEEP_ANALYSIS_MAX_CHARS);
 }
 
 /**
@@ -690,12 +902,17 @@ export async function enrichAnnouncementCopy(cardLike) {
   const kind = String(cardLike.kind ?? "");
   const title = String(cardLike.title ?? "");
   const symbol = String(cardLike.symbol ?? "").toUpperCase();
+  const formU = String(form ?? "").toUpperCase();
+  const wantsDeep =
+    kind === "earnings" ||
+    /^10-[QK]/.test(formU) ||
+    (kind === "guidance" && /8-K/i.test(formU));
   let text = "";
   let filingFetchOk = false;
 
   if (cardLike.edgarUrl) {
     const fetched = await fetchEdgarFilingPlainText(cardLike.edgarUrl, {
-      maxChars: 48_000,
+      maxChars: wantsDeep ? 80_000 : 48_000,
     });
     if (fetched.ok) {
       text = fetched.text;
@@ -740,6 +957,20 @@ export async function enrichAnnouncementCopy(cardLike) {
   });
   detail = article.slice(0, 1400);
 
+  let deepAnalysis = buildDeepAnalysisFromFiling({
+    kind,
+    symbol: symbol || "—",
+    form,
+    title,
+    about,
+    numbersBrief,
+    interpretation,
+    article,
+    filingText: text,
+    hasFilingText: filingFetchOk,
+    metrics: cardLike.metrics,
+  });
+
   if (kind === "consensus" && cardLike.metrics) {
     const chg = Number(cardLike.metrics.consensusChangePct);
     if (Number.isFinite(chg)) {
@@ -752,6 +983,10 @@ export async function enrichAnnouncementCopy(cardLike) {
   const key = String(process.env.OPENAI_API_KEY ?? "").trim();
   if (key && (text || cardLike.metrics)) {
     try {
+      const systemDeep =
+        'Reply in Korean JSON only: {"headline":"<=40 chars","about":"2 short Korean sentences summarizing WHAT this filing says","numbers":"bullets with \\n from metrics/text only","interpretation":"2-4 short Korean judgments with numbers","article":"5-8 Korean paragraphs separated by \\n\\n","deepAnalysis":"Long structured Korean analysis using markdown ## headings exactly in this order: ## 한줄 요약, ## 핵심 실적·수치, ## 사업·세그먼트 포인트, ## 특이 항목 (기타이익·투자·CapEx·M&A), ## 재무상태·현금흐름, ## 리스크·소송·규제, ## 해석·투자 관점, ## 근거. Depth similar to a detailed 10-Q investor brief: tables of key figures when present, segment growth, one-offs vs operating income, capex/FCF, M&A, legal. Separate paragraphs with \\n\\n. Do NOT invent facts not in the text/metrics. Do NOT use generic how-to filler."}';
+      const systemShort =
+        'Reply in Korean JSON only: {"headline":"<=40 chars","about":"2 short Korean sentences summarizing WHAT this filing says","numbers":"bullets with \\n from metrics/text only","interpretation":"2-4 short Korean judgments with numbers","article":"5-8 Korean paragraphs separated by \\n\\n. Write as a readable article based on the EDGAR text: what was disclosed, key figures/agenda, and what it means. Do NOT invent facts not in the text/metrics. Do NOT use generic how-to filler.","deepAnalysis":"Same article expanded with ## section headings (한줄 요약 / 핵심 실적·수치 / 사업·세그먼트 포인트 / 특이 항목 / 재무상태·현금흐름 / 리스크·소송·규제 / 해석·투자 관점 / 근거) when useful; otherwise mirror article with those headings."}';
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -763,12 +998,11 @@ export async function enrichAnnouncementCopy(cardLike) {
             process.env.STOCK_ANNOUNCEMENT_LLM_MODEL ?? "gpt-4o-mini",
           ).trim(),
           temperature: 0.25,
-          max_tokens: 1400,
+          max_tokens: wantsDeep ? 3600 : 1800,
           messages: [
             {
               role: "system",
-              content:
-                'Reply in Korean JSON only: {"headline":"<=40 chars","about":"2 short Korean sentences summarizing WHAT this filing says","numbers":"bullets with \\n from metrics/text only","interpretation":"2-4 short Korean judgments with numbers","article":"5-8 Korean paragraphs separated by \\n\\n. Write as a readable article based on the EDGAR text: what was disclosed, key figures/agenda, and what it means. Do NOT invent facts not in the text/metrics. Do NOT use generic how-to filler."}',
+              content: wantsDeep ? systemDeep : systemShort,
             },
             {
               role: "user",
@@ -778,13 +1012,14 @@ Draft about: ${about}
 Draft numbers: ${numbersBrief}
 Draft interpretation: ${interpretation}
 Draft article (improve into natural Korean prose grounded in filing): ${article.slice(0, 2500)}
+Draft deepAnalysis outline (improve; keep ## headings): ${deepAnalysis.slice(0, wantsDeep ? 4500 : 2000)}
 EDGAR plain text (primary source — stay faithful):
-${text.slice(0, 14000)}
+${text.slice(0, wantsDeep ? 28000 : 14000)}
 Yahoo link: ${cardLike.yahooUrl || ""}`,
             },
           ],
         }),
-        signal: AbortSignal.timeout(55_000),
+        signal: AbortSignal.timeout(wantsDeep ? 90_000 : 55_000),
       });
       if (res.ok) {
         const data = await res.json();
@@ -799,6 +1034,12 @@ Yahoo link: ${cardLike.yahooUrl || ""}`,
             interpretation = String(parsed.interpretation).slice(0, 1600);
           }
           if (parsed.article) article = String(parsed.article).slice(0, 6000);
+          if (parsed.deepAnalysis) {
+            deepAnalysis = String(parsed.deepAnalysis).slice(
+              0,
+              DEEP_ANALYSIS_MAX_CHARS,
+            );
+          }
           detail = article.slice(0, 1400);
           engine = filingFetchOk ? "edgar+openai" : "metrics+openai";
         }
@@ -812,12 +1053,29 @@ Yahoo link: ${cardLike.yahooUrl || ""}`,
     about = article.split(/\n\n/)[0]?.slice(0, 400) || about;
   }
 
+  if (!deepAnalysis || deepAnalysis.length < 200) {
+    deepAnalysis = buildDeepAnalysisFromFiling({
+      kind,
+      symbol: symbol || "—",
+      form,
+      title,
+      about,
+      numbersBrief,
+      interpretation,
+      article,
+      filingText: text,
+      hasFilingText: filingFetchOk,
+      metrics: cardLike.metrics,
+    });
+  }
+
   return {
     headline,
     about,
     numbersBrief,
     interpretation,
     article,
+    deepAnalysis,
     detail,
     analysisVersion: ANNOUNCEMENT_ANALYSIS_VERSION,
     analysisEngine: engine,
