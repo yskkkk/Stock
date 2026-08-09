@@ -30,7 +30,7 @@ import {
   generateAnnouncementAiSummary,
   pctChange,
 } from "./us-announcement-analyze.js";
-import { enrichAnnouncementCopy, buildFilingHeadlineAndDetail } from "./us-announcement-summarize.js";
+import { enrichAnnouncementCopy, buildFilingHeadlineAndDetail, ANNOUNCEMENT_ANALYSIS_VERSION } from "./us-announcement-summarize.js";
 import { notifyUsAnnouncementCard } from "./us-announcement-notify.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
@@ -62,20 +62,13 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
   if (hasAnyAnnouncementDedupeKey(store, keys)) {
     return { inserted: false, card: null };
   }
-  const ai = await generateAnnouncementAiSummary({
-    kind: card.kind,
-    symbol: card.symbol,
-    title: card.title,
-    form: card.form,
-    metrics: card.metrics,
-  });
-  card.ai = {
-    summary: ai.summary,
-    generatedAt: Date.now(),
-    engine: ai.engine,
-  };
 
   const deepEnrich = opts.deepEnrich !== false;
+  /** @type {string | null} */
+  let linkInterpretation = null;
+  /** @type {string} */
+  let analysisEngine = "rules";
+
   try {
     if (deepEnrich) {
       const copy = await enrichAnnouncementCopy({
@@ -84,11 +77,17 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
         title: card.title,
         symbol: card.symbol,
         edgarUrl: card.links?.edgar,
+        yahooUrl: card.links?.yahooAnalysis,
         metrics: card.metrics,
       });
       card.headline = copy.headline;
+      card.about = copy.about;
+      card.numbersBrief = copy.numbersBrief;
       card.detail = copy.detail;
+      card.analysisVersion = copy.analysisVersion;
       card.enrichedAt = copy.enrichedAt;
+      linkInterpretation = copy.interpretation;
+      analysisEngine = copy.analysisEngine || "rules";
     } else {
       const copy = buildFilingHeadlineAndDetail(
         card.form ?? "",
@@ -98,13 +97,39 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
         card.metrics,
       );
       card.headline = copy.headline;
+      card.about = copy.about;
+      card.numbersBrief = copy.numbersBrief;
       card.detail = copy.detail;
+      card.analysisVersion = 3;
       card.enrichedAt = Date.now();
+      linkInterpretation = copy.interpretation;
     }
   } catch {
     card.headline = card.title || null;
-    card.detail = ai.summary || null;
     card.enrichedAt = Date.now();
+  }
+
+  if (linkInterpretation) {
+    card.ai = {
+      summary: linkInterpretation,
+      generatedAt: Date.now(),
+      engine: analysisEngine,
+    };
+  } else {
+    const ai = await generateAnnouncementAiSummary({
+      kind: card.kind,
+      symbol: card.symbol,
+      title: card.title,
+      form: card.form,
+      metrics: card.metrics,
+    });
+    card.ai = {
+      summary: ai.summary,
+      generatedAt: Date.now(),
+      engine: ai.engine,
+    };
+    if (!card.detail) card.detail = ai.summary;
+    if (!card.about) card.about = ai.summary;
   }
 
   const result = insertAnnouncementCard(store, card, keys);
@@ -179,8 +204,15 @@ export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
 
   for (const card of store.cards.slice(0, limit)) {
     const ver = Number(card.metrics?.metricVersion) || 0;
+    const analysisVer = Number(card.analysisVersion) || 0;
     const needMetrics = force || ver < ANNOUNCEMENT_METRIC_VERSION;
-    const needCopy = force || !card.headline || !card.detail || needMetrics;
+    const needCopy =
+      force ||
+      !card.headline ||
+      !card.about ||
+      !card.numbersBrief ||
+      analysisVer < ANNOUNCEMENT_ANALYSIS_VERSION ||
+      needMetrics;
 
     if (!needMetrics && !needCopy) continue;
 
@@ -210,22 +242,6 @@ export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
               }
             : {}),
         });
-        try {
-          const ai = await generateAnnouncementAiSummary({
-            kind: card.kind,
-            symbol: card.symbol,
-            title: card.title,
-            form: card.form,
-            metrics: card.metrics,
-          });
-          card.ai = {
-            summary: ai.summary,
-            generatedAt: Date.now(),
-            engine: ai.engine,
-          };
-        } catch {
-          /* keep old ai */
-        }
         metricsRefreshed += 1;
       }
     }
@@ -238,11 +254,20 @@ export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
         title: card.title,
         symbol: card.symbol,
         edgarUrl: card.links?.edgar,
+        yahooUrl: card.links?.yahooAnalysis,
         metrics: card.metrics,
       });
       card.headline = copy.headline;
+      card.about = copy.about;
+      card.numbersBrief = copy.numbersBrief;
       card.detail = copy.detail;
+      card.analysisVersion = copy.analysisVersion;
       card.enrichedAt = copy.enrichedAt;
+      card.ai = {
+        summary: copy.interpretation,
+        generatedAt: Date.now(),
+        engine: copy.analysisEngine || "rules",
+      };
       enriched += 1;
     } catch (e) {
       liveTradeLogWarn(

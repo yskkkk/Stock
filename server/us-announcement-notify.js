@@ -39,6 +39,9 @@ export function buildAnnouncementNotifyText(card) {
   if (card.headline && card.title && card.headline !== card.title) {
     lines.push(card.title);
   }
+  if (card.about) {
+    lines.push("", `발표 요지: ${card.about}`);
+  }
   const m = card.metrics || {};
   const a = formatPctLine("컨센 대비", m.vsConsensusPct);
   const b = formatPctLine("전년 대비", m.yoyPct);
@@ -55,8 +58,11 @@ export function buildAnnouncementNotifyText(card) {
     lines.push(c);
     if (m.consensusChangeLabel) lines.push(`  · ${m.consensusChangeLabel}`);
   }
-  if (card.detail) lines.push("", card.detail);
-  else if (card.ai?.summary) lines.push("", card.ai.summary);
+  if (card.numbersBrief) {
+    lines.push("", `주요 수치: ${card.numbersBrief}`);
+  }
+  if (card.ai?.summary) lines.push("", `AI 해석: ${card.ai.summary}`);
+  else if (card.detail && !card.about) lines.push("", card.detail);
   if (card.links?.edgar) lines.push("", `EDGAR: ${card.links.edgar}`);
   if (card.links?.yahooAnalysis) {
     lines.push(`Yahoo: ${card.links.yahooAnalysis}`);

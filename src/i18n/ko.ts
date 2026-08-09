@@ -1435,7 +1435,9 @@ export const ko = {
     consensusChg: "컨센 변동",
     metricNa:
       "Yahoo Beat/Miss·전년 동기 EPS·직전 컨센 스냅이 없을 때 비어 있습니다.",
-    aiLabel: "AI 의견",
+    aboutLabel: "발표 요지",
+    numbersLabel: "주요 수치",
+    aiLabel: "AI 해석",
     detailLabel: "자세한 설명",
     loadFail: "발표 목록을 불러오지 못했습니다.",
     scanFail: "스캔에 실패했습니다.",

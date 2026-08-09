@@ -1,7 +1,10 @@
 /**
- * 발표 카드 소제목·상세 — 공시 본문/메타 기반 (+ optional OpenAI)
+ * EDGAR/링크 본문 → 발표 요지·수치·AI 해석 (규칙 + optional OpenAI)
  */
 import { fetchEdgarFilingPlainText } from "./us-announcement-filing-text.js";
+
+/** 카드 링크 분석 스키마 버전 */
+export const ANNOUNCEMENT_ANALYSIS_VERSION = 3;
 
 /**
  * @param {number | null | undefined} pct
@@ -14,6 +17,225 @@ function fmtPct(pct) {
 }
 
 /**
+ * @param {number | null | undefined} n
+ * @param {number} [d]
+ */
+function fmtNum(n, d = 2) {
+  if (n == null || !Number.isFinite(Number(n))) return null;
+  return Number(n).toFixed(d);
+}
+
+/**
+ * 공시 평문에서 자주 쓰는 수치 패턴 추출
+ * @param {string} text
+ * @returns {string[]}
+ */
+export function extractFilingNumberLines(text) {
+  const body = String(text ?? "").replace(/\s+/g, " ");
+  if (!body) return [];
+  /** @type {string[]} */
+  const hits = [];
+  const patterns = [
+    {
+      re: /(?:diluted\s+)?(?:net\s+)?(?:income|earnings)\s+(?:per\s+(?:common\s+)?share|EPS)[^.]{0,40}?\$?\s*([0-9]+(?:\.[0-9]+)?)/gi,
+      label: "희석/주당이익(EPS)",
+    },
+    {
+      re: /(?:basic|diluted)\s+EPS[^.]{0,30}?\$?\s*([0-9]+(?:\.[0-9]+)?)/gi,
+      label: "EPS",
+    },
+    {
+      re: /(?:total\s+)?revenues?(?:\s+was|\s+were|\s+of|:)?[^.]{0,40}?\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million|bn|mn)?/gi,
+      label: "매출",
+    },
+    {
+      re: /operating\s+(?:income|profit)[^.]{0,40}?\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million|bn|mn)?/gi,
+      label: "영업이익",
+    },
+    {
+      re: /net\s+income[^.]{0,40}?\$?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?|\d+(?:\.\d+)?)\s*(billion|million|bn|mn)?/gi,
+      label: "순이익",
+    },
+    {
+      re: /(?:full[- ]year|FY\s*\d{2,4}|fiscal\s+year)[^.]{0,80}?(?:EPS|earnings per share|revenue)[^.]{0,60}?\$?\s*([0-9]+(?:\.[0-9]+)?)/gi,
+      label: "연간 가이던스 수치",
+    },
+    {
+      re: /(?:expects?|guides?|outlook)[^.]{0,100}?\$?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:to|-|–)\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/gi,
+      label: "가이던스 레인지",
+    },
+  ];
+
+  for (const { re, label } of patterns) {
+    re.lastIndex = 0;
+    let m;
+    let guard = 0;
+    while ((m = re.exec(body)) && guard < 3) {
+      guard += 1;
+      const unit = m[2] ? ` ${m[2]}` : "";
+      const range = m[3] ? `–${m[3]}` : "";
+      const val = `${m[1]}${range}${unit}`.trim();
+      const line = `${label} ${val}`.slice(0, 120);
+      if (!hits.includes(line)) hits.push(line);
+    }
+  }
+  return hits.slice(0, 6);
+}
+
+/**
+ * @param {string} form
+ * @param {string} kind
+ * @param {string} title
+ * @param {string} text
+ */
+export function buildAboutFromFiling(form, kind, title, text) {
+  const f = String(form ?? "").toUpperCase();
+  const k = String(kind ?? "");
+  const t = String(title ?? "").trim();
+  const body = String(text ?? "").trim();
+  const lower = body.toLowerCase();
+
+  if (k === "consensus") {
+    return `${t || "애널리스트 컨센서스"} 변경 이벤트입니다. Yahoo Analysis 추정치 스냅샷을 기준으로 직전 대비 움직임을 카드에 표시합니다.`;
+  }
+  if (k === "governance" || /DEF\s*14/i.test(f)) {
+    if (/compensation|executive|pay/i.test(body)) {
+      return "임원 보상·주주총회(Proxy) 관련 공시입니다. 보수·이사회·주주제안 안건을 다룹니다.";
+    }
+    return "주주총회·지배구조(Proxy) 공시입니다. 이사회·의결권·주주제안 등 거버넌스 안건이 핵심입니다.";
+  }
+  if (k === "guidance" || f.startsWith("8-K")) {
+    const hasGuidance =
+      /guidance|outlook|expects|full[- ]year|fiscal year/i.test(body) ||
+      /item\s*2\.02|item\s*7\.01|item\s*8\.01/i.test(body);
+    const hasEarn =
+      /results of operations|earnings|quarterly results|item\s*2\.02/i.test(body);
+    if (hasGuidance && hasEarn) {
+      return "실적(Results)과 가이던스·아웃룩을 함께 업데이트한 8-K입니다. 확정 숫자와 향후 전망을 한 번에 봅니다.";
+    }
+    if (hasGuidance) {
+      return "경영진 가이던스·아웃룩을 담은 8-K입니다. 매출·EPS 레인지와 전제(환율·수요 등)가 핵심입니다.";
+    }
+    if (hasEarn) {
+      return "분기/연간 실적(Results of Operations) 관련 8-K입니다. 잠정·확정 실적 숫자를 공시합니다.";
+    }
+    const item = body.match(/Item\s+(\d+\.\d+)/i);
+    return item
+      ? `중요 사건(8-K) 공시입니다. 주요 항목 Item ${item[1]}을 확인하세요.`
+      : t && t !== "8-K"
+        ? `중요 사건(8-K): ${t.slice(0, 100)}`
+        : "중요 사건(8-K) 공시입니다. 원문 Item을 확인하세요.";
+  }
+  if (k === "earnings" || /^10-[QK]/.test(f)) {
+    if (f.startsWith("10-K")) {
+      return "연간 보고서(10-K) 제출입니다. 연간 재무제표·MD&A·리스크·거버넌스 요약이 포함됩니다.";
+    }
+    return "분기 보고서(10-Q) 제출입니다. 분기 재무제표·MD&A·주석이 포함되며, 잠정 실적 8-K 이후 확정 숫자가 정리됩니다.";
+  }
+  if (body) {
+    const snip = body.slice(0, 160).replace(/\s+/g, " ");
+    return `기업 공시입니다. 원문 요지: ${snip}${body.length > 160 ? "…" : ""}`;
+  }
+  return t ? `발표: ${t.slice(0, 120)}` : "기업 공시 이벤트입니다.";
+}
+
+/**
+ * Yahoo 메트릭 + 공시 추출 수치 → 한 블록
+ * @param {Record<string, unknown> | null | undefined} metrics
+ * @param {string[]} filingLines
+ */
+export function buildNumbersBrief(metrics, filingLines) {
+  /** @type {string[]} */
+  const parts = [];
+  const m = metrics && typeof metrics === "object" ? metrics : null;
+  if (m) {
+    const vs = fmtPct(/** @type {number|null} */ (m.vsConsensusPct));
+    const yoy = fmtPct(/** @type {number|null} */ (m.yoyPct));
+    const chg = fmtPct(/** @type {number|null} */ (m.consensusChangePct));
+    if (m.vsConsensusLabel && vs) {
+      parts.push(`컨센 대비 ${vs} — ${m.vsConsensusLabel}`);
+    } else if (vs) {
+      parts.push(`컨센 대비 ${vs}`);
+    }
+    if (m.yoyLabel && yoy) {
+      parts.push(`전년 대비 ${yoy} — ${m.yoyLabel}`);
+    } else if (yoy) {
+      parts.push(`전년 대비 ${yoy}`);
+    }
+    if (m.consensusChangeLabel && chg) {
+      parts.push(`컨센 변동 ${chg} — ${m.consensusChangeLabel}`);
+    } else if (chg) {
+      parts.push(`컨센 변동 ${chg}`);
+    }
+    const q = fmtNum(/** @type {number|null} */ (m.quarterConsensusEps));
+    const rep = fmtNum(/** @type {number|null} */ (m.reportedEps));
+    const trail = fmtNum(/** @type {number|null} */ (m.trailingEps));
+    const fwd = fmtNum(/** @type {number|null} */ (m.consensusEps));
+    if (rep) parts.push(`Yahoo 최근 확정 EPS ${rep}`);
+    if (q) parts.push(`당분기 컨센 EPS ${q}`);
+    if (fwd) parts.push(`포워드 EPS ${fwd}`);
+    if (trail) parts.push(`트레일링 EPS ${trail}`);
+    if (m.numAnalysts != null) parts.push(`애널 수 ${m.numAnalysts}`);
+  }
+  for (const line of filingLines) {
+    if (!parts.some((p) => p.includes(line.slice(0, 24)))) {
+      parts.push(`공시 본문: ${line}`);
+    }
+  }
+  if (!parts.length) {
+    return "링크·Yahoo에서 바로 뽑을 핵심 수치가 부족합니다. EDGAR 원문과 Yahoo Analysis를 함께 확인하세요.";
+  }
+  return parts.slice(0, 8).join(" · ");
+}
+
+/**
+ * @param {{
+ *   kind: string;
+ *   symbol: string;
+ *   form?: string | null;
+ *   title?: string;
+ *   about: string;
+ *   numbersBrief: string;
+ *   metrics?: Record<string, unknown> | null;
+ *   filingLines?: string[];
+ *   hasFilingText?: boolean;
+ * }} args
+ */
+export function buildInterpretationFromBrief(args) {
+  const { kind, symbol, form, about, numbersBrief, hasFilingText } = args;
+  const parts = [];
+  parts.push(`${symbol}: ${about}`);
+  if (numbersBrief) {
+    parts.push(`수치 요약 — ${numbersBrief}`);
+  }
+  if (kind === "earnings") {
+    parts.push(
+      "해석: 정기보고서 숫자는 GAAP/Non-GAAP·일회성 여부에 따라 Yahoo 컨센과 어긋날 수 있습니다. Beat/Miss·전년 동기·가이던스 톤을 함께 보고, 세그먼트·현금흐름까지 원문에서 확인하세요.",
+    );
+  } else if (kind === "guidance") {
+    parts.push(
+      "해석: 가이던스가 컨센보다 보수/낙관이면 이후 컨센 조정·배수 재평가 재료가 됩니다. 레인지 중앙값과 전제 가정을 원문에서 확인하세요.",
+    );
+  } else if (kind === "consensus") {
+    parts.push(
+      "해석: 애널 컨센 이동은 실적·가이던스·매크로 반영일 수 있습니다. 이미 주가에 선반영됐는지 Analysis·차트와 함께 보세요.",
+    );
+  } else if (kind === "governance") {
+    parts.push(
+      "해석: 배당·자사주·희석·이사회 변화가 자본배분·지배구조에 미치는 영향을 원문 안건 기준으로 판단하세요.",
+    );
+  }
+  if (hasFilingText) {
+    parts.push(`근거: EDGAR${form ? ` (${form})` : ""} 본문을 읽어 요지·수치를 정리했습니다.`);
+  } else {
+    parts.push(
+      "근거: 공시 본문 수집이 안 되어 Yahoo 메트릭·양식 메타 중심입니다. 링크를 열어 원문을 확인하세요.",
+    );
+  }
+  return parts.join(" ").slice(0, 1600);
+}
+
+/**
  * @param {string} form
  * @param {string} kind
  * @param {string} title
@@ -21,116 +243,48 @@ function fmtPct(pct) {
  * @param {Record<string, unknown> | null | undefined} [metrics]
  */
 export function buildFilingHeadlineAndDetail(form, kind, title, text, metrics) {
-  const f = String(form ?? "").toUpperCase();
-  const k = String(kind ?? "");
-  const t = String(title ?? "").trim();
-  const body = String(text ?? "").trim();
-  const lower = body.toLowerCase();
-  const m = metrics && typeof metrics === "object" ? metrics : null;
+  const about = buildAboutFromFiling(form, kind, title, text);
+  const filingLines = extractFilingNumberLines(text);
+  const numbersBrief = buildNumbersBrief(metrics, filingLines);
+  const interpretation = buildInterpretationFromBrief({
+    kind,
+    symbol: "",
+    form,
+    title,
+    about,
+    numbersBrief,
+    filingLines,
+    hasFilingText: Boolean(String(text ?? "").trim()),
+  });
 
   /** @type {string} */
   let headline = "";
-  /** @type {string[]} */
-  const detailParts = [];
-
-  if (k === "guidance" || f.startsWith("8-K")) {
-    const hasGuidance =
-      /guidance|outlook|expects|full[- ]year|fiscal year|provides update/i.test(
-        body,
-      ) || /item\s*2\.02|item\s*7\.01|item\s*8\.01/i.test(body);
-    const hasEarn =
-      /results of operations|earnings|quarterly results|item\s*2\.02/i.test(body);
-    if (hasGuidance && hasEarn) {
-      headline = "실적 발표와 함께 가이던스·전망을 업데이트한 8-K";
-    } else if (hasGuidance) {
-      headline = "경영진 가이던스·아웃룩을 담은 8-K";
-    } else if (hasEarn) {
-      headline = "분기/연간 실적(Results) 관련 8-K";
-    } else {
-      headline = t && t !== "8-K" ? t.slice(0, 80) : "중요 사건(8-K) 공시";
-    }
-    const itemMatch = body.match(/Item\s+(\d+\.\d+)[^\n.]{0,120}/i);
-    if (itemMatch) detailParts.push(`주요 항목: Item ${itemMatch[1]}.`);
-    if (/raises|increases|above|higher than/i.test(lower)) {
-      detailParts.push("톤상 상향·호조 언급이 보입니다.");
-    } else if (/lowers|reduces|below|weak|decline/i.test(lower)) {
-      detailParts.push("톤상 하향·둔화 언급이 보입니다.");
-    }
-  } else if (k === "governance" || /DEF\s*14/i.test(f)) {
-    if (/compensation|executive|pay/i.test(body)) {
-      headline = "임원 보상·주주총회(Proxy) 관련 공시";
-    } else if (/director|board|nominee/i.test(body)) {
-      headline = "이사회·이사 선임 관련 Proxy 공시";
-    } else if (/shareholder proposal|proposal/i.test(body)) {
-      headline = "주주제안·의결 안건이 포함된 Proxy";
-    } else {
-      headline = "주주총회·지배구조(Proxy) 공시";
-    }
-    detailParts.push(
-      "이사회 구성, 경영진 보수, 주주제안 등 거버넌스 안건을 확인하는 자료입니다.",
-    );
-  } else if (k === "earnings" || /^10-[QK]/.test(f)) {
-    headline =
-      f.startsWith("10-K")
-        ? "연간 보고서(10-K) 제출"
-        : "분기 보고서(10-Q) 제출";
-    detailParts.push(
-      "확정 재무제표·MD&A·주석이 포함됩니다. 카드 상단 %는 Yahoo 컨센·실적 히스토리 기준이며, 보고서 GAAP/Non-GAAP과 다를 수 있습니다.",
-    );
-    if (m) {
-      const vs = fmtPct(/** @type {number|null} */ (m.vsConsensusPct));
-      const yoy = fmtPct(/** @type {number|null} */ (m.yoyPct));
-      const chg = fmtPct(/** @type {number|null} */ (m.consensusChangePct));
-      if (m.vsConsensusLabel && vs) {
-        detailParts.push(`컨센 대비: ${m.vsConsensusLabel} → ${vs}.`);
-      } else {
-        detailParts.push(
-          "컨센 대비(Beat/Miss) 수치가 비어 있으면 Yahoo에 최근 확정 EPS·당시 추정치가 없거나 아직 반영 전입니다.",
-        );
-      }
-      if (m.yoyLabel && yoy) {
-        detailParts.push(`전년 대비: ${m.yoyLabel} → ${yoy}.`);
-      } else {
-        detailParts.push(
-          "전년 대비는 보통 ‘당분기 컨센 EPS vs 전년 동기 EPS’입니다. 매출·영업이익 YoY와 혼동하지 마세요.",
-        );
-      }
-      if (m.consensusChangeLabel && chg) {
-        detailParts.push(`컨센 변동: ${m.consensusChangeLabel} → ${chg}.`);
-      } else {
-        detailParts.push(
-          "컨센 변동은 서버에 직전 애널 컨센 스냅샷이 저장된 뒤에만 표시됩니다.",
-        );
-      }
-    }
-    detailParts.push(
-      "원문에서 희석 EPS·매출·영업이익·세그먼트·현금흐름을 찾아 Yahoo Analysis·회사 가이던스와 맞춰 보세요.",
-    );
+  const f = String(form ?? "").toUpperCase();
+  const k = String(kind ?? "");
+  if (k === "earnings" || /^10-[QK]/.test(f)) {
+    headline = f.startsWith("10-K")
+      ? "연간 보고서(10-K) 제출"
+      : "분기 보고서(10-Q) 제출";
+  } else if (k === "guidance" || f.startsWith("8-K")) {
+    headline = about.includes("가이던스")
+      ? "가이던스·아웃룩 8-K"
+      : about.includes("실적")
+        ? "실적 관련 8-K"
+        : "중요 사건(8-K) 공시";
+  } else if (k === "governance") {
+    headline = "거버넌스·Proxy 공시";
   } else if (k === "consensus") {
-    headline = t || "애널리스트 컨센서스 변경";
-    detailParts.push(
-      "증권사 추정 평균이 직전 스냅샷 대비 의미 있게 움직였습니다.",
-    );
-    if (m?.consensusChangeLabel) {
-      const chg = fmtPct(/** @type {number|null} */ (m.consensusChangePct));
-      detailParts.push(
-        `${m.consensusChangeLabel}${chg ? ` → ${chg}` : ""}.`,
-      );
-    }
+    headline = String(title ?? "컨센서스 변경").slice(0, 80);
   } else {
-    headline = t ? t.slice(0, 80) : "기업 공시";
-  }
-
-  if (body) {
-    const snip = body.slice(0, 220).replace(/\s+/g, " ").trim();
-    if (snip) detailParts.push(`원문 요지: ${snip}${body.length > 220 ? "…" : ""}`);
-  } else if (!detailParts.length) {
-    detailParts.push("원문 링크에서 세부 수치·문구를 확인하세요.");
+    headline = String(title ?? "기업 공시").slice(0, 80);
   }
 
   return {
     headline: headline.slice(0, 120),
-    detail: detailParts.join(" ").slice(0, 1400),
+    about: about.slice(0, 500),
+    numbersBrief: numbersBrief.slice(0, 900),
+    interpretation: interpretation.slice(0, 1600),
+    detail: `${about} ${numbersBrief}`.slice(0, 1400),
   };
 }
 
@@ -141,6 +295,7 @@ export function buildFilingHeadlineAndDetail(form, kind, title, text, metrics) {
  *   title?: string;
  *   symbol?: string;
  *   edgarUrl?: string | null;
+ *   yahooUrl?: string | null;
  *   metrics?: Record<string, unknown>;
  * }} cardLike
  */
@@ -148,34 +303,44 @@ export async function enrichAnnouncementCopy(cardLike) {
   const form = cardLike.form ?? null;
   const kind = String(cardLike.kind ?? "");
   const title = String(cardLike.title ?? "");
+  const symbol = String(cardLike.symbol ?? "").toUpperCase();
   let text = "";
+  let filingFetchOk = false;
 
   if (cardLike.edgarUrl) {
-    const fetched = await fetchEdgarFilingPlainText(cardLike.edgarUrl);
-    if (fetched.ok) text = fetched.text;
+    const fetched = await fetchEdgarFilingPlainText(cardLike.edgarUrl, {
+      maxChars: 24_000,
+    });
+    if (fetched.ok) {
+      text = fetched.text;
+      filingFetchOk = true;
+    }
   }
 
-  let { headline, detail } = buildFilingHeadlineAndDetail(
-    form ?? "",
+  let { headline, about, numbersBrief, interpretation, detail } =
+    buildFilingHeadlineAndDetail(form ?? "", kind, title, text, cardLike.metrics);
+
+  interpretation = buildInterpretationFromBrief({
     kind,
+    symbol: symbol || "—",
+    form,
     title,
-    text,
-    cardLike.metrics,
-  );
+    about,
+    numbersBrief,
+    hasFilingText: filingFetchOk,
+  });
 
   if (kind === "consensus" && cardLike.metrics) {
     const chg = Number(cardLike.metrics.consensusChangePct);
     if (Number.isFinite(chg)) {
-      headline = `${cardLike.symbol ?? ""} 컨센 ${chg >= 0 ? "상향" : "하향"} ${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%`.trim();
-      const label = cardLike.metrics.consensusChangeLabel
-        ? String(cardLike.metrics.consensusChangeLabel)
-        : "애널리스트 합의 EPS";
-      detail = `${label} → ${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%. Yahoo Analysis에서 기간(0q/0y)·애널 수를 함께 확인하세요.`;
+      headline = `${symbol} 컨센 ${chg >= 0 ? "상향" : "하향"} ${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%`.trim();
+      about = `${symbol} 애널리스트 합의 EPS가 직전 스냅샷 대비 ${chg >= 0 ? "상향" : "하향"}된 이벤트입니다. Yahoo Analysis 링크의 기간별 추정치를 함께 보세요.`;
     }
   }
 
+  let engine = filingFetchOk ? "edgar+rules" : "metrics+rules";
   const key = String(process.env.OPENAI_API_KEY ?? "").trim();
-  if (key && text) {
+  if (key && (text || cardLike.metrics)) {
     try {
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -184,22 +349,31 @@ export async function enrichAnnouncementCopy(cardLike) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: String(process.env.STOCK_ANNOUNCEMENT_LLM_MODEL ?? "gpt-4o-mini").trim(),
+          model: String(
+            process.env.STOCK_ANNOUNCEMENT_LLM_MODEL ?? "gpt-4o-mini",
+          ).trim(),
           temperature: 0.2,
-          max_tokens: 280,
+          max_tokens: 650,
           messages: [
             {
               role: "system",
               content:
-                "Reply in Korean JSON only: {\"headline\":\"<=40 chars one-line\",\"detail\":\"2-4 short sentences\"}. No inventing numbers not in text.",
+                'Reply in Korean JSON only: {"headline":"<=40 chars","about":"2-3 sentences: what this announcement is","numbers":"2-4 sentences: key figures only from inputs","interpretation":"3-5 sentences: what it means for investors"}. Do not invent numbers not present in metrics or text.',
             },
             {
               role: "user",
-              content: `Symbol ${cardLike.symbol} form ${form} kind ${kind}\nDraft headline: ${headline}\nText:\n${text.slice(0, 6000)}`,
+              content: `Symbol ${symbol} form ${form} kind ${kind} title ${title}
+Yahoo/metrics JSON: ${JSON.stringify(cardLike.metrics || {})}
+Draft about: ${about}
+Draft numbers: ${numbersBrief}
+Draft interpretation: ${interpretation}
+EDGAR/link text (may be empty):
+${text.slice(0, 9000)}
+Yahoo link (context only, may not be fetched): ${cardLike.yahooUrl || ""}`,
             },
           ],
         }),
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(35_000),
       });
       if (res.ok) {
         const data = await res.json();
@@ -208,7 +382,13 @@ export async function enrichAnnouncementCopy(cardLike) {
         if (m) {
           const parsed = JSON.parse(m[0]);
           if (parsed.headline) headline = String(parsed.headline).slice(0, 120);
-          if (parsed.detail) detail = String(parsed.detail).slice(0, 900);
+          if (parsed.about) about = String(parsed.about).slice(0, 700);
+          if (parsed.numbers) numbersBrief = String(parsed.numbers).slice(0, 900);
+          if (parsed.interpretation) {
+            interpretation = String(parsed.interpretation).slice(0, 1600);
+          }
+          detail = `${about} ${numbersBrief}`.slice(0, 1400);
+          engine = filingFetchOk ? "edgar+openai" : "metrics+openai";
         }
       }
     } catch {
@@ -218,7 +398,13 @@ export async function enrichAnnouncementCopy(cardLike) {
 
   return {
     headline,
+    about,
+    numbersBrief,
+    interpretation,
     detail,
+    analysisVersion: ANNOUNCEMENT_ANALYSIS_VERSION,
+    analysisEngine: engine,
+    filingTextChars: text.length,
     enrichedAt: Date.now(),
   };
 }

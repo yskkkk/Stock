@@ -313,7 +313,10 @@ export type UsAnnouncementCard = {
   };
   ai: { summary: string; generatedAt: number; engine?: string };
   headline?: string | null;
+  about?: string | null;
+  numbersBrief?: string | null;
   detail?: string | null;
+  analysisVersion?: number | null;
   enrichedAt?: number | null;
   links: {
     edgar?: string | null;

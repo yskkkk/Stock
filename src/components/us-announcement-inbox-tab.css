@@ -313,6 +313,31 @@
   color: var(--muted, #64748b);
 }
 
+.us-ann-inbox__about,
+.us-ann-inbox__numbers {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text, #0f172a) 4%, transparent);
+}
+
+.us-ann-inbox__about-label,
+.us-ann-inbox__numbers-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  color: var(--muted, #64748b);
+}
+
+.us-ann-inbox__about-body,
+.us-ann-inbox__numbers-body {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 .us-ann-inbox__pct--up {
   color: #15803d;
 }

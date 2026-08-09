@@ -22,7 +22,7 @@ import {
 import { classifySecForm, buildEdgarDocumentUrl } from "./us-announcement-edgar.js";
 import { consensusEpsChangedEnough, metricsFromYahooSnapshot } from "./us-announcement-consensus.js";
 import { buildAnnouncementNotifyText } from "./us-announcement-notify.js";
-import { buildFilingHeadlineAndDetail } from "./us-announcement-summarize.js";
+import { buildFilingHeadlineAndDetail, extractFilingNumberLines } from "./us-announcement-summarize.js";
 import { htmlToPlainText } from "./us-announcement-filing-text.js";
 
 describe("us-announcement-analyze", () => {
@@ -341,12 +341,12 @@ describe("notify text", () => {
 });
 
 describe("filing headline/detail", () => {
-  it("builds earnings detail with metric meanings", () => {
-    const { headline, detail } = buildFilingHeadlineAndDetail(
+  it("builds earnings about/numbers/interpretation", () => {
+    const pack = buildFilingHeadlineAndDetail(
       "10-Q",
       "earnings",
       "10-Q",
-      "",
+      "Diluted earnings per share was $2.10. Total revenues were $90.0 billion.",
       {
         yoyPct: -26.1,
         yoyLabel: "당분기 컨센 EPS(2.00) vs 전년 동기 EPS(2.70)",
@@ -354,20 +354,29 @@ describe("filing headline/detail", () => {
         vsConsensusLabel: "최근 확정 EPS(2.10) vs 당시 컨센(2.00)",
       },
     );
-    expect(headline).toMatch(/10-Q|분기/);
-    expect(detail).toMatch(/전년 대비/);
-    expect(detail).toMatch(/컨센 대비/);
-    expect(detail.length).toBeGreaterThan(80);
+    expect(pack.headline).toMatch(/10-Q|분기/);
+    expect(pack.about).toMatch(/10-Q|분기/);
+    expect(pack.numbersBrief).toMatch(/컨센 대비|전년 대비|EPS|매출/);
+    expect(pack.interpretation.length).toBeGreaterThan(40);
+  });
+
+  it("extracts EPS and revenue lines from filing text", () => {
+    const lines = extractFilingNumberLines(
+      "Diluted earnings per share $1.25. Total revenues were $50.2 billion. Net income $10.0 billion.",
+    );
+    expect(lines.some((l) => /EPS|주당/i.test(l))).toBe(true);
+    expect(lines.some((l) => /매출|revenue/i.test(l))).toBe(true);
   });
 
   it("builds guidance headline from 8-K text", () => {
-    const { headline, detail } = buildFilingHeadlineAndDetail(
+    const { headline, about, detail } = buildFilingHeadlineAndDetail(
       "8-K",
       "guidance",
       "8-K",
       "Item 2.02 Results of Operations. The Company provides full-year guidance and outlook.",
     );
-    expect(headline).toMatch(/가이던스|실적/);
+    expect(headline).toMatch(/가이던스|실적|8-K/);
+    expect(about).toMatch(/가이던스|실적|8-K/);
     expect(detail.length).toBeGreaterThan(10);
   });
 

@@ -374,6 +374,15 @@ export default function UsAnnouncementInboxTab() {
                 <p className="us-ann-inbox__card-sub">{card.title}</p>
               ) : null}
 
+              {card.about ? (
+                <div className="us-ann-inbox__about">
+                  <span className="us-ann-inbox__about-label">
+                    {ko.usAnnouncement.aboutLabel}
+                  </span>
+                  <p className="us-ann-inbox__about-body">{card.about}</p>
+                </div>
+              ) : null}
+
               <dl className="us-ann-inbox__metrics">
                 <div>
                   <dt>{ko.usAnnouncement.vsConsensus}</dt>
@@ -413,6 +422,15 @@ export default function UsAnnouncementInboxTab() {
                 </div>
               </dl>
 
+              {card.numbersBrief ? (
+                <div className="us-ann-inbox__numbers">
+                  <span className="us-ann-inbox__numbers-label">
+                    {ko.usAnnouncement.numbersLabel}
+                  </span>
+                  <p className="us-ann-inbox__numbers-body">{card.numbersBrief}</p>
+                </div>
+              ) : null}
+
               {card.ai?.summary ? (
                 <p className="us-ann-inbox__ai">
                   <span className="us-ann-inbox__ai-label">
@@ -422,7 +440,7 @@ export default function UsAnnouncementInboxTab() {
                 </p>
               ) : null}
 
-              {card.detail ? (
+              {!card.about && card.detail ? (
                 <div className="us-ann-inbox__detail">
                   <span className="us-ann-inbox__detail-label">
                     {ko.usAnnouncement.detailLabel}
