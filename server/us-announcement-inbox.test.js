@@ -22,7 +22,7 @@ import {
 import { classifySecForm, buildEdgarDocumentUrl } from "./us-announcement-edgar.js";
 import { consensusEpsChangedEnough, metricsFromYahooSnapshot } from "./us-announcement-consensus.js";
 import { buildAnnouncementNotifyText } from "./us-announcement-notify.js";
-import { buildFilingHeadlineAndDetail, extractFilingNumberLines } from "./us-announcement-summarize.js";
+import { buildFilingHeadlineAndDetail, extractFilingNumberLines, buildArticleFromFiling, pickFilingExcerpts } from "./us-announcement-summarize.js";
 import { htmlToPlainText } from "./us-announcement-filing-text.js";
 
 describe("us-announcement-analyze", () => {
@@ -467,6 +467,27 @@ describe("filing headline/detail", () => {
     expect(headline).toMatch(/가이던스|실적|8-K/);
     expect(about).toMatch(/가이던스|실적|8-K/);
     expect(detail.length).toBeGreaterThan(10);
+  });
+
+  it("builds Korean article from filing excerpts", () => {
+    const text =
+      "Item 2.02 Results of Operations. The Company reported diluted earnings per share of $2.10. Total revenues were $90.0 billion for the quarter. The Company provides full-year guidance and outlook for fiscal year.";
+    const excerpts = pickFilingExcerpts(text, "guidance", 3);
+    expect(excerpts.length).toBeGreaterThan(0);
+    const article = buildArticleFromFiling({
+      kind: "guidance",
+      symbol: "AMZN",
+      form: "8-K",
+      title: "8-K",
+      about: "실적·가이던스 8-K입니다.",
+      numbersBrief: "컨센 대비 +1.0%",
+      interpretation: "해석: 가이던스 톤을 확인하세요.",
+      filingText: text,
+      hasFilingText: true,
+    });
+    expect(article).toMatch(/AMZN/);
+    expect(article).toMatch(/EDGAR|원문/);
+    expect(article.length).toBeGreaterThan(120);
   });
 
   it("strips html", () => {

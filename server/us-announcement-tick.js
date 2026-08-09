@@ -30,7 +30,7 @@ import {
   generateAnnouncementAiSummary,
   pctChange,
 } from "./us-announcement-analyze.js";
-import { enrichAnnouncementCopy, buildFilingHeadlineAndDetail, ANNOUNCEMENT_ANALYSIS_VERSION } from "./us-announcement-summarize.js";
+import { enrichAnnouncementCopy, buildFilingHeadlineAndDetail, buildArticleFromFiling, ANNOUNCEMENT_ANALYSIS_VERSION } from "./us-announcement-summarize.js";
 import { notifyUsAnnouncementCard } from "./us-announcement-notify.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "./live-trade-log.js";
 
@@ -84,6 +84,7 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
       card.about = copy.about;
       card.numbersBrief = copy.numbersBrief;
       card.detail = copy.detail;
+      card.article = copy.article;
       card.analysisVersion = copy.analysisVersion;
       card.enrichedAt = copy.enrichedAt;
       linkInterpretation = copy.interpretation;
@@ -101,6 +102,18 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
       card.about = copy.about;
       card.numbersBrief = copy.numbersBrief;
       card.detail = copy.detail;
+      card.article = buildArticleFromFiling({
+        kind: card.kind,
+        symbol: card.symbol,
+        form: card.form,
+        title: card.title,
+        about: copy.about,
+        numbersBrief: copy.numbersBrief,
+        interpretation: copy.interpretation,
+        filingText: "",
+        hasFilingText: false,
+        metrics: card.metrics,
+      });
       card.analysisVersion = ANNOUNCEMENT_ANALYSIS_VERSION;
       card.enrichedAt = Date.now();
       linkInterpretation = copy.interpretation;
@@ -212,6 +225,7 @@ export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
       !card.headline ||
       !card.about ||
       !card.numbersBrief ||
+      !card.article ||
       analysisVer < ANNOUNCEMENT_ANALYSIS_VERSION ||
       needMetrics;
 
@@ -262,6 +276,7 @@ export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
       card.about = copy.about;
       card.numbersBrief = copy.numbersBrief;
       card.detail = copy.detail;
+      card.article = copy.article;
       card.analysisVersion = copy.analysisVersion;
       card.enrichedAt = copy.enrichedAt;
       card.ai = {

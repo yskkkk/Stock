@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   addUsAnnouncementWatch,
   fetchUsAnnouncements,
@@ -99,6 +100,7 @@ export default function UsAnnouncementInboxTab() {
   const [error, setError] = useState<string | null>(null);
   const [scanStatus, setScanStatus] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const [selected, setSelected] = useState<UsAnnouncementCard | null>(null);
 
   const load = useCallback(
     async (opts?: { symbol?: string; kind?: "" | UsAnnouncementKind }) => {
@@ -231,6 +233,31 @@ export default function UsAnnouncementInboxTab() {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!selected) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setSelected(null);
+    }
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [selected]);
+
+  const articleParas = useMemo(
+    () =>
+      splitAiParas(
+        selected?.article ||
+          selected?.detail ||
+          selected?.ai?.summary ||
+          "",
+      ),
+    [selected],
+  );
 
   const filteredHint = useMemo(() => {
     if (!cards.length) return ko.usAnnouncement.empty;
@@ -393,7 +420,23 @@ export default function UsAnnouncementInboxTab() {
           ) : (
             <ol className="us-ann-inbox__timeline">
               {cards.map((card) => (
-                <li key={card.id} className="us-ann-inbox__card">
+                <li
+                  key={card.id}
+                  className="us-ann-inbox__card us-ann-inbox__card--clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelected(card)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelected(card);
+                    }
+                  }}
+                  aria-label={ko.usAnnouncement.openArticle.replace(
+                    "{title}",
+                    card.headline || card.title,
+                  )}
+                >
               <div className="us-ann-inbox__card-top">
                 <span
                   className={`us-ann-inbox__badge us-ann-inbox__badge--${card.kind}`}
@@ -488,23 +531,24 @@ export default function UsAnnouncementInboxTab() {
                     {ko.usAnnouncement.aiLabel}
                   </span>
                   <div className="us-ann-inbox__ai-body">
-                    {splitAiParas(card.ai.summary).map((para) => (
-                      <p key={para.slice(0, 48)}>{para}</p>
-                    ))}
+                    {splitAiParas(card.ai.summary)
+                      .slice(0, 2)
+                      .map((para) => (
+                        <p key={para.slice(0, 48)}>{para}</p>
+                      ))}
                   </div>
                 </div>
               ) : null}
 
-              {!card.about && card.detail ? (
-                <div className="us-ann-inbox__detail">
-                  <span className="us-ann-inbox__detail-label">
-                    {ko.usAnnouncement.detailLabel}
-                  </span>
-                  <p className="us-ann-inbox__detail-body">{card.detail}</p>
-                </div>
-              ) : null}
+              <p className="us-ann-inbox__open-hint">
+                {ko.usAnnouncement.openHint}
+              </p>
 
-              <div className="us-ann-inbox__links">
+              <div
+                className="us-ann-inbox__links"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
                 {card.links?.edgar ? (
                   <a
                     className="us-ann-inbox__link"
@@ -533,6 +577,110 @@ export default function UsAnnouncementInboxTab() {
           )}
         </div>
       </div>
+
+      {selected
+        ? createPortal(
+            <div
+              className="us-ann-inbox__modal-backdrop"
+              role="presentation"
+              onClick={() => setSelected(null)}
+            >
+              <div
+                className="us-ann-inbox__modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="us-ann-article-title"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <header className="us-ann-inbox__modal-header">
+                  <div>
+                    <div className="us-ann-inbox__card-top">
+                      <span
+                        className={`us-ann-inbox__badge us-ann-inbox__badge--${selected.kind}`}
+                      >
+                        {kindLabel(selected.kind)}
+                      </span>
+                      <span className="us-ann-inbox__sym">{selected.symbol}</span>
+                      <time
+                        className="us-ann-inbox__time"
+                        dateTime={new Date(selected.filedAt).toISOString()}
+                      >
+                        {formatWhen(selected.filedAt)}
+                      </time>
+                    </div>
+                    <h2 id="us-ann-article-title" className="us-ann-inbox__modal-title">
+                      {selected.headline || selected.title}
+                    </h2>
+                    {selected.form ? (
+                      <p className="us-ann-inbox__card-sub">{selected.form}</p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="us-ann-inbox__btn"
+                    onClick={() => setSelected(null)}
+                  >
+                    {ko.usAnnouncement.closeArticle}
+                  </button>
+                </header>
+
+                <div className="us-ann-inbox__modal-body">
+                  <h3 className="us-ann-inbox__modal-section">
+                    {ko.usAnnouncement.articleLabel}
+                  </h3>
+                  {articleParas.length ? (
+                    articleParas.map((para) => (
+                      <p key={para.slice(0, 64)} className="us-ann-inbox__modal-p">
+                        {para}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="us-ann-inbox__modal-p">
+                      {ko.usAnnouncement.articleEmpty}
+                    </p>
+                  )}
+
+                  {selected.numbersBrief ? (
+                    <>
+                      <h3 className="us-ann-inbox__modal-section">
+                        {ko.usAnnouncement.numbersLabel}
+                      </h3>
+                      <ul className="us-ann-inbox__numbers-list">
+                        {splitBriefLines(selected.numbersBrief).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </div>
+
+                <footer className="us-ann-inbox__modal-footer">
+                  {selected.links?.edgar ? (
+                    <a
+                      className="us-ann-inbox__link"
+                      href={selected.links.edgar}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      EDGAR
+                    </a>
+                  ) : null}
+                  {selected.links?.yahooAnalysis ? (
+                    <a
+                      className="us-ann-inbox__link"
+                      href={selected.links.yahooAnalysis}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Yahoo
+                    </a>
+                  ) : null}
+                </footer>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

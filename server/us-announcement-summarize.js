@@ -4,7 +4,7 @@
 import { fetchEdgarFilingPlainText } from "./us-announcement-filing-text.js";
 
 /** 카드 링크 분석 스키마 버전 */
-export const ANNOUNCEMENT_ANALYSIS_VERSION = 6;
+export const ANNOUNCEMENT_ANALYSIS_VERSION = 7;
 
 /**
  * @param {number | null | undefined} pct
@@ -80,6 +80,133 @@ export function extractFilingNumberLines(text) {
     }
   }
   return hits.slice(0, 6);
+}
+
+/**
+ * 공시 본문에서 의미 있는 영문 문장 발췌
+ * @param {string} text
+ * @param {string} kind
+ * @param {number} [limit]
+ */
+export function pickFilingExcerpts(text, kind, limit = 5) {
+  const body = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (!body) return [];
+  const sentences = body
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 40 && s.length <= 320);
+
+  const kindBoost =
+    kind === "governance"
+      ? /compensation|board|director|proposal|meeting|vote|proxy|shareholder/i
+      : kind === "guidance"
+        ? /guidance|outlook|expect|forecast|revenue|eps|item\s*2\.02|full[- ]year/i
+        : kind === "earnings"
+          ? /revenue|income|eps|earnings|cash flow|segment|md&a|quarter/i
+          : /estimate|consensus|analyst/i;
+
+  /** @type {{ s: string; score: number }[]} */
+  const scored = [];
+  for (const s of sentences) {
+    let score = 0;
+    if (kindBoost.test(s)) score += 5;
+    if (/\$[\d,.]+|\d+(?:\.\d+)?%|\bEPS\b|\brevenue\b/i.test(s)) score += 3;
+    if (/item\s+\d/i.test(s)) score += 2;
+    if (score > 0) scored.push({ s, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  /** @type {string[]} */
+  const out = [];
+  for (const row of scored) {
+    if (out.some((x) => x.slice(0, 48) === row.s.slice(0, 48))) continue;
+    out.push(row.s);
+    if (out.length >= limit) break;
+  }
+  if (!out.length && body.length > 80) {
+    out.push(body.slice(0, 220).trim() + (body.length > 220 ? "…" : ""));
+  }
+  return out;
+}
+
+/**
+ * 링크 본문 기반 한글 글(전문) — 카드 클릭 상세용
+ * @param {{
+ *   kind: string;
+ *   symbol: string;
+ *   form?: string | null;
+ *   title?: string;
+ *   about: string;
+ *   numbersBrief: string;
+ *   interpretation: string;
+ *   filingText?: string;
+ *   hasFilingText?: boolean;
+ *   metrics?: Record<string, unknown> | null;
+ * }} args
+ */
+export function buildArticleFromFiling(args) {
+  const {
+    kind,
+    symbol,
+    form,
+    title,
+    about,
+    numbersBrief,
+    interpretation,
+    filingText = "",
+    hasFilingText,
+  } = args;
+  const sym = String(symbol || "").trim() || "해당 종목";
+  const excerpts = pickFilingExcerpts(filingText, kind, 5);
+  /** @type {string[]} */
+  const paras = [];
+
+  paras.push(
+    `${sym}의 ${form || title || kind} 공시에 대한 요약입니다. ${about}`,
+  );
+
+  if (hasFilingText && excerpts.length) {
+    paras.push(
+      "EDGAR 원문에서 확인한 핵심 내용(영문 발췌를 바탕으로 정리)은 다음과 같습니다.",
+    );
+    for (let i = 0; i < excerpts.length; i += 1) {
+      paras.push(`(${i + 1}) ${excerpts[i]}`);
+    }
+    paras.push(
+      "위 발췌는 원문 문장을 그대로 옮긴 것이며, 아래 해석은 이를 한글 관점으로 정리한 것입니다.",
+    );
+  } else if (!hasFilingText) {
+    paras.push(
+      "이 카드는 EDGAR HTML 본문을 아직 충분히 읽지 못했습니다. 아래는 Yahoo 지표·양식 메타 중심이며, 카드의 EDGAR 링크에서 원문을 반드시 대조하세요.",
+    );
+  }
+
+  if (numbersBrief && !String(numbersBrief).includes("표시하지 않습니다")) {
+    paras.push(`관련 수치 요약: ${String(numbersBrief).replace(/\n/g, "; ")}`);
+  } else if (kind === "governance") {
+    paras.push(
+      "이 공시는 실적 Beat/Miss와 직접 대응되지 않는 거버넌스·Proxy 성격입니다. 보수·이사회·주주제안 등 안건 자체를 중심으로 읽어야 합니다.",
+    );
+  }
+
+  const interpParas = String(interpretation || "")
+    .split(/\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (interpParas.length) {
+    paras.push("AI 해석");
+    for (const p of interpParas) {
+      if (/^근거:/.test(p)) continue;
+      paras.push(p);
+    }
+  }
+
+  paras.push(
+    hasFilingText
+      ? `근거 자료: EDGAR${form ? ` (${form})` : ""} 본문을 읽어 정리했습니다. 최종 판단은 원문 링크를 우선하세요.`
+      : "근거 자료: 링크 본문 미수집 — EDGAR/Yahoo 원문 확인이 필요합니다.",
+  );
+
+  return paras.join("\n\n").slice(0, 6000);
 }
 
 /**
@@ -560,7 +687,7 @@ export async function enrichAnnouncementCopy(cardLike) {
 
   if (cardLike.edgarUrl) {
     const fetched = await fetchEdgarFilingPlainText(cardLike.edgarUrl, {
-      maxChars: 24_000,
+      maxChars: 48_000,
     });
     if (fetched.ok) {
       text = fetched.text;
@@ -590,7 +717,20 @@ export async function enrichAnnouncementCopy(cardLike) {
     hasFilingText: filingFetchOk,
     filingText: text,
   });
-  detail = `${about}\n${numbersBrief}`.slice(0, 1400);
+
+  let article = buildArticleFromFiling({
+    kind,
+    symbol: symbol || "—",
+    form,
+    title,
+    about,
+    numbersBrief,
+    interpretation,
+    filingText: text,
+    hasFilingText: filingFetchOk,
+    metrics: cardLike.metrics,
+  });
+  detail = article.slice(0, 1400);
 
   if (kind === "consensus" && cardLike.metrics) {
     const chg = Number(cardLike.metrics.consensusChangePct);
@@ -614,13 +754,13 @@ export async function enrichAnnouncementCopy(cardLike) {
           model: String(
             process.env.STOCK_ANNOUNCEMENT_LLM_MODEL ?? "gpt-4o-mini",
           ).trim(),
-          temperature: 0.2,
-          max_tokens: 650,
+          temperature: 0.25,
+          max_tokens: 1400,
           messages: [
             {
               role: "system",
               content:
-                'Reply in Korean JSON only: {"headline":"<=40 chars","about":"1-2 sentences what THIS filing is","numbers":"one bullet per line (\\n), figures only","interpretation":"2-4 short paragraphs (\\n\\n). MUST state a direct judgment for THIS symbol using the given % and labels (e.g. Beat/Miss, conservative/optimistic guidance, consensus up/down). Do NOT give generic how-to advice. Do NOT invent numbers."}',
+                'Reply in Korean JSON only: {"headline":"<=40 chars","about":"2 short Korean sentences summarizing WHAT this filing says","numbers":"bullets with \\n from metrics/text only","interpretation":"2-4 short Korean judgments with numbers","article":"5-8 Korean paragraphs separated by \\n\\n. Write as a readable article based on the EDGAR text: what was disclosed, key figures/agenda, and what it means. Do NOT invent facts not in the text/metrics. Do NOT use generic how-to filler."}',
             },
             {
               role: "user",
@@ -628,14 +768,15 @@ export async function enrichAnnouncementCopy(cardLike) {
 Yahoo/metrics JSON: ${JSON.stringify(cardLike.metrics || {})}
 Draft about: ${about}
 Draft numbers: ${numbersBrief}
-Draft interpretation (keep concrete judgment): ${interpretation}
-EDGAR text:
-${text.slice(0, 9000)}
+Draft interpretation: ${interpretation}
+Draft article (improve into natural Korean prose grounded in filing): ${article.slice(0, 2500)}
+EDGAR plain text (primary source — stay faithful):
+${text.slice(0, 14000)}
 Yahoo link: ${cardLike.yahooUrl || ""}`,
             },
           ],
         }),
-        signal: AbortSignal.timeout(35_000),
+        signal: AbortSignal.timeout(55_000),
       });
       if (res.ok) {
         const data = await res.json();
@@ -649,7 +790,8 @@ Yahoo link: ${cardLike.yahooUrl || ""}`,
           if (parsed.interpretation) {
             interpretation = String(parsed.interpretation).slice(0, 1600);
           }
-          detail = `${about}\n${numbersBrief}`.slice(0, 1400);
+          if (parsed.article) article = String(parsed.article).slice(0, 6000);
+          detail = article.slice(0, 1400);
           engine = filingFetchOk ? "edgar+openai" : "metrics+openai";
         }
       }
@@ -658,11 +800,16 @@ Yahoo link: ${cardLike.yahooUrl || ""}`,
     }
   }
 
+  if ((!about || about.length < 40) && article) {
+    about = article.split(/\n\n/)[0]?.slice(0, 400) || about;
+  }
+
   return {
     headline,
     about,
     numbersBrief,
     interpretation,
+    article,
     detail,
     analysisVersion: ANNOUNCEMENT_ANALYSIS_VERSION,
     analysisEngine: engine,

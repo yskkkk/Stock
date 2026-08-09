@@ -316,6 +316,7 @@ export type UsAnnouncementCard = {
   about?: string | null;
   numbersBrief?: string | null;
   detail?: string | null;
+  article?: string | null;
   analysisVersion?: number | null;
   enrichedAt?: number | null;
   links: {
