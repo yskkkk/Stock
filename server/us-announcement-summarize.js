@@ -94,7 +94,15 @@ export function pickFilingExcerpts(text, kind, limit = 5) {
   const sentences = body
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
-    .filter((s) => s.length >= 40 && s.length <= 320);
+    .filter((s) => s.length >= 40 && s.length <= 320)
+    .filter(
+      (s) =>
+        !/^(?:false|true)\b/i.test(s) &&
+        !/\b(?:xmlns|xsi:|iso4217|link:|dei:)\b/i.test(s) &&
+        !/--\d{2}-\d{2}/.test(s) &&
+        !/\bP\d+Y\b/.test(s) &&
+        (s.match(/[A-Za-z]{3,}/g) || []).length >= 5,
+    );
 
   const kindBoost =
     kind === "governance"
