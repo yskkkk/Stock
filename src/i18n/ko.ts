@@ -1479,7 +1479,7 @@ export const ko = {
         category: "실전 가이드",
         title: "BRK·우량주 실적 읽기 · 간이 적정가 · SA 밸류표",
         excerpt:
-          "매출·YoY·Beat부터 영업이익 구조, Forward PER×5년 평균 적정가, Seeking Alpha 표 읽는 법까지 한 장으로 정리.",
+          "실적 용어·BRK 손익 구조·간이 적정가에 더해, Seeking Alpha Valuation 표의 PER·PEG·EV·P/S 등 용어를 상세히 정리.",
         publishedAt: "2026-08-10",
         author: "운영",
       },
@@ -1505,7 +1505,7 @@ export const ko = {
       secBuyback: "③ 자사주 — 늘어도 악재가 될 때",
       secTech: "④ 차트는 보조만",
       secFair: "⑤ 간이 적정가",
-      secSa: "⑥ Seeking Alpha Valuation 표",
+      secSa: "⑥ Seeking Alpha Valuation 표 · 용어 상세",
       secMindset: "⑦ 실행 원칙",
       secCheck: "체크리스트",
       terms: [
@@ -1566,41 +1566,120 @@ export const ko = {
       ],
       formulaLimit:
         "단순 PER 배수법입니다. 금리·사이클·일회성 EPS는 반영되지 않으니 ‘대략의 싸/비싸 지도’로 쓰세요.",
-      saColTitle: "표의 열",
+      saLead:
+        "Seeking Alpha Valuation 표는 ‘지금 비싼가?’를 여러 배수로 보고, 동종 섹터·과거 5년과 비교합니다. (참고: GOOGL Valuation 화면)",
+      saColTitle: "표의 열(컬럼) 의미",
       saCols: [
-        { term: "종목 열", meaning: "지금 그 지표 값" },
-        { term: "섹터 중앙값", meaning: "동종 중간값 (同行 대비)" },
-        { term: "5년 평균", meaning: "자기 역사 배수 ← 영상 핵심" },
-        { term: "차이 %", meaning: "지금이 기준보다 얼마나 높/낮은지" },
-      ],
-      saMetricTitle: "자주 보는 행",
-      saMetrics: [
         {
-          term: "P/E TTM / FWD",
-          meaning: "과거 12개월 / 예상 이익 기준 PER (GAAP·Non-GAAP)",
+          term: "지표",
+          meaning: "어떤 배수·수익률인지 (P/E, PEG, EV/매출 등)",
         },
-        { term: "PEG", meaning: "PER ÷ 성장률 — 성장 대비 비싼지" },
         {
-          term: "EV/매출·EBITDA",
-          meaning: "시총+순부채 기준 — 자본구조 반영",
+          term: "섹터 상대 등급",
+          meaning: "같은 섹터 대비 SA 등급(A~F). 프리미엄이면 잠김",
         },
-        { term: "P/S · P/CF", meaning: "매출·현금흐름 대비 (이익이 애매할 때)" },
-        { term: "배당 수익률", meaning: "성장주는 보통 낮음 — 해석 방향이 배수와 반대" },
+        {
+          term: "종목 열 (예: GOOGL)",
+          meaning: "지금 그 종목의 해당 지표 값",
+        },
+        {
+          term: "섹터 중앙값",
+          meaning: "동종 섹터 중간값 — 평균보다 이상치에 덜 흔들림",
+        },
+        {
+          term: "섹터 대비 차이%",
+          meaning:
+            "(종목 − 섹터중앙값) ÷ 섹터중앙값. +면 배수 기준 섹터보다 비쌈. 배당은 해석 반대",
+        },
+        {
+          term: "5년 평균",
+          meaning: "그 종목이 평소에 받던 배수 ← 영상·적정가 공식의 핵심",
+        },
+        {
+          term: "5년 평균 대비 차이%",
+          meaning: "지금이 자기 역사보다 얼마나 높/낮은지 — 역사적 고·저평가 감각",
+        },
       ],
-      saGooglTitle: "GOOGL 표 읽는 예",
+      saMetricTitle: "행(지표)별 용어 상세",
+      saDetails: [
+        {
+          term: "P/E (PER)",
+          formula: "주가 ÷ EPS",
+          body: "주가수익비율. 배수가 낮을수록 같은 이익 대비 주가가 싸다는 쪽.",
+          tips: [
+            "TTM: 지난 12개월 실제 이익 기준",
+            "FWD: 향후 12개월(컨센서스) 예상 이익 기준",
+            "GAAP: 회계 그대로(일회성 포함)",
+            "Non-GAAP: 일회성·비현금을 조정해 본업 이익에 가깝게",
+            "성장주는 보통 FWD PER < TTM PER",
+          ],
+        },
+        {
+          term: "PEG",
+          formula: "PER ÷ 예상 EPS 성장률(%)",
+          body: "성장까지 나눈 배수. 성장이 빠르면 PER이 높아도 PEG는 낮아질 수 있음.",
+          tips: [
+            "전통적으로 ~1 전후를 ‘성장 대비 적정’ 감각으로 봄(절대 규칙은 아님)",
+          ],
+        },
+        {
+          term: "EV (Enterprise Value)",
+          formula: "시가총액 + 순부채(부채 − 현금)",
+          body: "주주뿐 아니라 채권자까지 포함한 회사 전체 가격. PER은 주식만, EV 배수는 자본구조까지 맞춤.",
+          tips: [
+            "EV/매출: 매출 1달러당 기업가치 — 이익이 들쭉날쭉할 때",
+            "EV/EBITDA: 이자·세금·감가 전 현금성 이익 대비 — 업종·인수 비교",
+            "EV/EBIT: 영업이익 대비",
+          ],
+        },
+        {
+          term: "P/S (주가/매출)",
+          formula: "시가총액 ÷ 매출",
+          body: "적자·이익 왜곡이 있을 때도 씀. PER과 방향이 다를 수 있어 같이 본다.",
+          tips: [
+            "FWD PER은 싼데 P/S가 높으면 이익률·성장만으로 싸 보이는지 교차 확인",
+          ],
+        },
+        {
+          term: "P/B (PBR)",
+          formula: "주가 ÷ 주당순자산",
+          body: "장부가 대비 주가. 금융·제조처럼 자산 비중이 큰 업종에 더 의미 있음.",
+          tips: [
+            "구글 같은 무형자산·브랜드 회사는 PBR만으로 싸다/비싸다 판단이 약함",
+          ],
+        },
+        {
+          term: "P/CF (주가/현금흐름)",
+          formula: "시가총액 ÷ 영업현금흐름 등",
+          body: "회계상 이익보다 실제 들어온 현금 기준. PER 보조 지표.",
+          tips: ["비현금비용·이익 왜곡이 많을 때 유용"],
+        },
+        {
+          term: "배당 수익률",
+          formula: "연간 배당금 ÷ 주가",
+          body: "높을수록 배당 매력↑. 배수와 해석 방향이 반대.",
+          tips: [
+            "성장주는 보통 낮음(예: GOOGL ~0.24%) — 주주환원은 성장·자사주 중심인 경우가 많음",
+          ],
+        },
+      ],
+      saGooglTitle: "GOOGL 표 읽는 예 (스크린샷)",
       saGooglRows: [
         {
           label: "P/E Non-GAAP FWD",
-          value: "17.22 (5Y 평균 23.21, 약 −26%)",
+          value: "17.22 vs 5Y 평균 23.21 (약 −25.8%) → 역사적 FWD PER 저평가 쪽",
         },
-        { label: "해석", value: "역사적으로 FWD PER은 저평가 쪽" },
+        {
+          label: "PEG Non-GAAP FWD",
+          value: "1.20 vs 5Y 평균 1.36 → 성장 대비로도 과거보다 살짝 저렴",
+        },
         {
           label: "P/S TTM",
           value: "9.62 vs 5Y 6.86 (+40% 근처) → 매출 대비는 비쌀 수 있음",
         },
         {
           label: "포인트",
-          value: "PER만 싸 보여도 P/S가 높으면 교차 확인",
+          value: "PER만 싸 보여도 P/S가 높으면 한 지표에 의존하지 말 것",
         },
       ],
       saStepsTitle: "영상처럼 쓰는 순서",
@@ -1610,6 +1689,16 @@ export const ko = {
         "현재 < 5년 평균 → 역사적 저평가 쪽 / 반대면 고평가 쪽",
         "적정가 ≈ 컨센서스 EPS × 5년 평균 PER",
         "P/S·EV가 반대로 비싸면 한 번 더 확인",
+        "섹터 열은 同行 대비용 — 영상 핵심은 자기 역사(5Y)",
+      ],
+      saQuickTitle: "한눈에 칸 고르기",
+      saQuickRows: [
+        { label: "지금 얼마나 비싸?", value: "종목 열의 FWD PER" },
+        { label: "예전에 비해?", value: "5년 평균 + 차이%" },
+        { label: "同行 대비?", value: "섹터 중앙값 + 차이%" },
+        { label: "성장까지?", value: "PEG" },
+        { label: "부채·현금 반영?", value: "EV/EBITDA · EV/매출" },
+        { label: "이익이 애매할 때?", value: "P/S · P/CF" },
       ],
       mindsetPoints: [
         "이름 있는 우량주 위주 — 생소한 잡주보다 깊이 관찰",

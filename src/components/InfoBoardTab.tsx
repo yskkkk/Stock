@@ -105,10 +105,28 @@ function OrlandoBrkPostBody() {
       </Section>
 
       <Section title={t.secSa}>
+        <p className="info-board-tab__prose">{t.saLead}</p>
         <h5 className="info-board-tab__subhead">{t.saColTitle}</h5>
         <TermRows rows={t.saCols} />
         <h5 className="info-board-tab__subhead">{t.saMetricTitle}</h5>
-        <TermRows rows={t.saMetrics} />
+        <div className="info-board-tab__glossary">
+          {t.saDetails.map((item) => (
+            <article key={item.term} className="info-board-tab__glossary-card">
+              <h6 className="info-board-tab__glossary-term">{item.term}</h6>
+              {item.formula ? (
+                <code className="info-board-tab__glossary-formula">{item.formula}</code>
+              ) : null}
+              <p className="info-board-tab__glossary-body">{item.body}</p>
+              {item.tips.length > 0 ? (
+                <ul className="info-board-tab__glossary-tips">
+                  {item.tips.map((tip) => (
+                    <li key={tip}>{tip}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </article>
+          ))}
+        </div>
         <h5 className="info-board-tab__subhead">{t.saGooglTitle}</h5>
         <div className="info-board-tab__table-wrap info-board-tab__table-wrap--compact">
           <table className="info-board-tab__table info-board-tab__table--kv">
@@ -131,6 +149,21 @@ function OrlandoBrkPostBody() {
             </li>
           ))}
         </ol>
+        <h5 className="info-board-tab__subhead">{t.saQuickTitle}</h5>
+        <div className="info-board-tab__table-wrap info-board-tab__table-wrap--compact">
+          <table className="info-board-tab__table info-board-tab__table--kv">
+            <tbody>
+              {t.saQuickRows.map((row) => (
+                <tr key={row.label}>
+                  <th scope="row">{row.label}</th>
+                  <td>
+                    <span className="info-board-tab__bench">{row.value}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Section>
 
       <Section title={t.secMindset}>
