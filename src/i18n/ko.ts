@@ -1475,6 +1475,15 @@ export const ko = {
     categoryLabel: "분류",
     posts: [
       {
+        id: "orlando-brk-valuation",
+        category: "실전 가이드",
+        title: "BRK·우량주 실적 읽기 · 간이 적정가 · SA 밸류표",
+        excerpt:
+          "매출·YoY·Beat부터 영업이익 구조, Forward PER×5년 평균 적정가, Seeking Alpha 표 읽는 법까지 한 장으로 정리.",
+        publishedAt: "2026-08-10",
+        author: "운영",
+      },
+      {
         id: "per-ebitda",
         category: "지표 기준",
         title: "업종별 PER vs EV/EBITDA 적정 기준치 비교표",
@@ -1484,6 +1493,139 @@ export const ko = {
         author: "운영",
       },
     ],
+    orlandoBrk: {
+      lead:
+        "버크셔(BRK-B) 실적·밸류를 읽는 실전 흐름입니다. 컨센서스 EPS × 5년 평균 PER로 대략의 적정가를 잡고, 차트는 분할매수 타이밍만 보조합니다.",
+      disclaimer:
+        "교육·참고용이며 투자 권유가 아닙니다. 수치·배수는 시점마다 달라집니다.",
+      sourceNote: "정리 출처: 올랜드 캠 실적·밸류 해설 + Seeking Alpha Valuation 표 해석",
+      secTerms: "① 실적 용어",
+      secIncome: "② BRK 매출·이익 구조",
+      secOpEarnings: "영업이익(Operating earnings)",
+      secBuyback: "③ 자사주 — 늘어도 악재가 될 때",
+      secTech: "④ 차트는 보조만",
+      secFair: "⑤ 간이 적정가",
+      secSa: "⑥ Seeking Alpha Valuation 표",
+      secMindset: "⑦ 실행 원칙",
+      secCheck: "체크리스트",
+      terms: [
+        { term: "Revenue", meaning: "매출 — 회사 전체 규모·성장" },
+        { term: "YoY", meaning: "전년 동기 대비 증감률 — 성장 속도" },
+        { term: "Beat / Miss", meaning: "컨센서스 대비 초과·미달 (EPS·매출 따로)" },
+        { term: "QoQ", meaning: "직전 분기 대비 — 계절성·단기 모멘텀" },
+        {
+          term: "Forward PER",
+          meaning: "주가 ÷ 향후 12개월(또는 익년) 예상 EPS",
+        },
+        {
+          term: "5년 평균 PER",
+          meaning: "그 종목이 평소에 받던 배수 기준선",
+        },
+      ],
+      incomeRows: [
+        {
+          term: "Premiums earned",
+          meaning: "받은 보험료 중 해당 기간 서비스 제공분",
+        },
+        {
+          term: "Sales & services",
+          meaning: "보험·철도 외 제조·유통·서비스 등 기타 사업 매출",
+        },
+        {
+          term: "Investment income",
+          meaning: "주식 배당 + 채권 이자 등 투자수익",
+        },
+        {
+          term: "Operating lease",
+          meaning: "보유 장비·자산 임대수익",
+        },
+      ],
+      opEarningsBody:
+        "본업에서 나온 이익(보험 인수·투자수익·철도·에너지·제조 등). 주식 시세 차익(미실현)은 빼는 경우가 많아 ‘운영 실적’을 보는 지표입니다.",
+      buybackPoints: [
+        "절대액 — 실제로 얼마나 샀는가",
+        "기대 대비 — 시장 예상보다 작으면 실망 매도 가능",
+        "현금 추이 — 쌓기만 하는지, 쓰기 시작했는지",
+      ],
+      techPoints: [
+        "직전 저점 수평선 — 지지·분할매수 기준",
+        "그 시점 PER 확인 (예: 저점 부근 ~22배)",
+        "200일선 이탈·저점 형성 시 분할매수 (올인 X)",
+      ],
+      formulaLabel: "공식",
+      formula: "적정주가 ≈ 컨센서스 EPS(익년·2027 등) × 5년 평균 PER",
+      formulaRule:
+        "주가가 적정가 아래면 저평가 후보·분할매수 관점 / 위면 추격 자제. Seeking Alpha 등에서 EPS·히스토리컬 배수 확인.",
+      brkExampleTitle: "BRK-B 예시 (영상 수치)",
+      brkExampleRows: [
+        { label: "2027 컨센서스 EPS", value: "21.57" },
+        { label: "당시 Forward PER", value: "~24~25배" },
+        { label: "5년 평균 PER", value: "22.46배" },
+        { label: "판단", value: "현재 > 5년 평균 → 소폭 고평가" },
+        { label: "적정가", value: "21.57 × 22.46 ≈ $484" },
+      ],
+      formulaLimit:
+        "단순 PER 배수법입니다. 금리·사이클·일회성 EPS는 반영되지 않으니 ‘대략의 싸/비싸 지도’로 쓰세요.",
+      saColTitle: "표의 열",
+      saCols: [
+        { term: "종목 열", meaning: "지금 그 지표 값" },
+        { term: "섹터 중앙값", meaning: "동종 중간값 (同行 대비)" },
+        { term: "5년 평균", meaning: "자기 역사 배수 ← 영상 핵심" },
+        { term: "차이 %", meaning: "지금이 기준보다 얼마나 높/낮은지" },
+      ],
+      saMetricTitle: "자주 보는 행",
+      saMetrics: [
+        {
+          term: "P/E TTM / FWD",
+          meaning: "과거 12개월 / 예상 이익 기준 PER (GAAP·Non-GAAP)",
+        },
+        { term: "PEG", meaning: "PER ÷ 성장률 — 성장 대비 비싼지" },
+        {
+          term: "EV/매출·EBITDA",
+          meaning: "시총+순부채 기준 — 자본구조 반영",
+        },
+        { term: "P/S · P/CF", meaning: "매출·현금흐름 대비 (이익이 애매할 때)" },
+        { term: "배당 수익률", meaning: "성장주는 보통 낮음 — 해석 방향이 배수와 반대" },
+      ],
+      saGooglTitle: "GOOGL 표 읽는 예",
+      saGooglRows: [
+        {
+          label: "P/E Non-GAAP FWD",
+          value: "17.22 (5Y 평균 23.21, 약 −26%)",
+        },
+        { label: "해석", value: "역사적으로 FWD PER은 저평가 쪽" },
+        {
+          label: "P/S TTM",
+          value: "9.62 vs 5Y 6.86 (+40% 근처) → 매출 대비는 비쌀 수 있음",
+        },
+        {
+          label: "포인트",
+          value: "PER만 싸 보여도 P/S가 높으면 교차 확인",
+        },
+      ],
+      saStepsTitle: "영상처럼 쓰는 순서",
+      saSteps: [
+        "P/E Non-GAAP (FWD) 또는 정한 GAAP FWD 선택",
+        "현재 값 vs 5년 평균 비교",
+        "현재 < 5년 평균 → 역사적 저평가 쪽 / 반대면 고평가 쪽",
+        "적정가 ≈ 컨센서스 EPS × 5년 평균 PER",
+        "P/S·EV가 반대로 비싸면 한 번 더 확인",
+      ],
+      mindsetPoints: [
+        "이름 있는 우량주 위주 — 생소한 잡주보다 깊이 관찰",
+        "인내 — 수익 실현까지 수개월 버팀 (잦은 사팔 금지)",
+        "포트 분산 — 성장주만 몰빵하지 말고 보험·금융 등 방어 비중",
+      ],
+      checklist: [
+        "실적: Revenue / EPS beat·YoY",
+        "구조: 영업이익이 어디서 났는지",
+        "자본배치: 자사주·순매수 — 기대 대비까지",
+        "밸류: 컨센 EPS × 5년 평균 PER → 적정가",
+        "차트: 직전 저점·200평·그 시점 PER",
+        "실행: 적정가 아래 + 분할매수·장기 보유",
+        "포트: 성장 + 방어",
+      ],
+    },
     perEbitdaLead:
       "업종 특성에 따라 PER·EV/EBITDA의 적정 구간이 다릅니다. 참고용이며 투자 권유가 아닙니다.",
     colSector: "업종 분류",

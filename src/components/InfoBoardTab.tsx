@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { ko } from "../i18n/ko";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
@@ -10,6 +10,145 @@ function formatPostDate(ymd: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
   if (!m) return ymd;
   return `${m[1]}.${m[2]}.${m[3]}`;
+}
+
+function TermRows({
+  rows,
+}: {
+  rows: ReadonlyArray<{ term: string; meaning: string }>;
+}) {
+  return (
+    <div className="info-board-tab__table-wrap info-board-tab__table-wrap--compact">
+      <table className="info-board-tab__table info-board-tab__table--kv">
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.term}>
+              <th scope="row">{row.term}</th>
+              <td>{row.meaning}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function BulletList({ items }: { items: readonly string[] }) {
+  return (
+    <ul className="info-board-tab__bullets">
+      {items.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="info-board-tab__section">
+      <h4 className="info-board-tab__section-title">{title}</h4>
+      {children}
+    </section>
+  );
+}
+
+function OrlandoBrkPostBody() {
+  const t = ko.infoBoard.orlandoBrk;
+  return (
+    <>
+      <p className="info-board-tab__article-lead">{t.lead}</p>
+      <p className="info-board-tab__disclaimer">{t.disclaimer}</p>
+      <p className="info-board-tab__source">{t.sourceNote}</p>
+
+      <Section title={t.secTerms}>
+        <TermRows rows={t.terms} />
+      </Section>
+
+      <Section title={t.secIncome}>
+        <TermRows rows={t.incomeRows} />
+        <div className="info-board-tab__callout">
+          <strong className="info-board-tab__callout-label">{t.secOpEarnings}</strong>
+          <p className="info-board-tab__callout-body">{t.opEarningsBody}</p>
+        </div>
+      </Section>
+
+      <Section title={t.secBuyback}>
+        <BulletList items={t.buybackPoints} />
+      </Section>
+
+      <Section title={t.secTech}>
+        <BulletList items={t.techPoints} />
+      </Section>
+
+      <Section title={t.secFair}>
+        <div className="info-board-tab__formula" role="note">
+          <span className="info-board-tab__formula-label">{t.formulaLabel}</span>
+          <code className="info-board-tab__formula-code">{t.formula}</code>
+        </div>
+        <p className="info-board-tab__prose">{t.formulaRule}</p>
+        <h5 className="info-board-tab__subhead">{t.brkExampleTitle}</h5>
+        <div className="info-board-tab__table-wrap info-board-tab__table-wrap--compact">
+          <table className="info-board-tab__table info-board-tab__table--kv">
+            <tbody>
+              {t.brkExampleRows.map((row) => (
+                <tr key={row.label}>
+                  <th scope="row">{row.label}</th>
+                  <td>
+                    <span className="info-board-tab__bench">{row.value}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="info-board-tab__note-block">{t.formulaLimit}</p>
+      </Section>
+
+      <Section title={t.secSa}>
+        <h5 className="info-board-tab__subhead">{t.saColTitle}</h5>
+        <TermRows rows={t.saCols} />
+        <h5 className="info-board-tab__subhead">{t.saMetricTitle}</h5>
+        <TermRows rows={t.saMetrics} />
+        <h5 className="info-board-tab__subhead">{t.saGooglTitle}</h5>
+        <div className="info-board-tab__table-wrap info-board-tab__table-wrap--compact">
+          <table className="info-board-tab__table info-board-tab__table--kv">
+            <tbody>
+              {t.saGooglRows.map((row) => (
+                <tr key={row.label}>
+                  <th scope="row">{row.label}</th>
+                  <td>{row.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <h5 className="info-board-tab__subhead">{t.saStepsTitle}</h5>
+        <ol className="info-board-tab__steps">
+          {t.saSteps.map((step, i) => (
+            <li key={step}>
+              <span className="info-board-tab__step-n">{i + 1}</span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+      </Section>
+
+      <Section title={t.secMindset}>
+        <BulletList items={t.mindsetPoints} />
+      </Section>
+
+      <Section title={t.secCheck}>
+        <ol className="info-board-tab__checklist">
+          {t.checklist.map((item, i) => (
+            <li key={item}>
+              <span className="info-board-tab__check-n">{i + 1}</span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ol>
+      </Section>
+    </>
+  );
 }
 
 function PerEbitdaPostBody() {
@@ -60,6 +199,8 @@ function PerEbitdaPostBody() {
 
 function renderPostBody(postId: string) {
   switch (postId) {
+    case "orlando-brk-valuation":
+      return <OrlandoBrkPostBody />;
     case "per-ebitda":
       return <PerEbitdaPostBody />;
     default:
