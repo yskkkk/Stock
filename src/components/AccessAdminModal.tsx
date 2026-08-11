@@ -4,6 +4,7 @@ import {
   clearStoredAccessAdminToken,
   fetchAccessAdminLiveTradingRunning,
   fetchAccessAdminRequests,
+  fetchAccessAdminDevices,
   fetchFeedbackInbox,
   getStoredAccessAdminToken,
   persistAccessAdminToken,
@@ -20,8 +21,10 @@ import {
   type AccessAdminLiveTradeProgram,
   type AccessAdminLiveTradingRunningResponse,
   type AccessAdminSnapshot,
+  type AccessAdminDevicesSnapshot,
   type AccessAllowedEntry,
   type AccessDeviceInfoPayload,
+  type AccessDeviceRosterItem,
   type AccessRequestItem,
   type UiFeatureAdminItem,
 } from "../api";
@@ -118,6 +121,8 @@ export default function AccessAdminModal({
   const [passwordInput, setPasswordInput] = useState("");
   const [activeToken, setActiveToken] = useState("");
   const [snapshot, setSnapshot] = useState<AccessAdminSnapshot | null>(null);
+  const [deviceRoster, setDeviceRoster] =
+    useState<AccessAdminDevicesSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
@@ -171,6 +176,7 @@ export default function AccessAdminModal({
         if (!silent) {
           setError(null);
           setSnapshot(null);
+          setDeviceRoster(null);
         }
         return;
       }
@@ -179,11 +185,16 @@ export default function AccessAdminModal({
         setError(null);
       }
       try {
-        const data = await fetchAccessAdminRequests(t);
+        const [data, devices] = await Promise.all([
+          fetchAccessAdminRequests(t),
+          fetchAccessAdminDevices(t).catch(() => null),
+        ]);
         setSnapshot(data);
+        if (devices) setDeviceRoster(devices);
       } catch (e) {
         if (!silent) {
           setSnapshot(null);
+          setDeviceRoster(null);
           setError(e instanceof Error ? e.message : ko.access.adminError);
         }
       } finally {
@@ -220,16 +231,22 @@ export default function AccessAdminModal({
       setPhase("admin");
       setActiveToken(saved);
       setSnapshot(null);
+      setDeviceRoster(null);
       setLoading(true);
-      void fetchAccessAdminRequests(saved)
-        .then((data) => {
+      void Promise.all([
+        fetchAccessAdminRequests(saved),
+        fetchAccessAdminDevices(saved).catch(() => null),
+      ])
+        .then(([data, devices]) => {
           setSnapshot(data);
+          if (devices) setDeviceRoster(devices);
         })
         .catch(() => {
           clearStoredAccessAdminToken();
           setPhase("password");
           setActiveToken("");
           setSnapshot(null);
+          setDeviceRoster(null);
           setPasswordInput("");
         })
         .finally(() => setLoading(false));
@@ -238,6 +255,7 @@ export default function AccessAdminModal({
       setPasswordInput("");
       setActiveToken("");
       setSnapshot(null);
+      setDeviceRoster(null);
     }
   }, [open, adminIpBypassPassword, load]);
 
@@ -309,13 +327,18 @@ export default function AccessAdminModal({
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAccessAdminRequests(p);
+      const [data, devices] = await Promise.all([
+        fetchAccessAdminRequests(p),
+        fetchAccessAdminDevices(p).catch(() => null),
+      ]);
       persistAccessAdminToken(p);
       setActiveToken(p);
       setSnapshot(data);
+      if (devices) setDeviceRoster(devices);
       setPhase("admin");
     } catch {
       setSnapshot(null);
+      setDeviceRoster(null);
       setError(ko.access.adminWrongPassword);
       setPasswordInput("");
       schedulePasswordFocus();
@@ -329,6 +352,7 @@ export default function AccessAdminModal({
     clearStoredAccessAdminToken();
     setActiveToken("");
     setSnapshot(null);
+    setDeviceRoster(null);
     setPhase("password");
     setPasswordInput("");
     setError(null);
@@ -631,6 +655,45 @@ export default function AccessAdminModal({
 
             {tab === "access" && snapshot && (
               <div className="access-admin-body">
+                <section className="access-admin-section">
+                  <h3>
+                    {ko.access.adminDevicesToday}
+                    {deviceRoster
+                      ? ` (${deviceRoster.todayCount})`
+                      : ""}
+                  </h3>
+                  <p className="access-admin-muted">{ko.access.adminDevicesHint}</p>
+                  {!deviceRoster || deviceRoster.today.length === 0 ? (
+                    <p className="access-admin-muted">
+                      {ko.access.adminDevicesEmpty}
+                    </p>
+                  ) : (
+                    <ul className="access-admin-list">
+                      {deviceRoster.today.map((d: AccessDeviceRosterItem) => (
+                        <li key={d.id} className="access-admin-item">
+                          <div className="access-admin-item-head">
+                            <code>{d.ip}</code>
+                            <span className="access-admin-muted">
+                              {d.deviceLabel}
+                              {d.hitCount > 1 ? ` · ×${d.hitCount}` : ""}
+                            </span>
+                          </div>
+                          <p className="access-admin-ua">
+                            {d.lastSeenKst || d.lastSeenAt}
+                            {d.screen ? ` · ${d.screen}` : ""}
+                            {d.timezone ? ` · ${d.timezone}` : ""}
+                            {d.platform ? ` · ${d.platform}` : ""}
+                          </p>
+                          {d.userAgent ? (
+                            <p className="access-admin-ua">
+                              {ko.access.adminUa}: {d.userAgent}
+                            </p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
                 <section className="access-admin-section">
                   <h3>{ko.access.adminPending}</h3>
                   {snapshot.pending.length === 0 ? (

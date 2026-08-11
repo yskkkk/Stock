@@ -5,6 +5,7 @@ import {
   clearStoredAccessAdminToken,
   fetchConfig,
   fetchAccessStatus,
+  postAccessDeviceSeen,
   fetchNews,
   fetchPicks,
   fetchStock,
@@ -16,6 +17,7 @@ import {
   type LiveTradeHolding,
   type TossTestHolding,
 } from "./api";
+import { collectAccessDeviceInfo } from "./lib/access-device-info";
 import AppSiteFooter from "./components/AppSiteFooter";
 import { Sp500SectorProvider } from "./contexts/Sp500SectorContext";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -718,6 +720,31 @@ export default function App() {
       if (intervalId != null) window.clearInterval(intervalId);
     };
   }, [configReady, accessAdmin, adminIpConsole]);
+
+  /** 접속 기기·화면 정보를 서버 목록에 남김 (6시간마다) */
+  useEffect(() => {
+    if (!configReady) return;
+    const key = "stock-access-device-seen-at-v1";
+    try {
+      const last = Number(localStorage.getItem(key) || 0);
+      if (Number.isFinite(last) && Date.now() - last < 6 * 60 * 60 * 1000) {
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    void postAccessDeviceSeen(collectAccessDeviceInfo())
+      .then(() => {
+        try {
+          localStorage.setItem(key, String(Date.now()));
+        } catch {
+          /* ignore */
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      });
+  }, [configReady]);
 
   useEffect(() => {
     if (!configReady) return;

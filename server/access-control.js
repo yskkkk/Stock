@@ -5,6 +5,13 @@ import { fileURLToPath } from "url";
 import { clientIp, stampAccessEventNow } from "./access-log.js";
 import { parseJsonText } from "./store-json.js";
 import { registerAccessAdminLiveTradingRoute } from "./access-admin-live-trading.js";
+import {
+  listAccessDevices,
+  listAccessDevicesSeenOnKstDay,
+  normalizeDeviceInfoPayload,
+  recordAccessDeviceSeen,
+} from "./access-devices-store.js";
+import { kstYmd } from "./log-kst.js";
 
 /**
  * Vite가 Express에 넘기는 `IncomingMessage`에는 `path`가 없어 `/`로만 판별되면
@@ -193,6 +200,7 @@ function isPathPublic(pathname, method) {
   if (method === "GET" && pathname === "/api/ui-features") return true;
   if (method === "POST" && pathname === "/api/server-open-request") return true;
   if (method === "POST" && pathname === "/api/access/request") return true;
+  if (method === "POST" && pathname === "/api/access/device-seen") return true;
   if (method === "POST" && pathname === "/api/feedback") return true;
   return false;
 }
@@ -370,38 +378,7 @@ export function registerAccessControl(app) {
 
     const message = String(req.body?.message ?? "").trim().slice(0, 500);
     const id = randomUUID();
-    const rawDevice = req.body?.deviceInfo;
-    let deviceInfo = null;
-    if (rawDevice != null && typeof rawDevice === "object" && !Array.isArray(rawDevice)) {
-      deviceInfo = {
-        userAgent: String(rawDevice.userAgent ?? "").slice(0, 400),
-        platform: String(rawDevice.platform ?? "").slice(0, 120),
-        language: String(rawDevice.language ?? "").slice(0, 80),
-        languages: String(rawDevice.languages ?? "").slice(0, 200),
-        screen: String(rawDevice.screen ?? "").slice(0, 80),
-        viewport: String(rawDevice.viewport ?? "").slice(0, 80),
-        timezone: String(rawDevice.timezone ?? "").slice(0, 80),
-        hardwareConcurrency:
-          typeof rawDevice.hardwareConcurrency === "number" &&
-          Number.isFinite(rawDevice.hardwareConcurrency)
-            ? rawDevice.hardwareConcurrency
-            : null,
-        deviceMemory:
-          typeof rawDevice.deviceMemory === "number" &&
-          Number.isFinite(rawDevice.deviceMemory)
-            ? rawDevice.deviceMemory
-            : null,
-        maxTouchPoints:
-          typeof rawDevice.maxTouchPoints === "number" &&
-          Number.isFinite(rawDevice.maxTouchPoints)
-            ? rawDevice.maxTouchPoints
-            : null,
-        cookieEnabled:
-          typeof rawDevice.cookieEnabled === "boolean"
-            ? rawDevice.cookieEnabled
-            : null,
-      };
-    }
+    const deviceInfo = normalizeDeviceInfoPayload(req.body?.deviceInfo);
     const eventMs = Date.now();
     stampAccessEventNow(req, eventMs);
     const row = {
@@ -415,7 +392,45 @@ export function registerAccessControl(app) {
     };
     store.requests.push(row);
     writeAccessStore(store);
+    try {
+      recordAccessDeviceSeen({
+        ip,
+        userAgent: row.userAgent,
+        path: "/api/access/request",
+        source: "access-request",
+        deviceInfo,
+        forcePersist: true,
+      });
+    } catch {
+      /* ignore */
+    }
     res.json({ ok: true, message: "신청이 접수되었습니다." });
+  });
+
+  app.post("/api/access/device-seen", (req, res) => {
+    const ip = clientIp(req);
+    const deviceInfo = normalizeDeviceInfoPayload(req.body?.deviceInfo);
+    const ua =
+      (deviceInfo && deviceInfo.userAgent) ||
+      String(req.headers["user-agent"] ?? "").slice(0, 400);
+    if (!ua) {
+      res.status(400).json({ error: "userAgent가 필요합니다." });
+      return;
+    }
+    stampAccessEventNow(req);
+    const row = recordAccessDeviceSeen({
+      ip,
+      userAgent: ua,
+      path: "/api/access/device-seen",
+      source: "client",
+      deviceInfo,
+      forcePersist: true,
+    });
+    res.json({
+      ok: true,
+      id: row?.id ?? null,
+      deviceLabel: row?.deviceLabel ?? null,
+    });
   });
 
   app.get("/api/access/admin/requests", requireAdmin, (_req, res) => {
@@ -428,6 +443,19 @@ export function registerAccessControl(app) {
       return tb - ta;
     });
     res.json({ pending, allowed, recent });
+  });
+
+  app.get("/api/access/admin/devices", requireAdmin, (req, res) => {
+    const day = String(req.query?.day ?? "").trim() || kstYmd();
+    const today = listAccessDevicesSeenOnKstDay(day);
+    const all = listAccessDevices({ limit: 200 });
+    res.json({
+      day: today.day,
+      todayCount: today.count,
+      today: today.devices,
+      updatedAt: all.updatedAt,
+      devices: all.devices,
+    });
   });
 
   registerAccessAdminLiveTradingRoute(app, requireAdmin);

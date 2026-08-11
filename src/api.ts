@@ -2850,12 +2850,62 @@ export function postAccessRequest(
   });
 }
 
+export interface AccessDeviceRosterItem {
+  id: string;
+  ip: string;
+  userAgent: string;
+  deviceLabel: string;
+  platform?: string;
+  language?: string;
+  screen?: string;
+  viewport?: string;
+  timezone?: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  lastSeenKst?: string;
+  hitCount: number;
+  lastPath?: string;
+  source?: string;
+}
+
+export interface AccessAdminDevicesSnapshot {
+  day: string;
+  todayCount: number;
+  today: AccessDeviceRosterItem[];
+  updatedAt: number;
+  devices: AccessDeviceRosterItem[];
+}
+
+export function postAccessDeviceSeen(deviceInfo?: AccessDeviceInfoPayload | null) {
+  const base: AccessDeviceInfoPayload = { ...(deviceInfo ?? {}) };
+  return fetchJson<{ ok: boolean; id: string | null; deviceLabel: string | null }>(
+    "/api/access/device-seen",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        deviceInfo: Object.keys(base).length ? base : undefined,
+      }),
+    },
+  );
+}
+
 /** adminToken 이 비면 등록 관리자 IP로만 호출 가능 */
 export function fetchAccessAdminRequests(adminToken: string) {
   const headers: Record<string, string> = {};
   const t = adminToken.trim();
   if (t) headers.Authorization = `Bearer ${t}`;
   return fetchJson<AccessAdminSnapshot>("/api/access/admin/requests", {
+    headers: Object.keys(headers).length ? headers : undefined,
+  });
+}
+
+export function fetchAccessAdminDevices(adminToken: string, day?: string) {
+  const headers: Record<string, string> = {};
+  const t = adminToken.trim();
+  if (t) headers.Authorization = `Bearer ${t}`;
+  const q = day ? `?day=${encodeURIComponent(day)}` : "";
+  return fetchJson<AccessAdminDevicesSnapshot>(`/api/access/admin/devices${q}`, {
     headers: Object.keys(headers).length ? headers : undefined,
   });
 }

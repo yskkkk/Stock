@@ -749,6 +749,25 @@
 
         lastStatusAdminIp = Boolean(s.adminIpConsole);
 
+        try {
+          const seenKey = "stock-gate-device-seen-at";
+          const lastSeen = Number(sessionStorage.getItem(seenKey) || 0);
+          if (!Number.isFinite(lastSeen) || Date.now() - lastSeen > 30 * 60 * 1000) {
+            void api("/api/access/device-seen", {
+              method: "POST",
+              body: JSON.stringify({ deviceInfo: collectDeviceInfo() }),
+            }).then(() => {
+              try {
+                sessionStorage.setItem(seenKey, String(Date.now()));
+              } catch (_) {
+                /* ignore */
+              }
+            });
+          }
+        } catch (_) {
+          /* ignore */
+        }
+
         if (!s.enabled || s.state === "allowed") {
           stopPoll();
           stopAdminPoll();

@@ -6,6 +6,7 @@ import {
   ensureServerLogDirSync,
   migrateLegacyServerLogsSync,
 } from "./log-paths.js";
+import { recordAccessDeviceFromReq } from "./access-devices-store.js";
 
 let legacyLogsMigrated = false;
 function ensureAccessLogReady() {
@@ -77,6 +78,7 @@ function shouldSkipAccessLog(req) {
   if (method === "POST") {
     if (path === "/api/ops/cursor-agent-stream") return true;
     if (path === "/api/ops/cursor-agent") return true;
+    if (path === "/api/access/device-seen") return true;
     return false;
   }
   if (method !== "GET") return false;
@@ -144,7 +146,9 @@ function humanAction(req) {
 
   if (method === "GET" && path === "/api/access/status") return "IP 접근 상태 조회";
   if (method === "POST" && path === "/api/access/request") return "IP 접근 신청";
+  if (method === "POST" && path === "/api/access/device-seen") return "접속 기기 기록";
   if (method === "GET" && path === "/api/access/admin/requests") return "접근 관리 목록 조회";
+  if (method === "GET" && path === "/api/access/admin/devices") return "접속 기기 목록 조회";
   if (method === "GET" && path === "/api/access/admin/live-trading/running")
     return "실매매·시뮬 가동 프로그램 조회(관리자)";
   if (method === "POST" && path === "/api/access/admin/approve") return "접근 신청 승인";
@@ -197,8 +201,13 @@ function lineFromReq(req, atTs) {
   const ip = clientIp(req);
   const method = String(req.method ?? "GET").toUpperCase();
   const action = humanAction(req);
+  const ua = String(req.headers?.["user-agent"] ?? "")
+    .replace(/[\t\r\n]/g, " ")
+    .trim()
+    .slice(0, 160);
+  const uaField = ua ? `\tua=${ua}` : "";
   return {
-    file: `${ts}\tip=${ip}\t${method}\t${action}\n`,
+    file: `${ts}\tip=${ip}${uaField}\t${method}\t${action}\n`,
     console: `${ts} ip=${ip} ${action}`,
   };
 }
@@ -301,6 +310,11 @@ export function expressAccessLogger(req, res, next) {
     if (method === "GET") stampAccessEventNow(req);
   }
   res.once("finish", () => {
+    try {
+      recordAccessDeviceFromReq(req, { source: "express" });
+    } catch {
+      /* ignore */
+    }
     if (skip) return;
     if (
       /** @type {Record<symbol, number>} */ (req)[ACCESS_EVENT_AT_MS] == null
@@ -329,6 +343,11 @@ export function installViteAccessTraceMiddleware(server) {
       if (shouldSkipAccessLog(req)) return next();
       stampAccessEventNow(req);
       res.once("finish", () => {
+        try {
+          recordAccessDeviceFromReq(req, { source: "vite" });
+        } catch {
+          /* ignore */
+        }
         appendAccessLog(req, accessEventAtLogTs(req));
       });
       next();
