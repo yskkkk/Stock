@@ -11,6 +11,7 @@ import {
   ensureServerLogDirSync,
 } from "./log-paths.js";
 import { parseJsonText } from "./store-json.js";
+import { getCachedIpGeo, lookupIpGeo } from "./access-ip-geo.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORE_FILE = path.join(__dirname, ".data", "access-devices.json");
@@ -46,6 +47,13 @@ let cache = null;
  *   hitCount: number;
  *   lastPath: string;
  *   source: string;
+ *   geoLabel: string;
+ *   geoCountry: string;
+ *   geoCountryCode: string;
+ *   geoRegion: string;
+ *   geoCity: string;
+ *   geoIsp: string;
+ *   geoSource: string;
  * }} AccessDeviceRow
  */
 
@@ -147,6 +155,47 @@ function writeStore(store) {
 }
 
 /**
+ * @param {AccessDeviceRow} row
+ * @param {import("./access-ip-geo.js").IpGeoInfo} geo
+ */
+function applyGeoToRow(row, geo) {
+  row.geoLabel = geo.geoLabel;
+  row.geoCountry = geo.geoCountry;
+  row.geoCountryCode = geo.geoCountryCode;
+  row.geoRegion = geo.geoRegion;
+  row.geoCity = geo.geoCity;
+  row.geoIsp = geo.geoIsp;
+  row.geoSource = geo.geoSource;
+}
+
+/**
+ * @param {string} deviceId
+ * @param {string} ip
+ */
+function scheduleGeoEnrich(deviceId, ip) {
+  const id = String(deviceId || "");
+  const ipn = String(ip || "");
+  if (!id || !ipn) return;
+  void lookupIpGeo(ipn)
+    .then((geo) => {
+      if (!geo) return;
+      const store = readStore();
+      const row = store.devices.find((d) => d.id === id);
+      if (!row) return;
+      const prev = row.geoLabel || "";
+      applyGeoToRow(row, geo);
+      if (prev !== row.geoLabel) {
+        writeStore(store);
+      } else {
+        cache = { updatedAt: Date.now(), devices: store.devices };
+      }
+    })
+    .catch(() => {
+      /* ignore */
+    });
+}
+
+/**
  * @param {unknown} raw
  */
 export function normalizeDeviceInfoPayload(raw) {
@@ -225,6 +274,13 @@ export function recordAccessDeviceSeen(args) {
       hitCount: 0,
       lastPath: "",
       source: String(args.source || "header").slice(0, 32),
+      geoLabel: "",
+      geoCountry: "",
+      geoCountryCode: "",
+      geoRegion: "",
+      geoCity: "",
+      geoIsp: "",
+      geoSource: "",
     };
     store.devices.push(row);
   }
@@ -256,6 +312,10 @@ export function recordAccessDeviceSeen(args) {
     }
   }
 
+  const cachedGeo = getCachedIpGeo(ip);
+  if (cachedGeo) applyGeoToRow(row, cachedGeo);
+  if (!row.geoLabel) scheduleGeoEnrich(id, ip);
+
   store.devices.sort(
     (a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt),
   );
@@ -273,7 +333,8 @@ export function recordAccessDeviceSeen(args) {
     if (isNew) {
       try {
         ensureServerLogDirSync();
-        const line = `${nowKst}\tip=${ip}\tdevice=${row.deviceLabel}\tua=${userAgent.replace(/[\t\r\n]/g, " ").slice(0, 240)}\tpath=${row.lastPath || "-"}\tsource=${row.source}\n`;
+        const geoBit = row.geoLabel ? `\tgeo=${row.geoLabel}` : "";
+        const line = `${nowKst}\tip=${ip}${geoBit}\tdevice=${row.deviceLabel}\tua=${userAgent.replace(/[\t\r\n]/g, " ").slice(0, 240)}\tpath=${row.lastPath || "-"}\tsource=${row.source}\n`;
         fs.appendFile(dailyServerLogPath("access-devices"), line, () => {});
       } catch {
         /* ignore */

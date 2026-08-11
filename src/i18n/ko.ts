@@ -2339,9 +2339,10 @@ export const ko = {
     adminAllowed: "허용 목록 (IP)",
     adminDevicesToday: "오늘 접속 기기",
     adminDevicesHint:
-      "IP·기기(UA)·화면 정보를 서버에 저장합니다. access-devices.json / 일별 access-devices 로그에도 남습니다.",
+      "IP·기기(UA)·지역·화면 정보를 서버에 저장합니다. access-devices.json / 일별 access-devices 로그에도 남습니다.",
     adminDevicesEmpty:
       "오늘 기록된 기기가 아직 없습니다. 접속 후 새로고침하면 보입니다.",
+    adminGeo: "지역",
     adminApprove: "승인",
     adminReject: "거절",
     adminRevoke: "허가 취소",

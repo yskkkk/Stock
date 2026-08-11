@@ -11,6 +11,7 @@ import {
   normalizeDeviceInfoPayload,
   recordAccessDeviceSeen,
 } from "./access-devices-store.js";
+import { lookupIpGeo } from "./access-ip-geo.js";
 import { kstYmd } from "./log-kst.js";
 
 /**
@@ -344,7 +345,7 @@ export function registerAccessControl(app) {
     });
   });
 
-  app.post("/api/access/request", (req, res) => {
+  app.post("/api/access/request", async (req, res) => {
     if (!isAccessControlEnabled()) {
       res.json({ ok: true, message: "접근 제어가 비활성화되어 있습니다." });
       return;
@@ -393,6 +394,7 @@ export function registerAccessControl(app) {
     store.requests.push(row);
     writeAccessStore(store);
     try {
+      await lookupIpGeo(ip);
       recordAccessDeviceSeen({
         ip,
         userAgent: row.userAgent,
@@ -407,7 +409,7 @@ export function registerAccessControl(app) {
     res.json({ ok: true, message: "신청이 접수되었습니다." });
   });
 
-  app.post("/api/access/device-seen", (req, res) => {
+  app.post("/api/access/device-seen", async (req, res) => {
     const ip = clientIp(req);
     const deviceInfo = normalizeDeviceInfoPayload(req.body?.deviceInfo);
     const ua =
@@ -418,6 +420,11 @@ export function registerAccessControl(app) {
       return;
     }
     stampAccessEventNow(req);
+    try {
+      await lookupIpGeo(ip);
+    } catch {
+      /* ignore */
+    }
     const row = recordAccessDeviceSeen({
       ip,
       userAgent: ua,
@@ -430,6 +437,7 @@ export function registerAccessControl(app) {
       ok: true,
       id: row?.id ?? null,
       deviceLabel: row?.deviceLabel ?? null,
+      geoLabel: row?.geoLabel ?? null,
     });
   });
 

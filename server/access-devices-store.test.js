@@ -5,6 +5,11 @@ import {
   recordAccessDeviceSeen,
   summarizeUserAgent,
 } from "./access-devices-store.js";
+import {
+  geoInfoFromIpApiPayload,
+  getCachedIpGeo,
+  isPrivateOrLocalIp,
+} from "./access-ip-geo.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -55,5 +60,20 @@ describe("access-devices-store", () => {
     expect(row?.screen).toBe("1920x1080");
     expect(row?.timezone).toBe("Asia/Seoul");
     expect(fs.existsSync(STORE)).toBe(true);
+  });
+
+  it("labels private IPs as local geo", () => {
+    expect(isPrivateOrLocalIp("127.0.0.1")).toBe(true);
+    expect(isPrivateOrLocalIp("192.168.219.101")).toBe(true);
+    expect(getCachedIpGeo("127.0.0.1")?.geoLabel).toMatch(/로컬/);
+    const parsed = geoInfoFromIpApiPayload({
+      country: "South Korea",
+      countryCode: "KR",
+      regionName: "Seoul",
+      city: "Seoul",
+      isp: "KT",
+    });
+    expect(parsed.geoLabel).toBe("KR · Seoul");
+    expect(parsed.geoIsp).toBe("KT");
   });
 });

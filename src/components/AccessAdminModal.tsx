@@ -678,6 +678,12 @@ export default function AccessAdminModal({
                               {d.hitCount > 1 ? ` · ×${d.hitCount}` : ""}
                             </span>
                           </div>
+                          {d.geoLabel ? (
+                            <p className="access-admin-ua">
+                              {ko.access.adminGeo}: {d.geoLabel}
+                              {d.geoIsp ? ` · ${d.geoIsp}` : ""}
+                            </p>
+                          ) : null}
                           <p className="access-admin-ua">
                             {d.lastSeenKst || d.lastSeenAt}
                             {d.screen ? ` · ${d.screen}` : ""}

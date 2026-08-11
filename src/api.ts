@@ -2860,6 +2860,11 @@ export interface AccessDeviceRosterItem {
   screen?: string;
   viewport?: string;
   timezone?: string;
+  geoLabel?: string;
+  geoCountry?: string;
+  geoRegion?: string;
+  geoCity?: string;
+  geoIsp?: string;
   firstSeenAt: string;
   lastSeenAt: string;
   lastSeenKst?: string;
