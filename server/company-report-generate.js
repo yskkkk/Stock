@@ -17,9 +17,13 @@ import {
 } from "./us-announcement-edgar.js";
 import { fetchYahooConsensusSnapshot } from "./us-announcement-consensus.js";
 import { fetchDartDisclosures } from "./dart.js";
+import { localizeIndustry } from "./stock-vault-meta.js";
 import { upsertCompanyReport } from "./company-report-store.js";
+import { loadEnvFile } from "./load-env.js";
 
-export const COMPANY_REPORT_VERSION = 2;
+loadEnvFile();
+
+export const COMPANY_REPORT_VERSION = 3;
 
 export const COMPANY_REPORT_TOC = [
   "한줄 요약·투자 포인트",
@@ -29,7 +33,7 @@ export const COMPANY_REPORT_TOC = [
   "매출·성장 추이",
   "수익성·마진·ROE",
   "재무상태·건전성",
-  "현금흐름·CapEx·FCF",
+  "현금흐름·투자·잉여현금",
   "밸류에이션·배수",
   "주주환원·배당·자사주",
   "시총·유통주식·공매도",
@@ -46,7 +50,7 @@ export const COMPANY_REPORT_TOC = [
 /** @param {number | null | undefined} n @param {number} [d] */
 function fmtN(n, d = 2) {
   if (n == null || !Number.isFinite(n)) return "—";
-  return n.toLocaleString("en-US", {
+  return n.toLocaleString("ko-KR", {
     maximumFractionDigits: d,
     minimumFractionDigits: 0,
   });
@@ -61,19 +65,284 @@ function fmtPct(n) {
   return `${sign}${pct.toFixed(1)}%`;
 }
 
-/** @param {number | null | undefined} n @param {string} [ccy] */
+/**
+ * 금액 — 한글 단위 (조원/억원/원, 조달러/억달러/만달러/달러)
+ * @param {number | null | undefined} n
+ * @param {string} [ccy]
+ */
 function fmtMoney(n, ccy = "USD") {
   if (n == null || !Number.isFinite(n)) return "—";
-  const abs = Math.abs(n);
-  if (ccy === "KRW") {
-    if (abs >= 1e12) return `${(n / 1e12).toFixed(2)}조원`;
-    if (abs >= 1e8) return `${(n / 1e8).toFixed(1)}억원`;
+  const sign = n < 0 ? "-" : "";
+  const v = Math.abs(n);
+  if (String(ccy).toUpperCase() === "KRW") {
+    if (v >= 1e12) return `${sign}${(v / 1e12).toFixed(2)}조원`;
+    if (v >= 1e8) return `${sign}${(v / 1e8).toFixed(1)}억원`;
+    if (v >= 1e4) return `${sign}${Math.round(v / 1e4).toLocaleString("ko-KR")}만원`;
+    return `${sign}${Math.round(v).toLocaleString("ko-KR")}원`;
+  }
+  // USD: 1조달러=1e12, 1억달러=1e8, 1만달러=1e4
+  if (v >= 1e12) return `${sign}${(v / 1e12).toFixed(2)}조달러`;
+  if (v >= 1e8) return `${sign}${(v / 1e8).toFixed(1)}억달러`;
+  if (v >= 1e4) return `${sign}${Math.round(v / 1e4).toLocaleString("ko-KR")}만달러`;
+  return `${sign}${fmtN(v)}달러`;
+}
+
+/** 주가·목표가·EPS 등 소액 — 항상 단위 포함 */
+function fmtPx(n, ccy = "USD") {
+  if (n == null || !Number.isFinite(n)) return "—";
+  if (String(ccy).toUpperCase() === "KRW") {
     return `${Math.round(n).toLocaleString("ko-KR")}원`;
   }
-  if (abs >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
-  if (abs >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
-  return `$${fmtN(n)}`;
+  return `${fmtN(n)}달러`;
+}
+
+/** @param {number | null | undefined} n */
+function fmtShares(n) {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const v = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (v >= 1e12) return `${sign}${(v / 1e12).toFixed(2)}조주`;
+  if (v >= 1e8) return `${sign}${(v / 1e8).toFixed(1)}억주`;
+  if (v >= 1e4) return `${sign}${(v / 1e4).toFixed(0)}만주`;
+  return `${sign}${fmtN(v, 0)}주`;
+}
+
+/** @param {unknown} raw */
+function koIndustryLabel(raw) {
+  const t = String(raw ?? "").trim();
+  if (!t) return "—";
+  if (/[가-힣]/.test(t)) return t;
+  const ko = localizeIndustry(t);
+  return ko && ko !== "기타" ? ko : t;
+}
+
+/** @param {unknown} key */
+function koRec(key) {
+  const k = String(key ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  /** @type {Record<string, string>} */
+  const map = {
+    strong_buy: "강력매수",
+    buy: "매수",
+    hold: "보유",
+    sell: "매도",
+    strong_sell: "강력매도",
+    underperform: "비중축소",
+    outperform: "비중확대",
+    none: "없음",
+  };
+  return map[k] || String(key ?? "");
+}
+
+/** @param {unknown} raw */
+function koCountry(raw) {
+  const t = String(raw ?? "").trim();
+  if (!t) return "";
+  /** @type {Record<string, string>} */
+  const map = {
+    "United States": "미국",
+    USA: "미국",
+    US: "미국",
+    "United Kingdom": "영국",
+    UK: "영국",
+    Japan: "일본",
+    China: "중국",
+    "South Korea": "한국",
+    Korea: "한국",
+    Germany: "독일",
+    France: "프랑스",
+    Canada: "캐나다",
+    Taiwan: "대만",
+    India: "인도",
+    Australia: "호주",
+    Netherlands: "네덜란드",
+    Switzerland: "스위스",
+    Ireland: "아일랜드",
+    Israel: "이스라엘",
+    Brazil: "브라질",
+  };
+  return map[t] || t;
+}
+
+/** @param {unknown} raw */
+function koExchange(raw) {
+  const t = String(raw ?? "").trim();
+  if (!t) return "";
+  const u = t.toUpperCase();
+  if (/NASDAQ/.test(u)) return "나스닥";
+  if (/NYSE|NEW YORK/.test(u)) return "뉴욕거래소";
+  if (/AMEX|NYSE MKT|NYSE AMERICAN/.test(u)) return "아멕스";
+  if (/KSC|KRX|KOSPI|\.KS/.test(u)) return "코스피";
+  if (/KOE|KOSDAQ|\.KQ/.test(u)) return "코스닥";
+  return t;
+}
+
+/** @param {unknown} title */
+function koOfficerTitle(title) {
+  let t = String(title ?? "").trim();
+  if (!t) return "";
+  t = t
+    .replace(/\bChief Executive Officer\b/gi, "최고경영자")
+    .replace(/\bChief Financial Officer\b/gi, "최고재무책임자")
+    .replace(/\bChief Operating Officer\b/gi, "최고운영책임자")
+    .replace(/\bChief Technology Officer\b/gi, "최고기술책임자")
+    .replace(/\bGeneral Counsel\b/gi, "법률총괄")
+    .replace(/\bPrincipal Accounting Officer\b/gi, "회계책임자")
+    .replace(/\bDirector of Investor Relations\b/gi, "IR 담당")
+    .replace(/\bSenior Vice President\b/gi, "수석부사장")
+    .replace(/\bVice President\b/gi, "부사장")
+    .replace(/\bSenior VP\b/gi, "수석부사장")
+    .replace(/\bCEO\b/g, "최고경영자(CEO)")
+    .replace(/\bCFO\b/g, "최고재무책임자(CFO)")
+    .replace(/\bCOO\b/g, "최고운영책임자(COO)")
+    .replace(/\bDirector\b/gi, "이사")
+    .replace(/\bSecretary\b/gi, "서기")
+    .replace(/\bRetail & People\b/gi, "리테일·인사")
+    .replace(/\bGovernment Affairs\b/gi, "대관")
+    .replace(/\bWorldwide Marketing\b/gi, "글로벌 마케팅")
+    .replace(/\bWorldwide Communications\b/gi, "글로벌 커뮤니케이션");
+  return t;
+}
+
+/** @param {unknown} form */
+function koFilingForm(form) {
+  const f = String(form ?? "").trim().toUpperCase();
+  if (f === "10-K") return "연차보고서(10-K)";
+  if (f === "10-Q") return "분기보고서(10-Q)";
+  if (f === "8-K") return "수시공시(8-K)";
+  if (f === "20-F") return "해외기업 연차(20-F)";
+  if (f === "6-K") return "해외기업 수시(6-K)";
+  if (f === "DEF 14A" || f === "DEF14A") return "위임장설명서(DEF 14A)";
+  if (f === "DEFA14A") return "추가 위임장(DEFA14A)";
+  if (f === "DART") return "전자공시(DART)";
+  return String(form ?? "");
+}
+
+/** @param {unknown} grade */
+function koGrade(grade) {
+  const g = String(grade ?? "").trim();
+  if (!g) return "—";
+  const low = g.toLowerCase();
+  if (/strong\s*buy/.test(low)) return "강력매수";
+  if (/strong\s*sell/.test(low)) return "강력매도";
+  if (/\bbuy\b|overweight|outperform/.test(low)) return "매수";
+  if (/\bhold\b|neutral|equal.?weight|market\s*perform/.test(low)) return "보유";
+  if (/\bsell\b|underweight|underperform/.test(low)) return "매도";
+  return g;
+}
+
+/** @param {unknown} action */
+function koAction(action) {
+  const a = String(action ?? "").trim().toLowerCase();
+  if (!a) return "변경";
+  if (a.includes("upgrade") || a === "up") return "상향";
+  if (a.includes("downgrade") || a === "down") return "하향";
+  if (a.includes("init")) return "개시";
+  if (a.includes("maintain") || a.includes("reiterat")) return "유지";
+  return String(action);
+}
+
+function looksMostlyEnglish(text) {
+  const t = String(text ?? "").trim();
+  if (t.length < 40) return false;
+  const latin = (t.match(/[A-Za-z]/g) || []).length;
+  const hangul = (t.match(/[가-힣]/g) || []).length;
+  return latin > 80 && hangul < latin * 0.15;
+}
+
+/**
+ * 번역 키 없을 때 — 구조화 팩트로 한글 성장·개요 문단 구성
+ * @param {Record<string, unknown>} facts
+ * @param {string} name
+ * @param {string} ccy
+ */
+function buildKoreanGrowthStoryFallback(facts, name, ccy) {
+  /** @type {string[]} */
+  const parts = [];
+  const sector = koIndustryLabel(facts.sector);
+  const industry = koIndustryLabel(facts.industry);
+  const field = [sector, industry].filter((x) => x && x !== "—").join(" · ");
+  if (field) {
+    parts.push(`${name}은(는) ${field} 분야의 기업이다.`);
+  }
+  if (facts.totalRevenue != null) {
+    parts.push(
+      `최근 12개월 매출은 ${fmtMoney(/** @type {number} */ (facts.totalRevenue), ccy)} 규모다.`,
+    );
+  }
+  if (facts.revenueGrowth != null) {
+    const g = Number(facts.revenueGrowth);
+    parts.push(
+      `매출 성장률은 ${fmtPct(g)}로, ${
+        g >= 0.15 ? "고성장" : g > 0 ? "완만 성장" : "역성장·둔화"
+      } 구간에 해당한다.`,
+    );
+  }
+  if (facts.profitMargins != null) {
+    parts.push(`순이익률은 ${fmtPct(/** @type {number} */ (facts.profitMargins))}다.`);
+  }
+  if (facts.marketCap != null) {
+    parts.push(`시가총액은 ${fmtMoney(/** @type {number} */ (facts.marketCap), ccy)}다.`);
+  }
+  if (facts.fullTimeEmployees != null) {
+    parts.push(
+      `임직원은 약 ${fmtN(/** @type {number} */ (facts.fullTimeEmployees), 0)}명이다.`,
+    );
+  }
+  const hq = [facts.city, koCountry(facts.country)].filter(Boolean).join(", ");
+  if (hq) parts.push(`본사는 ${hq}에 있다.`);
+  if (facts.website) parts.push(`웹사이트는 ${facts.website}이다.`);
+  return parts.join(" ");
+}
+
+/**
+ * 영문 사업개요 등 → 한글 (OpenAI 있을 때만)
+ * @param {string} text
+ */
+async function translatePassageToKorean(text) {
+  const raw = String(text ?? "").trim();
+  if (!raw || !looksMostlyEnglish(raw)) return raw;
+  const key = String(process.env.OPENAI_API_KEY ?? "").trim();
+  if (!key) {
+    // 영문 장문 그대로 넣지 않음 — 한글 번역 키가 있을 때만 사업개요 문단 생성
+    return "";
+  }
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: String(
+          process.env.STOCK_COMPANY_REPORT_LLM_MODEL ??
+            process.env.STOCK_ANNOUNCEMENT_LLM_MODEL ??
+            "gpt-4o-mini",
+        ).trim(),
+        temperature: 0.2,
+        max_tokens: 1800,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Translate the company business description into natural Korean for an equity report. Keep product names (iPhone 등). No English paragraphs. No preamble.",
+          },
+          { role: "user", content: raw.slice(0, 3500) },
+        ],
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) return raw;
+    const data = await res.json();
+    const out = String(data?.choices?.[0]?.message?.content ?? "").trim();
+    if (out.length < 80 || looksMostlyEnglish(out)) return raw;
+    return out.slice(0, 4000);
+  } catch {
+    return raw;
+  }
 }
 
 /**
@@ -148,30 +417,30 @@ function analyzeCompanyFindings(facts, name, ccy) {
       const conv = (fcf / ocf) * 100;
       const drain = ocf - fcf;
       cash.push(
-        `${name} 영업CF ${fmtMoney(ocf, ccy)} · FCF ${fmtMoney(fcf, ccy)} · FCF/영업CF ${conv.toFixed(0)}%`,
+        `${name} 영업현금흐름 ${fmtMoney(ocf, ccy)} · 잉여현금흐름 ${fmtMoney(fcf, ccy)} · 전환율 ${conv.toFixed(0)}%`,
       );
       if (drain > 0) {
         cash.push(
-          `영업CF 대비 FCF 차감분(투자·CapEx성) 약 ${fmtMoney(drain, ccy)}`,
+          `영업현금 대비 잉여현금 차감분(투자성) 약 ${fmtMoney(drain, ccy)}`,
         );
       } else if (drain < 0) {
         cash.push(
-          `FCF가 영업CF를 상회 — 운전자본·일회성 유입 영향 가능 (${fmtMoney(Math.abs(drain), ccy)})`,
+          `잉여현금이 영업현금을 상회 — 운전자본·일회성 유입 영향 가능 (${fmtMoney(Math.abs(drain), ccy)})`,
         );
       }
     }
   } else {
     if (facts.operatingCashflow != null) {
-      cash.push(`영업CF ${fmtMoney(/** @type {number} */ (facts.operatingCashflow), ccy)}`);
+      cash.push(`영업현금흐름 ${fmtMoney(/** @type {number} */ (facts.operatingCashflow), ccy)}`);
     }
     if (facts.freeCashflow != null) {
-      cash.push(`FCF ${fmtMoney(/** @type {number} */ (facts.freeCashflow), ccy)}`);
+      cash.push(`잉여현금흐름 ${fmtMoney(/** @type {number} */ (facts.freeCashflow), ccy)}`);
     }
   }
 
   if (facts.esgTotal != null) {
     risk.push(
-      `${name} ESG Total ${fmtN(/** @type {number} */ (facts.esgTotal))} (E ${fmtN(/** @type {number|null} */ (facts.esgEnvironment))} / S ${fmtN(/** @type {number|null} */ (facts.esgSocial))} / G ${fmtN(/** @type {number|null} */ (facts.esgGovernance))})`,
+      `${name} ESG 종합 ${fmtN(/** @type {number} */ (facts.esgTotal))} (환경 ${fmtN(/** @type {number|null} */ (facts.esgEnvironment))} / 사회 ${fmtN(/** @type {number|null} */ (facts.esgSocial))} / 지배구조 ${fmtN(/** @type {number|null} */ (facts.esgGovernance))})`,
     );
   }
   if (facts.shortPercentOfFloat != null) {
@@ -214,7 +483,7 @@ function analyzeCompanyFindings(facts, name, ccy) {
 
   if (facts.sector || facts.industry) {
     industry.push(
-      `${name} 소속: ${[facts.sector, facts.industry].filter(Boolean).join(" > ")}`,
+      `${name} 소속: ${[koIndustryLabel(facts.sector), koIndustryLabel(facts.industry)].filter((x) => x && x !== "—").join(" > ")}`,
     );
   }
   if (facts.profitMargins != null) {
@@ -259,12 +528,12 @@ function analyzeCompanyFindings(facts, name, ccy) {
         Number(facts.price)) *
       100;
     outlook.push(
-      `${name} 현재가 대비 컨센 목표가 평균 괴리 ${upside >= 0 ? "+" : ""}${upside.toFixed(1)}% (목표가 ${fmtN(/** @type {number} */ (facts.targetMeanPrice))})`,
+      `${name} 현재가 대비 컨센 목표가 평균 괴리 ${upside >= 0 ? "+" : ""}${upside.toFixed(1)}% (목표가 ${fmtPx(/** @type {number} */ (facts.targetMeanPrice), ccy)})`,
     );
   }
   if (facts.recommendationKey) {
     outlook.push(
-      `애널리스트 컨센 투자의견 ${facts.recommendationKey}${
+      `애널리스트 컨센 투자의견 ${koRec(facts.recommendationKey)}${
         facts.numberOfAnalystOpinions != null
           ? ` · ${fmtN(/** @type {number} */ (facts.numberOfAnalystOpinions), 0)}명`
           : ""
@@ -279,13 +548,13 @@ function analyzeCompanyFindings(facts, name, ccy) {
   }
   if (facts.forwardPE != null || facts.trailingPE != null) {
     outlook.push(
-      `밸류: Trailing PER ${fmtN(/** @type {number|null} */ (facts.trailingPE))} · Forward PER ${fmtN(/** @type {number|null} */ (facts.forwardPE))}`,
+      `밸류: 후행 PER ${fmtN(/** @type {number|null} */ (facts.trailingPE))}배 · 선행 PER ${fmtN(/** @type {number|null} */ (facts.forwardPE))}배`,
     );
   }
   if (facts.freeCashflow != null && Number(facts.freeCashflow) > 0) {
-    outlook.push(`${name} FCF 흑자 ${fmtMoney(/** @type {number} */ (facts.freeCashflow), ccy)} — 환원·재투자 여력 존재`);
+    outlook.push(`${name} 잉여현금흐름(FCF) 흑자 ${fmtMoney(/** @type {number} */ (facts.freeCashflow), ccy)} — 환원·재투자 여력 존재`);
   } else if (facts.freeCashflow != null && Number(facts.freeCashflow) < 0) {
-    outlook.push(`${name} FCF 적자 ${fmtMoney(/** @type {number} */ (facts.freeCashflow), ccy)} — 현금 창출보다 투자/유출이 큼`);
+    outlook.push(`${name} 잉여현금흐름(FCF) 적자 ${fmtMoney(/** @type {number} */ (facts.freeCashflow), ccy)} — 현금 창출보다 투자/유출이 큼`);
   }
 
   return { risk, industry, outlook, cash };
@@ -316,20 +585,20 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
   /** @type {string[]} */
   const headline = [];
   headline.push(
-    `${name}(${sym}) · ${facts.sector || "—"} / ${facts.industry || "—"} · ${facts.exchange || meta.market.toUpperCase()}`,
+    `${name}(${sym}) · ${koIndustryLabel(facts.sector)} / ${koIndustryLabel(facts.industry)} · ${koExchange(facts.exchange) || (meta.market === "kr" ? "한국" : "미국")}`,
   );
   if (facts.price != null) {
     headline.push(
-      `현재가 ${fmtMoney(/** @type {number} */ (facts.price), ccy === "KRW" ? "KRW" : "USD").replace(/^\$/, ccy === "KRW" ? "" : "$")} · 시총 ${fmtMoney(/** @type {number|null} */ (facts.marketCap ?? fund?.marketCap), ccy)}`,
+      `현재가 ${fmtPx(/** @type {number} */ (facts.price), ccy)} · 시총 ${fmtMoney(/** @type {number|null} */ (facts.marketCap ?? fund?.marketCap), ccy)}`,
     );
   } else if (fund?.price != null) {
     headline.push(
-      `참고가 ${fmtN(fund.price)} · 시총 ${fmtMoney(fund.marketCap, ccy)}`,
+      `참고가 ${fmtPx(fund.price, ccy)} · 시총 ${fmtMoney(fund.marketCap, ccy)}`,
     );
   }
   if (facts.trailingPE != null || fund?.per != null) {
     headline.push(
-      `Trailing PER ${fmtN(/** @type {number|null} */ (facts.trailingPE ?? fund?.per))} · Forward PER ${fmtN(/** @type {number|null} */ (facts.forwardPE ?? fund?.forwardPer))}`,
+      `후행 PER ${fmtN(/** @type {number|null} */ (facts.trailingPE ?? fund?.per))}배 · 선행 PER ${fmtN(/** @type {number|null} */ (facts.forwardPE ?? fund?.forwardPer))}배`,
     );
   }
   if (facts.revenueGrowth != null || fund?.revenueGrowth != null) {
@@ -339,42 +608,39 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
   }
   if (facts.recommendationKey) {
     headline.push(
-      `컨센 투자의견 ${facts.recommendationKey} (평균 ${fmtN(/** @type {number|null} */ (facts.recommendationMean))}, 애널 ${fmtN(/** @type {number|null} */ (facts.numberOfAnalystOpinions), 0)}명)`,
+      `컨센 투자의견 ${koRec(facts.recommendationKey)} (점수 ${fmtN(/** @type {number|null} */ (facts.recommendationMean))}, 애널리스트 ${fmtN(/** @type {number|null} */ (facts.numberOfAnalystOpinions), 0)}명)`,
     );
   }
-  sections.push(bullets(headline, "핵심 지표를 충분히 모으지 못했습니다."));
+  sections.push(bullets(headline, `${name} 핵심 지표를 충분히 모으지 못함.`));
 
   // 2 profile
   sections.push("## 회사 개요·성장 스토리");
   /** @type {string[]} */
   const story = [];
-  if (facts.longBusinessSummary) {
-    story.push(String(facts.longBusinessSummary).slice(0, 2200));
+  const summaryKo = String(facts.longBusinessSummary ?? "").trim();
+  if (summaryKo && !looksMostlyEnglish(summaryKo)) {
+    story.push(summaryKo.slice(0, 2800));
+    story.push(
+      `본사 ${[facts.city, koCountry(facts.country)].filter(Boolean).join(", ") || "—"} · 임직원 ${fmtN(/** @type {number|null} */ (facts.fullTimeEmployees), 0)}명 · 웹사이트 ${facts.website || "—"}`,
+    );
+  } else {
+    const fallback = buildKoreanGrowthStoryFallback(facts, name, ccy);
+    if (fallback) story.push(fallback);
   }
-  story.push(
-    `본사 ${[facts.city, facts.country].filter(Boolean).join(", ") || "—"} · 임직원 ${fmtN(/** @type {number|null} */ (facts.fullTimeEmployees), 0)}명 · 웹사이트 ${facts.website || "—"}`,
-  );
   if (facts.longName && facts.longName !== name) {
     story.push(`공식명: ${facts.longName}`);
   }
-  sections.push(
-    bullets(
-      story,
-      meta.market === "kr"
-        ? `${name} 사업 개요 원문(longBusinessSummary)이 이번 팩에 없음.`
-        : `${name} 사업 개요 원문을 확보하지 못함.`,
-    ),
-  );
+  sections.push(bullets(story, `${name} 사업 개요 원문을 확보하지 못함.`));
 
   // 3 business
   sections.push("## 사업·제품·세그먼트");
   sections.push(
     bullets(
       [
-        facts.sector ? `${name} 섹터: ${facts.sector}` : "",
-        facts.industry ? `${name} 산업: ${facts.industry}` : "",
+        facts.sector ? `${name} 섹터: ${koIndustryLabel(facts.sector)}` : "",
+        facts.industry ? `${name} 산업: ${koIndustryLabel(facts.industry)}` : "",
         facts.totalRevenue != null
-          ? `${name} TTM 매출 ${fmtMoney(/** @type {number} */ (facts.totalRevenue), ccy)} · 주당 매출 ${fmtN(/** @type {number|null} */ (facts.revenuePerShare))}`
+          ? `${name} 최근 12개월 매출 ${fmtMoney(/** @type {number} */ (facts.totalRevenue), ccy)} · 주당 매출 ${fmtPx(/** @type {number|null} */ (facts.revenuePerShare), ccy)}`
           : "",
       ],
       `${name} 사업·세그먼트 세부 매출 분해가 이번 팩에 없음.`,
@@ -386,10 +652,14 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
   const officers = Array.isArray(facts.officers) ? facts.officers : [];
   sections.push(
     bullets(
-      officers.map(
-        (o) =>
-          `${o.name}${o.title ? ` — ${o.title}` : ""}${o.age != null ? ` (age ${o.age})` : ""}${o.totalPay != null ? ` · 보수 ${fmtMoney(o.totalPay, "USD")}` : ""}`,
-      ),
+      officers.map((o) => {
+        const title = koOfficerTitle(o.title);
+        const age =
+          o.age != null ? ` (나이 ${fmtN(/** @type {number} */ (o.age), 0)})` : "";
+        const pay =
+          o.totalPay != null ? ` · 보수 ${fmtMoney(o.totalPay, "USD")}` : "";
+        return `${o.name}${title ? ` — ${title}` : ""}${age}${pay}`;
+      }),
       `${name} 경영진 명단이 이번 팩에 없음.`,
     ),
   );
@@ -486,7 +756,7 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
   const findings = analyzeCompanyFindings(facts, name, ccy);
 
   // 8 CF
-  sections.push("## 현금흐름·CapEx·FCF");
+  sections.push("## 현금흐름·투자·잉여현금");
   sections.push(
     bullets(findings.cash, `${name} 현금흐름 지표가 이번 팩에 없음.`),
   );
@@ -496,28 +766,28 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
   sections.push(
     bullets(
       [
-        `${name} PER ${fmtN(/** @type {number|null} */ (facts.trailingPE ?? fund?.per))} / Forward PER ${fmtN(/** @type {number|null} */ (facts.forwardPE ?? fund?.forwardPer))}`,
+        `${name} 후행 PER ${fmtN(/** @type {number|null} */ (facts.trailingPE ?? fund?.per))}배 · 선행 PER ${fmtN(/** @type {number|null} */ (facts.forwardPE ?? fund?.forwardPer))}배`,
         facts.pegRatio != null
-          ? `PEG ${fmtN(/** @type {number} */ (facts.pegRatio))}`
+          ? `PEG ${fmtN(/** @type {number} */ (facts.pegRatio))}배`
           : "",
-        `PBR ${fmtN(/** @type {number|null} */ (facts.priceToBook ?? fund?.pbr))}`,
+        `PBR ${fmtN(/** @type {number|null} */ (facts.priceToBook ?? fund?.pbr))}배`,
         facts.priceToSales != null
-          ? `PSR ${fmtN(/** @type {number} */ (facts.priceToSales))}`
+          ? `PSR ${fmtN(/** @type {number} */ (facts.priceToSales))}배`
           : "",
         facts.enterpriseToRevenue != null
-          ? `EV/Sales ${fmtN(/** @type {number} */ (facts.enterpriseToRevenue))}`
+          ? `EV/매출 ${fmtN(/** @type {number} */ (facts.enterpriseToRevenue))}배`
           : "",
         facts.enterpriseToEbitda != null
-          ? `EV/EBITDA ${fmtN(/** @type {number} */ (facts.enterpriseToEbitda))}`
+          ? `EV/EBITDA ${fmtN(/** @type {number} */ (facts.enterpriseToEbitda))}배`
           : "",
         facts.beta != null
           ? `베타 ${fmtN(/** @type {number} */ (facts.beta))}`
           : "",
         facts.fiftyTwoWeekLow != null
-          ? `52주 ${fmtN(/** @type {number} */ (facts.fiftyTwoWeekLow))} ~ ${fmtN(/** @type {number|null} */ (facts.fiftyTwoWeekHigh))}`
+          ? `52주 가격대 ${fmtPx(/** @type {number} */ (facts.fiftyTwoWeekLow), ccy)} ~ ${fmtPx(/** @type {number|null} */ (facts.fiftyTwoWeekHigh), ccy)}`
           : "",
         facts.fiftyDayAverage != null
-          ? `50일 이평 ${fmtN(/** @type {number} */ (facts.fiftyDayAverage))} · 200일 ${fmtN(/** @type {number|null} */ (facts.twoHundredDayAverage))}`
+          ? `50일 이평 ${fmtPx(/** @type {number} */ (facts.fiftyDayAverage), ccy)} · 200일 ${fmtPx(/** @type {number|null} */ (facts.twoHundredDayAverage), ccy)}`
           : "",
       ],
       `${name} 밸류에이션 배수가 이번 팩에 없음.`,
@@ -533,7 +803,7 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
           ? `${name} 배당수익률 ${fmtPct(/** @type {number|null} */ (facts.dividendYield ?? fund?.dividendYield))}`
           : "",
         facts.dividendRate != null
-          ? `연간 배당 ${fmtN(/** @type {number} */ (facts.dividendRate))}`
+          ? `연간 배당 ${fmtPx(/** @type {number} */ (facts.dividendRate), ccy)}`
           : "",
         facts.payoutRatio != null
           ? `배당성향 ${fmtPct(/** @type {number} */ (facts.payoutRatio))}`
@@ -553,19 +823,19 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
       [
         `${name} 시총 ${fmtMoney(/** @type {number|null} */ (facts.marketCap ?? fund?.marketCap), ccy)}`,
         facts.sharesOutstanding != null
-          ? `발행주식 ${fmtN(/** @type {number} */ (facts.sharesOutstanding), 0)}`
+          ? `발행주식 ${fmtShares(/** @type {number} */ (facts.sharesOutstanding))}`
           : "",
         facts.floatShares != null
-          ? `유통주식(float) ${fmtN(/** @type {number} */ (facts.floatShares), 0)}`
+          ? `유통주식 ${fmtShares(/** @type {number} */ (facts.floatShares))}`
           : "",
         facts.impliedSharesOutstanding != null
-          ? `희석 반영 주식 수 ${fmtN(/** @type {number} */ (facts.impliedSharesOutstanding), 0)}`
+          ? `희석 반영 주식 수 ${fmtShares(/** @type {number} */ (facts.impliedSharesOutstanding))}`
           : "",
         facts.sharesShort != null
-          ? `공매도 잔고 ${fmtN(/** @type {number} */ (facts.sharesShort), 0)} · 공매도비율 ${fmtPct(/** @type {number|null} */ (facts.shortPercentOfFloat))} · days to cover ${fmtN(/** @type {number|null} */ (facts.shortRatio))}`
+          ? `공매도 잔고 ${fmtShares(/** @type {number} */ (facts.sharesShort))} · 공매도비율 ${fmtPct(/** @type {number|null} */ (facts.shortPercentOfFloat))} · 커버일수 ${fmtN(/** @type {number|null} */ (facts.shortRatio))}일`
           : "",
         facts.averageVolume != null
-          ? `평균 거래량 ${fmtN(/** @type {number} */ (facts.averageVolume), 0)} (10일 ${fmtN(/** @type {number|null} */ (facts.averageVolume10days), 0)})`
+          ? `평균 거래량 ${fmtShares(/** @type {number} */ (facts.averageVolume))} (10일 ${fmtShares(/** @type {number|null} */ (facts.averageVolume10days))})`
           : "",
       ],
       `${name} 유통·공매도 지표가 이번 팩에 없음.`,
@@ -587,20 +857,20 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
     );
   }
   if (facts.holdersInstitutionsCount != null) {
-    own.push(`기관 수 ${fmtN(/** @type {number} */ (facts.holdersInstitutionsCount), 0)}`);
+    own.push(`기관 수 ${fmtN(/** @type {number} */ (facts.holdersInstitutionsCount), 0)}곳`);
   }
   const insTx = Array.isArray(facts.insiderTransactions)
     ? facts.insiderTransactions
     : [];
   for (const t of insTx.slice(0, 10)) {
     own.push(
-      `내부자거래: ${t.filerName} ${t.transactionText}${t.shares != null ? ` ${fmtN(t.shares, 0)}주` : ""}${t.value != null ? ` (${fmtMoney(t.value, "USD")})` : ""}`,
+      `내부자거래: ${t.filerName} ${t.transactionText}${t.shares != null ? ` ${fmtShares(t.shares)}` : ""}${t.value != null ? ` (${fmtMoney(t.value, "USD")})` : ""}`,
     );
   }
   const inst = Array.isArray(facts.institutions) ? facts.institutions : [];
   for (const t of inst.slice(0, 8)) {
     own.push(
-      `기관: ${t.organization}${t.pctHeld != null ? ` ${fmtPct(t.pctHeld)}` : ""}${t.position != null ? ` · ${fmtN(t.position, 0)}주` : ""}`,
+      `기관: ${t.organization}${t.pctHeld != null ? ` ${fmtPct(t.pctHeld)}` : ""}${t.position != null ? ` · ${fmtShares(t.position)}` : ""}`,
     );
   }
   sections.push(
@@ -613,12 +883,12 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
   const an = [];
   if (facts.targetMeanPrice != null) {
     an.push(
-      `${name} 목표가 평균 ${fmtN(/** @type {number} */ (facts.targetMeanPrice))} (저 ${fmtN(/** @type {number|null} */ (facts.targetLowPrice))} ~ 고 ${fmtN(/** @type {number|null} */ (facts.targetHighPrice))}, 중앙 ${fmtN(/** @type {number|null} */ (facts.targetMedianPrice))})`,
+      `${name} 목표가 평균 ${fmtPx(/** @type {number} */ (facts.targetMeanPrice), ccy)} (저 ${fmtPx(/** @type {number|null} */ (facts.targetLowPrice), ccy)} ~ 고 ${fmtPx(/** @type {number|null} */ (facts.targetHighPrice), ccy)}, 중앙 ${fmtPx(/** @type {number|null} */ (facts.targetMedianPrice), ccy)})`,
     );
   }
   if (facts.recommendationKey) {
     an.push(
-      `투자의견 ${facts.recommendationKey} · 점수 ${fmtN(/** @type {number|null} */ (facts.recommendationMean))} · 참여 ${fmtN(/** @type {number|null} */ (facts.numberOfAnalystOpinions), 0)}명`,
+      `투자의견 ${koRec(facts.recommendationKey)} · 점수 ${fmtN(/** @type {number|null} */ (facts.recommendationMean))} · 참여 ${fmtN(/** @type {number|null} */ (facts.numberOfAnalystOpinions), 0)}명`,
     );
   }
   const trend = Array.isArray(facts.recommendationTrend)
@@ -626,7 +896,7 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
     : [];
   for (const t of trend.slice(0, 4)) {
     an.push(
-      `투자의견 추이 ${t.period}: StrongBuy ${fmtN(t.strongBuy, 0)} / Buy ${fmtN(t.buy, 0)} / Hold ${fmtN(t.hold, 0)} / Sell ${fmtN(t.sell, 0)} / StrongSell ${fmtN(t.strongSell, 0)}`,
+      `투자의견 추이 ${t.period}: 강력매수 ${fmtN(t.strongBuy, 0)} / 매수 ${fmtN(t.buy, 0)} / 보유 ${fmtN(t.hold, 0)} / 매도 ${fmtN(t.sell, 0)} / 강력매도 ${fmtN(t.strongSell, 0)}`,
     );
   }
   const ups = Array.isArray(facts.upgradeDowngradeHistory)
@@ -634,16 +904,22 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
     : [];
   for (const u of ups.slice(0, 8)) {
     an.push(
-      `${u.firm}: ${u.action || "change"} ${u.fromGrade || "—"} → ${u.toGrade || "—"}`,
+      `${u.firm}: ${koAction(u.action)} ${koGrade(u.fromGrade)} → ${koGrade(u.toGrade)}`,
     );
   }
   if (consensus && typeof consensus === "object") {
     const c = /** @type {Record<string, unknown>} */ (consensus);
-    if (c.forwardEps != null) an.push(`전방 EPS 컨센 ${fmtN(Number(c.forwardEps))}`);
-    if (c.trailingEps != null) an.push(`트레일링 EPS ${fmtN(Number(c.trailingEps))}`);
+    if (c.forwardEps != null) {
+      an.push(`선행 EPS 컨센 ${fmtPx(Number(c.forwardEps), ccy)}`);
+    }
+    if (c.trailingEps != null) {
+      an.push(`후행 EPS ${fmtPx(Number(c.trailingEps), ccy)}`);
+    }
     const periodsMap = c.periods && typeof c.periods === "object" ? c.periods : null;
     const q0 = periodsMap && /** @type {Record<string, { epsAvg?: number|null }>} */ (periodsMap)["0q"];
-    if (q0?.epsAvg != null) an.push(`당분기 EPS 컨센 ${fmtN(Number(q0.epsAvg))}`);
+    if (q0?.epsAvg != null) {
+      an.push(`당분기 EPS 컨센 ${fmtPx(Number(q0.epsAvg), ccy)}`);
+    }
   }
   sections.push(
     bullets(an, `${name} 애널리스트·컨센 데이터가 이번 팩에 없음.`),
@@ -658,7 +934,7 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
           ? `${name} 실적 일정: ${facts.earningsDate}`
           : "",
         facts.trailingEps != null || fund?.eps != null
-          ? `Trailing EPS ${fmtN(/** @type {number|null} */ (facts.trailingEps ?? fund?.eps))} · Forward EPS ${fmtN(/** @type {number|null} */ (facts.forwardEps ?? fund?.forwardEps))}`
+          ? `후행 EPS ${fmtPx(/** @type {number|null} */ (facts.trailingEps ?? fund?.eps), ccy)} · 선행 EPS ${fmtPx(/** @type {number|null} */ (facts.forwardEps ?? fund?.forwardEps), ccy)}`
           : "",
       ],
       `${name} 실적 일정·EPS 힌트가 이번 팩에 없음.`,
@@ -673,7 +949,13 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
         const when = Number.isFinite(f.filedAt)
           ? new Date(f.filedAt).toISOString().slice(0, 10)
           : "—";
-        return `${when} ${f.form} — ${f.title}${f.url ? ` · ${f.url}` : ""}`;
+        const formKo = koFilingForm(f.form);
+        const title = String(f.title || "").trim();
+        const titleKo =
+          title && title.toUpperCase() === String(f.form || "").toUpperCase()
+            ? formKo
+            : title;
+        return `${when} ${formKo}${titleKo && titleKo !== formKo ? ` — ${titleKo}` : ""}${f.url ? ` · ${f.url}` : ""}`;
       }),
       meta.market === "us"
         ? `${name} 최근 SEC 공시 목록을 가져오지 못함.`
@@ -715,8 +997,8 @@ function buildRulesBody(facts, fund, _periods, consensus, filings, meta, periodL
       [
         `스냅샷 ${new Date().toISOString()} · ${name}(${sym})`,
         meta.market === "us"
-          ? "출처: Yahoo quoteSummary · 재무 기간 아카이브 · SEC EDGAR"
-          : "출처: 네이버/자체 재무 · Yahoo(.KS/.KQ) · DART",
+          ? "출처: 야후 파이낸스 요약 · 재무 기간 아카이브 · 미국 SEC 공시"
+          : "출처: 네이버·자체 재무 · 야후(.KS/.KQ) · 전자공시(DART)",
         "수치는 지연·추정·비GAAP가 섞일 수 있음. 투자 권유가 아님.",
       ],
       "",
@@ -753,13 +1035,13 @@ async function maybeEnrichWithOpenAI(body, facts, meta) {
           {
             role: "system",
             content:
-              "You are a senior equity analyst writing ONLY about THIS company in Korean. Keep every ## heading. Fill sections with concrete facts and YOUR conclusions from the JSON numbers (margins, growth, leverage, short interest, targets). State findings about the firm — never tell the reader what to check, how to interpret generally, or industry caveats. Forbidden phrases: 확인하세요, 대조하세요, 가중치가 다릅니다, 봐야 합니다, 교차하세요, 가늠, 가정해 해석, 업종별로. Never invent numbers absent from facts.",
+              "당신은 한국어만 쓰는 시니어 주식 애널리스트다. ## 제목은 유지하고 본문은 전부 한국어로 쓴다. 영문 사업개요·섹터·투자의견·공시 유형도 한글로 풀어 쓴다. 금액은 반드시 단위를 붙인다(예: 4.46조달러, 305.93달러, 1.2조원). 사실·결론만 쓰고 '확인하세요' 류는 금지. 없는 숫자는 만들지 않는다.",
           },
           {
             role: "user",
-            content: `Write findings about ${meta.name} (${meta.symbol}) only.
+            content: `${meta.name}(${meta.symbol}) 보고서 — 전부 한국어·금액 단위 포함.
 Facts JSON: ${JSON.stringify(facts).slice(0, 14000)}
-Draft (improve into company-specific analysis, keep ## headings):\n${body.slice(0, 12000)}`,
+초안(한글화·수치 단위 보강, ## 유지):\n${body.slice(0, 12000)}`,
           },
         ],
       }),
@@ -969,7 +1251,7 @@ export async function generateCompanyReport(args) {
         );
       } else {
         periodLines.push(
-          `기간 ${p.label} (${p.kind === "annual" ? "연간" : "분기"}, 출처 ${p.source || "—"})`,
+          `기간 ${p.label} (${p.kind === "annual" ? "연간" : "분기"}, 출처 ${String(p.source || "—").replace(/yahoo/i, "야후")})`,
         );
       }
     } catch {
@@ -981,6 +1263,13 @@ export async function generateCompanyReport(args) {
 
   const displayName =
     String(facts.longName || facts.shortName || name).trim() || name;
+
+  if (facts.longBusinessSummary) {
+    facts.longBusinessSummary = await translatePassageToKorean(
+      String(facts.longBusinessSummary),
+    );
+  }
+
   let body = buildRulesBody(
     facts,
     fund,
@@ -1003,8 +1292,8 @@ export async function generateCompanyReport(args) {
   const summaryBits = [
     displayName,
     symbol,
-    facts.sector ? String(facts.sector) : "",
-    facts.industry ? String(facts.industry) : "",
+    facts.sector ? koIndustryLabel(facts.sector) : "",
+    facts.industry ? koIndustryLabel(facts.industry) : "",
     facts.marketCap != null
       ? `시총 ${fmtMoney(/** @type {number} */ (facts.marketCap), String(facts.currency || "USD"))}`
       : "",
