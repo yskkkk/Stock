@@ -81,6 +81,9 @@ const FinancialsTab = lazyWithRetry(() => import("./components/FinancialsTab"));
 const UsAnnouncementInboxTab = lazyWithRetry(
   () => import("./components/UsAnnouncementInboxTab"),
 );
+const CompanyReportTab = lazyWithRetry(
+  () => import("./components/CompanyReportTab"),
+);
 const StockVaultTab = lazyWithRetry(() => import("./components/StockVaultTab"));
 const InvestorFlowTab = lazyWithRetry(() => import("./components/InvestorFlowTab"));
 
@@ -891,6 +894,7 @@ export default function App() {
       appTab === "boxRange" ||
       appTab === "financials" ||
       appTab === "usAnnouncements" ||
+      appTab === "companyReport" ||
       appTab === "infoBoard" ||
       appTab === "stockVault" ||
       appTab === "investorFlow" ||
@@ -962,7 +966,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!workspacePick) return;
-    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "usAnnouncements" || appTab === "infoBoard" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage" || appTab === "expectedReturnCalc") return;
+    if (appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "usAnnouncements" || appTab === "companyReport" || appTab === "infoBoard" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage" || appTab === "expectedReturnCalc") return;
     if (window.innerWidth > 900) return;
     const el = stockChartSectionRef.current;
     if (!el) return;
@@ -1329,7 +1333,7 @@ export default function App() {
 
   useEffect(() => {
     const pick = workspacePickRef.current;
-    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "usAnnouncements" || appTab === "infoBoard" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage" || appTab === "expectedReturnCalc") return;
+    if (!pick || appTab === "crypto" || appTab === "ops" || appTab === "financials" || appTab === "usAnnouncements" || appTab === "companyReport" || appTab === "infoBoard" || appTab === "stockVault" || appTab === "investorFlow" || appTab === "sp500Sector" || appTab === "nasdaqEtf" || appTab === "redditMentions" || appTab === "accountManage" || appTab === "expectedReturnCalc") return;
     loadChart(pick, timeframe);
     const refreshMs = timeframe === "1m" ? 1_000 : 8_000;
     const id = window.setInterval(() => {
@@ -1578,6 +1582,8 @@ export default function App() {
                   ? "app app--financials"
                 : appTab === "usAnnouncements"
                   ? "app app--us-announcements"
+                : appTab === "companyReport"
+                  ? "app app--company-report"
                 : appTab === "infoBoard"
                   ? "app app--info-board"
                 : appTab === "stockVault"
@@ -1987,6 +1993,22 @@ export default function App() {
               </button>
               <button
                 type="button"
+                className={mainTabClassName("companyReport")}
+                data-vu="tab-companyReport"
+                onClick={() => setAppTab("companyReport")}
+                onMouseEnter={() =>
+                  prefetchLazyModule(() => import("./components/CompanyReportTab"))
+                }
+                onFocus={() =>
+                  prefetchLazyModule(() => import("./components/CompanyReportTab"))
+                }
+                title={ko.companyReport.title}
+                aria-label={ko.companyReport.title}
+              >
+                {ko.app.tabCompanyReport}
+              </button>
+              <button
+                type="button"
                 className={mainTabClassName("infoBoard")}
                 data-vu="tab-infoBoard"
                 onClick={() => setAppTab("infoBoard")}
@@ -2116,6 +2138,13 @@ export default function App() {
           subtitle={ko.usAnnouncement.subtitle}
         >
           <UsAnnouncementInboxTab />
+        </TabSuspense>
+      ) : appTab === "companyReport" ? (
+        <TabSuspense
+          title={ko.companyReport.title}
+          subtitle={ko.companyReport.subtitle}
+        >
+          <CompanyReportTab />
         </TabSuspense>
       ) : appTab === "infoBoard" ? (
         <InfoBoardTab />

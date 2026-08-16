@@ -12,6 +12,8 @@ const APP_TABS: readonly AppTab[] = [
   "tradeHistory",
   "boxRange",
   "financials",
+  "usAnnouncements",
+  "companyReport",
   "infoBoard",
   "stockVault",
   "investorFlow",

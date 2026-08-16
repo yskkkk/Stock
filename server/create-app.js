@@ -58,6 +58,12 @@ import {
   loadUsAnnouncementStoreSync,
 } from "./us-announcement-inbox-store.js";
 import {
+  listCompanyReports,
+  getCompanyReport,
+  deleteCompanyReport,
+} from "./company-report-store.js";
+import { generateCompanyReport } from "./company-report-generate.js";
+import {
   loadFinancialPeriods,
   loadFinancialStatementDetail,
 } from "./stock-financials.js";
@@ -1642,6 +1648,78 @@ export function createApp() {
         force: body.force === true,
       });
       res.json({ ok: true, ...result });
+    }),
+  );
+
+  /** 기업 심층 보고서 — 목록·생성·조회·삭제 */
+  app.get(
+    "/api/company-reports",
+    asyncRoute(async (req, res) => {
+      const symbol = String(req.query?.symbol ?? "").trim();
+      const limit = Number(req.query?.limit);
+      const snap = listCompanyReports({
+        symbol: symbol || undefined,
+        limit,
+      });
+      res.json({ ok: true, ...snap });
+    }),
+  );
+
+  app.get(
+    "/api/company-reports/:id",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params?.id ?? "").trim();
+      const row = getCompanyReport(id);
+      if (!row) {
+        res.status(404).json({ ok: false, error: "보고서를 찾을 수 없습니다." });
+        return;
+      }
+      res.json({ ok: true, report: row });
+    }),
+  );
+
+  app.post(
+    "/api/company-reports/generate",
+    asyncRoute(async (req, res) => {
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const symbol = String(body.symbol ?? req.query?.symbol ?? "").trim();
+      if (!symbol) {
+        res.status(400).json({ ok: false, error: "symbol required" });
+        return;
+      }
+      try {
+        const report = await generateCompanyReport({
+          symbol,
+          name: body.name ? String(body.name) : undefined,
+          market:
+            body.market === "kr" || body.market === "us"
+              ? body.market
+              : undefined,
+        });
+        res.json({ ok: true, report });
+      } catch (e) {
+        const code = e && typeof e === "object" ? e.code : null;
+        const status =
+          code === "BAD_SYMBOL" || code === "UNSUPPORTED" ? 400 : 500;
+        res.status(status).json({
+          ok: false,
+          error: e instanceof Error ? e.message : "보고서 생성 실패",
+          code: code || undefined,
+        });
+      }
+    }),
+  );
+
+  app.delete(
+    "/api/company-reports/:id",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params?.id ?? "").trim();
+      const ok = deleteCompanyReport(id);
+      if (!ok) {
+        res.status(404).json({ ok: false, error: "보고서를 찾을 수 없습니다." });
+        return;
+      }
+      res.json({ ok: true });
     }),
   );
 

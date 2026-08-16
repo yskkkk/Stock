@@ -405,6 +405,83 @@ export function seedUsAnnouncement(body: {
   });
 }
 
+export type CompanyReportListItem = {
+  id: string;
+  symbol: string;
+  name: string;
+  market: "kr" | "us";
+  title: string;
+  summary: string;
+  toc: string[];
+  sources: string[];
+  status: "ready" | "failed";
+  error?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  engine?: string;
+  bodyChars?: number;
+};
+
+export type CompanyReport = CompanyReportListItem & {
+  body: string;
+};
+
+export type CompanyReportsListResponse = {
+  ok: boolean;
+  updatedAt: number;
+  reports: CompanyReportListItem[];
+};
+
+export function fetchCompanyReports(opts?: {
+  symbol?: string;
+  limit?: number;
+  signal?: AbortSignal;
+}) {
+  const params = new URLSearchParams();
+  if (opts?.symbol) params.set("symbol", opts.symbol);
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  const q = params.toString();
+  return fetchJson<CompanyReportsListResponse>(
+    `/api/company-reports${q ? `?${q}` : ""}`,
+    opts?.signal ? { signal: opts.signal } : undefined,
+  );
+}
+
+export function fetchCompanyReport(id: string, signal?: AbortSignal) {
+  return fetchJson<{ ok: boolean; report: CompanyReport }>(
+    `/api/company-reports/${encodeURIComponent(id)}`,
+    signal ? { signal } : undefined,
+  );
+}
+
+export function generateCompanyReport(body: {
+  symbol: string;
+  name?: string;
+  market?: "kr" | "us";
+  signal?: AbortSignal;
+}) {
+  const { signal, ...payload } = body;
+  return fetchJson<{ ok: boolean; report: CompanyReport }>(
+    "/api/company-reports/generate",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: signal ?? AbortSignal.timeout(180_000),
+    },
+  );
+}
+
+export function deleteCompanyReport(id: string, signal?: AbortSignal) {
+  return fetchJson<{ ok: boolean }>(
+    `/api/company-reports/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+      signal,
+    },
+  );
+}
+
 export function fetchSp500Sectors() {
   return fetchJson<import("./lib/sp500SectorChart").Sp500SectorsPayload>(
     "/api/sp500-sectors",

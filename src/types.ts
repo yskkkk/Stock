@@ -12,6 +12,7 @@ export type AppTab =
   | "boxRange"
   | "financials"
   | "usAnnouncements"
+  | "companyReport"
   | "infoBoard"
   | "stockVault"
   | "investorFlow"
