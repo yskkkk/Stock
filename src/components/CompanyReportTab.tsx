@@ -22,6 +22,7 @@ import {
   loadStockSearchHot,
   peekStockSearchHotPrefetch,
 } from "../lib/tabPrefetch";
+import CompanyReportChartView from "./CompanyReportChartView";
 import "./company-report-tab.css";
 
 const HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
@@ -383,6 +384,13 @@ export default function CompanyReportTab() {
                     {block.heading ? (
                       <h3 className="co-report__h">{block.heading}</h3>
                     ) : null}
+                    {!isToc && block.heading
+                      ? (selected.charts ?? [])
+                          .filter((c) => c.section === block.heading)
+                          .map((c) => (
+                            <CompanyReportChartView key={c.id} chart={c} />
+                          ))
+                      : null}
                     {isToc ? (
                       <div className="co-report__toc">
                         <p className="co-report__toc-hint">

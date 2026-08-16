@@ -14,6 +14,15 @@ const MAX_REPORTS = 200;
 /**
  * @typedef {{
  *   id: string;
+ *   section: string;
+ *   title: string;
+ *   type: "bar" | "line" | "grouped";
+ *   unit: string;
+ *   series: Array<{ name: string; points: Array<{ x: string; y: number }> }>;
+ * }} CompanyReportChart
+ *
+ * @typedef {{
+ *   id: string;
  *   symbol: string;
  *   name: string;
  *   market: "kr" | "us";
@@ -27,6 +36,7 @@ const MAX_REPORTS = 200;
  *   createdAt: number;
  *   updatedAt: number;
  *   engine?: string;
+ *   charts?: CompanyReportChart[];
  * }} CompanyReport
  */
 
@@ -128,6 +138,11 @@ export function upsertCompanyReport(partial) {
     createdAt: existing >= 0 ? store.reports[existing].createdAt : now,
     updatedAt: now,
     engine: partial.engine ? String(partial.engine).slice(0, 64) : undefined,
+    charts: Array.isArray(partial.charts)
+      ? /** @type {CompanyReportChart[]} */ (partial.charts).slice(0, 12)
+      : existing >= 0
+        ? store.reports[existing].charts
+        : [],
   };
   if (existing >= 0) store.reports[existing] = row;
   else store.reports.unshift(row);

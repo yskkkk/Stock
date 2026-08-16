@@ -405,6 +405,15 @@ export function seedUsAnnouncement(body: {
   });
 }
 
+export type CompanyReportChart = {
+  id: string;
+  section: string;
+  title: string;
+  type: "bar" | "line" | "grouped";
+  unit: string;
+  series: Array<{ name: string; points: Array<{ x: string; y: number }> }>;
+};
+
 export type CompanyReportListItem = {
   id: string;
   symbol: string;
@@ -424,6 +433,7 @@ export type CompanyReportListItem = {
 
 export type CompanyReport = CompanyReportListItem & {
   body: string;
+  charts?: CompanyReportChart[];
 };
 
 export type CompanyReportsListResponse = {

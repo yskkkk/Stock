@@ -23,7 +23,7 @@ import { loadEnvFile } from "./load-env.js";
 
 loadEnvFile();
 
-export const COMPANY_REPORT_VERSION = 3;
+export const COMPANY_REPORT_VERSION = 4;
 
 export const COMPANY_REPORT_TOC = [
   "한줄 요약·투자 포인트",
@@ -400,6 +400,237 @@ function stripMetaAdviceFromBody(body) {
  * @param {string} name
  * @param {string} ccy
  */
+/**
+ * 재무표 셀 → 숫자 (콤마·한글 단위 문자열 대응)
+ * @param {unknown} raw
+ * @param {string} [unitNote]
+ */
+function parseStatementMoney(raw, unitNote = "") {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  const s = String(raw ?? "").trim();
+  if (!s || s === "—") return null;
+  const note = String(unitNote ?? "");
+  let n = Number(s.replace(/,/g, "").replace(/[^\d.\-eE]/g, ""));
+  if (!Number.isFinite(n)) return null;
+  if (/억원/.test(note) || /억원/.test(s)) n *= 1e8;
+  else if (/조원/.test(note) || /조원/.test(s)) n *= 1e12;
+  else if (/백만원|백만/.test(note)) n *= 1e6;
+  return n;
+}
+
+/**
+ * @param {Awaited<ReturnType<typeof loadFinancialStatementDetail>>} detail
+ */
+function extractPeriodMoneyMetrics(detail) {
+  /** @type {{ revenue: number|null; opIncome: number|null; netIncome: number|null; grossProfit: number|null }} */
+  const out = {
+    revenue: null,
+    opIncome: null,
+    netIncome: null,
+    grossProfit: null,
+  };
+  const secs = Array.isArray(detail?.sections) ? detail.sections : [];
+  for (const sec of secs) {
+    const unitNote = String(sec?.unitNote ?? "");
+    const rows = Array.isArray(sec?.rows) ? sec.rows : [];
+    for (const row of rows) {
+      const label = String(row?.label ?? row?.name ?? "");
+      const val = parseStatementMoney(row?.value ?? row?.raw, unitNote);
+      if (val == null) continue;
+      if (
+        /총매출|^매출액$|^revenue$|total revenue|영업수익/i.test(label) &&
+        !/원가|비용|채권|cost/i.test(label)
+      ) {
+        if (out.revenue == null) out.revenue = val;
+      } else if (
+        /영업이익|operating income/i.test(label) &&
+        !/비용|손실전/i.test(label)
+      ) {
+        if (out.opIncome == null) out.opIncome = val;
+      } else if (
+        /당기순이익|^순이익$|net income/i.test(label) &&
+        !/comprehensive|지배주주|비지배/i.test(label)
+      ) {
+        if (out.netIncome == null) out.netIncome = val;
+      } else if (/매출총이익|gross profit/i.test(label)) {
+        if (out.grossProfit == null) out.grossProfit = val;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * @param {{
+ *   label: string;
+ *   kind: string;
+ *   revenue: number|null;
+ *   opIncome: number|null;
+ *   netIncome: number|null;
+ * }[]} rows
+ * @param {Record<string, unknown>} facts
+ * @param {string} ccy
+ * @param {string} name
+ */
+function buildReportCharts(rows, facts, ccy, name) {
+  /** @type {Array<{
+   *   id: string;
+   *   section: string;
+   *   title: string;
+   *   type: "bar"|"line"|"grouped";
+   *   unit: string;
+   *   series: Array<{ name: string; points: Array<{ x: string; y: number }> }>;
+   * }>} */
+  const charts = [];
+
+  const annual = rows
+    .filter((r) => r.kind === "annual" && r.revenue != null)
+    .slice()
+    .reverse();
+  const quarter = rows
+    .filter((r) => r.kind === "quarter" && r.revenue != null)
+    .slice()
+    .reverse();
+
+  const revSeries = (annual.length >= 2 ? annual : quarter).filter(
+    (r) => r.revenue != null,
+  );
+  if (revSeries.length >= 2) {
+    charts.push({
+      id: "revenue-trend",
+      section: "매출·성장 추이",
+      title: `${name} 매출 추이 (${annual.length >= 2 ? "연간" : "분기"})`,
+      type: "bar",
+      unit: ccy,
+      series: [
+        {
+          name: "매출",
+          points: revSeries.map((r) => ({
+            x: r.label,
+            y: /** @type {number} */ (r.revenue),
+          })),
+        },
+      ],
+    });
+  }
+
+  const profitBase = (annual.length >= 2 ? annual : quarter).filter(
+    (r) => r.opIncome != null || r.netIncome != null,
+  );
+  if (profitBase.length >= 2) {
+    /** @type {Array<{ name: string; points: Array<{ x: string; y: number }> }>} */
+    const series = [];
+    if (profitBase.some((r) => r.opIncome != null)) {
+      series.push({
+        name: "영업이익",
+        points: profitBase
+          .filter((r) => r.opIncome != null)
+          .map((r) => ({
+            x: r.label,
+            y: /** @type {number} */ (r.opIncome),
+          })),
+      });
+    }
+    if (profitBase.some((r) => r.netIncome != null)) {
+      series.push({
+        name: "당기순이익",
+        points: profitBase
+          .filter((r) => r.netIncome != null)
+          .map((r) => ({
+            x: r.label,
+            y: /** @type {number} */ (r.netIncome),
+          })),
+      });
+    }
+    if (series.length) {
+      charts.push({
+        id: "profit-trend",
+        section: "매출·성장 추이",
+        title: `${name} 이익 추이 (${annual.length >= 2 ? "연간" : "분기"})`,
+        type: series.length > 1 ? "grouped" : "bar",
+        unit: ccy,
+        series,
+      });
+    }
+  }
+
+  /** @type {Array<{ x: string; y: number }>} */
+  const marginPts = [];
+  if (facts.grossMargins != null && Number.isFinite(Number(facts.grossMargins))) {
+    const g = Number(facts.grossMargins);
+    marginPts.push({
+      x: "매출총이익률",
+      y: Math.abs(g) <= 1.5 ? g * 100 : g,
+    });
+  }
+  if (
+    facts.operatingMargins != null &&
+    Number.isFinite(Number(facts.operatingMargins))
+  ) {
+    const g = Number(facts.operatingMargins);
+    marginPts.push({
+      x: "영업이익률",
+      y: Math.abs(g) <= 1.5 ? g * 100 : g,
+    });
+  }
+  if (facts.profitMargins != null && Number.isFinite(Number(facts.profitMargins))) {
+    const g = Number(facts.profitMargins);
+    marginPts.push({
+      x: "순이익률",
+      y: Math.abs(g) <= 1.5 ? g * 100 : g,
+    });
+  }
+  if (facts.returnOnEquity != null && Number.isFinite(Number(facts.returnOnEquity))) {
+    const g = Number(facts.returnOnEquity);
+    marginPts.push({
+      x: "ROE",
+      y: Math.abs(g) <= 1.5 ? g * 100 : g,
+    });
+  }
+  if (marginPts.length >= 2) {
+    charts.push({
+      id: "margins",
+      section: "수익성·마진·ROE",
+      title: `${name} 수익성 지표`,
+      type: "bar",
+      unit: "pct",
+      series: [{ name: "비율", points: marginPts }],
+    });
+  }
+
+  /** @type {Array<{ x: string; y: number }>} */
+  const growthPts = [];
+  if (facts.revenueGrowth != null && Number.isFinite(Number(facts.revenueGrowth))) {
+    const g = Number(facts.revenueGrowth);
+    growthPts.push({
+      x: "매출성장",
+      y: Math.abs(g) <= 1.5 ? g * 100 : g,
+    });
+  }
+  if (
+    facts.earningsGrowth != null &&
+    Number.isFinite(Number(facts.earningsGrowth))
+  ) {
+    const g = Number(facts.earningsGrowth);
+    growthPts.push({
+      x: "이익성장",
+      y: Math.abs(g) <= 1.5 ? g * 100 : g,
+    });
+  }
+  if (growthPts.length >= 1) {
+    charts.push({
+      id: "growth-rates",
+      section: "매출·성장 추이",
+      title: `${name} 성장률`,
+      type: "bar",
+      unit: "pct",
+      series: [{ name: "성장률", points: growthPts }],
+    });
+  }
+
+  return charts;
+}
+
 function analyzeCompanyFindings(facts, name, ccy) {
   /** @type {string[]} */
   const risk = [];
@@ -1215,48 +1446,62 @@ export async function generateCompanyReport(args) {
 
   /** @type {string[]} */
   const periodLines = [];
+  /** @type {{ label: string; kind: string; revenue: number|null; opIncome: number|null; netIncome: number|null }[]} */
+  const periodMetricRows = [];
   const periodRows = Array.isArray(periods?.periods) ? periods.periods : [];
-  const ccyForPeriod =
-    String(facts.currency || fund?.currency || (market === "kr" ? "KRW" : "USD"));
-  for (const p of periodRows.slice(0, 5)) {
+  const ccyForPeriod = String(
+    facts.currency || fund?.currency || (market === "kr" ? "KRW" : "USD"),
+  );
+  const annualPeriods = periodRows.filter((p) => p.kind === "annual").slice(0, 6);
+  const quarterPeriods = periodRows
+    .filter((p) => p.kind === "quarter")
+    .slice(0, 6);
+  const periodsToLoad = [...annualPeriods, ...quarterPeriods];
+
+  for (const p of periodsToLoad) {
     try {
       const detail = await loadFinancialStatementDetail(symbol, p.id);
-      const secs = Array.isArray(detail?.sections) ? detail.sections : [];
+      const m = extractPeriodMoneyMetrics(detail);
+      const label = String(detail.label || p.label || "");
+      const kind = p.kind === "annual" ? "annual" : "quarter";
+      periodMetricRows.push({
+        label,
+        kind,
+        revenue: m.revenue,
+        opIncome: m.opIncome,
+        netIncome: m.netIncome,
+      });
       /** @type {string[]} */
       const bits = [];
-      for (const sec of secs) {
-        const rows = Array.isArray(sec?.rows) ? sec.rows : [];
-        for (const row of rows) {
-          const label = String(row?.label ?? row?.name ?? "");
-          const val = row?.value ?? row?.raw ?? null;
-          if (val == null || !Number.isFinite(Number(val))) continue;
-          if (
-            /total revenue|^revenue$|총매출|매출액|영업수익/i.test(label) &&
-            !/cost|비용|매출원가/i.test(label)
-          ) {
-            bits.push(`매출 ${fmtMoney(Number(val), ccyForPeriod)}`);
-          } else if (/operating income|영업이익/i.test(label)) {
-            bits.push(`영업이익 ${fmtMoney(Number(val), ccyForPeriod)}`);
-          } else if (
-            /net income|당기순이익/i.test(label) &&
-            !/comprehensive/i.test(label)
-          ) {
-            bits.push(`순이익 ${fmtMoney(Number(val), ccyForPeriod)}`);
-          }
-        }
+      if (m.revenue != null) bits.push(`매출 ${fmtMoney(m.revenue, ccyForPeriod)}`);
+      if (m.opIncome != null) {
+        bits.push(`영업이익 ${fmtMoney(m.opIncome, ccyForPeriod)}`);
+      }
+      if (m.netIncome != null) {
+        bits.push(`당기순이익 ${fmtMoney(m.netIncome, ccyForPeriod)}`);
       }
       if (bits.length) {
         periodLines.push(
-          `${detail.label || p.label} (${p.kind === "annual" ? "연간" : "분기"}): ${[...new Set(bits)].slice(0, 4).join(" · ")}`,
-        );
-      } else {
-        periodLines.push(
-          `기간 ${p.label} (${p.kind === "annual" ? "연간" : "분기"}, 출처 ${String(p.source || "—").replace(/yahoo/i, "야후")})`,
+          `${label} (${kind === "annual" ? "연간" : "분기"}): ${bits.join(" · ")}`,
         );
       }
     } catch {
-      periodLines.push(
-        `기간 ${p.label} (${p.kind === "annual" ? "연간" : "분기"})`,
+      /* skip empty periods — 숫자 없는 기간 라벨만 남기지 않음 */
+    }
+  }
+
+  // 연간 매출 YoY 한 줄 요약
+  const annualWithRev = periodMetricRows
+    .filter((r) => r.kind === "annual" && r.revenue != null)
+    .slice()
+    .sort((a, b) => String(a.label).localeCompare(String(b.label)));
+  if (annualWithRev.length >= 2) {
+    const prev = annualWithRev[annualWithRev.length - 2];
+    const last = annualWithRev[annualWithRev.length - 1];
+    if (prev.revenue && last.revenue) {
+      const yoy = ((last.revenue - prev.revenue) / Math.abs(prev.revenue)) * 100;
+      periodLines.unshift(
+        `${last.label} 연간 매출 ${fmtMoney(last.revenue, ccyForPeriod)} · 전년(${prev.label}) 대비 ${yoy >= 0 ? "+" : ""}${yoy.toFixed(1)}%`,
       );
     }
   }
@@ -1269,6 +1514,13 @@ export async function generateCompanyReport(args) {
       String(facts.longBusinessSummary),
     );
   }
+
+  const charts = buildReportCharts(
+    periodMetricRows,
+    facts,
+    ccyForPeriod,
+    displayName,
+  );
 
   let body = buildRulesBody(
     facts,
@@ -1311,6 +1563,7 @@ export async function generateCompanyReport(args) {
     status: "ready",
     error: null,
     engine: `${enriched.engine}|v${COMPANY_REPORT_VERSION}`,
+    charts,
   });
 
   return row;
