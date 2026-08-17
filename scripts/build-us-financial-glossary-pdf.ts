@@ -158,6 +158,43 @@ const BASE_CSS = `
   .toc li { margin: 1mm 0; }
   .toc a { color: #111; text-decoration: none; }
   .toc-n { color: #777; }
+  table.memo {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 7pt;
+    line-height: 1.32;
+  }
+  table.memo thead { display: table-header-group; }
+  table.memo th {
+    text-align: left;
+    font-size: 6.5pt;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #333;
+    border-bottom: 0.8pt solid #111;
+    padding: 0.9mm 1.3mm 1mm;
+    background: #fff;
+  }
+  table.memo td {
+    vertical-align: top;
+    padding: 0.85mm 1.3mm;
+    border-bottom: 0.3pt solid #e3e3e3;
+  }
+  table.memo .c-en { width: 24%; font-weight: 700; word-break: break-word; }
+  table.memo .c-ko { width: 18%; font-weight: 700; word-break: keep-all; }
+  table.memo .c-mean { width: 58%; color: #222; word-break: keep-all; }
+  table.memo .sec-banner th {
+    padding: 2.1mm 1.3mm 1.1mm;
+    border-bottom: 0.6pt solid #111;
+    font-size: 8pt;
+    background: #f3f3f3;
+  }
+  .memo-lead {
+    margin: 0 0 2.2mm;
+    font-size: 7.2pt;
+    color: #444;
+  }
 `;
 
 function wrapPage(sectionLabel: string, inner: string): string {
@@ -185,6 +222,7 @@ function coverHtml(): string {
     const n = US_FINANCIAL_GLOSSARY.filter((e) => e.section === sec.id).length;
     return `<li>${esc(sec.label)} <span class="toc-n">${n}</span></li>`;
   }).join("");
+  const tocBlock = `<li>암기 표 (영어 · 한글 · 뜻) <span class="toc-n">${total}</span></li>${toc}`;
   return wrapPage(
     "목차",
     `<header class="cover">
@@ -192,23 +230,78 @@ function coverHtml(): string {
       <h1>미국 재무제표 · SEC 공시 단어책</h1>
       <p class="lead">
         10-K·10-Q 표에서 나오는 계정, 비율, 읽는 법 약어, SEC 서류입니다.
-        각 소제목은 먼저 영·한 짝으로 외우고, 아래에서 뜻을 확인하세요.
+        앞의 암기 표(영어 · 한글 · 뜻)로 외우고, 각 소제목에서 설명을 다시 보세요.
       </p>
       <p class="meta">단어 ${total}개 · ${date} · 교육·참고용 (투자 권유 아님)</p>
       <p class="note">회사마다 계정 이름이 조금 다를 수 있습니다. 표 숫자와 주석(Notes)·MD&amp;A를 같이 보세요.</p>
-      <ol class="toc">${toc}</ol>
+            <ol class="toc">${tocBlock}</ol>
     </header>`,
+  );
+}
+
+function meaningCell(entry: GlossaryEntry): string {
+  const bits = [entry.formula, entry.body].filter(Boolean);
+  return bits.join(" · ");
+}
+
+function memoHead(): string {
+  return `<thead>
+    <tr>
+      <th class="c-en">영어단어</th>
+      <th class="c-ko">한국단어</th>
+      <th class="c-mean">뜻</th>
+    </tr>
+  </thead>`;
+}
+
+function memoRows(rows: readonly GlossaryEntry[], withBanner?: string): string {
+  const banner = withBanner
+    ? `<tr class="sec-banner"><th colspan="3">${esc(withBanner)}</th></tr>`
+    : "";
+  const body = rows
+    .map(
+      (e) =>
+        `<tr>
+          <td class="c-en">${esc(drillEn(e.en))}</td>
+          <td class="c-ko">${esc(e.ko)}</td>
+          <td class="c-mean">${esc(meaningCell(e))}</td>
+        </tr>`,
+    )
+    .join("\n");
+  return `${banner}${body}`;
+}
+
+function memoTable(rows: readonly GlossaryEntry[], withBanner?: string): string {
+  return `<table class="memo">
+  ${memoHead()}
+  <tbody>
+    ${memoRows(rows, withBanner)}
+  </tbody>
+</table>`;
+}
+
+function drillBookHtml(): string {
+  const chunks = GLOSSARY_SECTIONS.map((sec) => {
+    const rows = US_FINANCIAL_GLOSSARY.filter((e) => e.section === sec.id);
+    return memoRows(rows, `${sec.label} (${rows.length})`);
+  }).join("\n");
+  return wrapPage(
+    "암기 표",
+    `<section>
+      <h2>암기 표 <span class="count">${US_FINANCIAL_GLOSSARY.length}</span></h2>
+      <p class="memo-lead">영어단어 · 한국단어 · 뜻. 한글과 뜻을 가리고 영문부터 떠올려 보세요.</p>
+      <table class="memo">
+        ${memoHead()}
+        <tbody>
+          ${chunks}
+        </tbody>
+      </table>
+    </section>`,
   );
 }
 
 function chapterHtml(sectionId: GlossarySectionId, sectionLabel: string): string {
   const rows = US_FINANCIAL_GLOSSARY.filter((e) => e.section === sectionId);
-  const drill = rows
-    .map(
-      (e) =>
-          `<div class="drill-row"><span class="drill-en">${esc(drillEn(e.en))}</span><span class="drill-dots"></span><span class="drill-ko">${esc(e.ko)}</span></div>`,
-    )
-    .join("");
   const items = rows
     .map((e: GlossaryEntry, i) => {
       const formula = e.formula ? `<p class="formula">${esc(e.formula)}</p>` : "";
@@ -226,8 +319,8 @@ function chapterHtml(sectionId: GlossarySectionId, sectionLabel: string): string
     sectionLabel,
     `<section class="chapter">
       <h2>${esc(sectionLabel)} <span class="count">${rows.length}</span></h2>
-      <p class="drill-cap">영·한 짝 — 한글을 가리고 영문을 떠올려 보세요</p>
-      <div class="drill">${drill}</div>
+      <p class="drill-cap">암기 표 — 영어 · 한글 · 뜻</p>
+      ${memoTable(rows)}
       <p class="drill-cap drill-cap--defs">설명</p>
       ${items}
     </section>`,
@@ -283,8 +376,11 @@ try {
   const coverPath = path.join(work, "00-cover.pdf");
   printPdf(coverHtml(), coverPath, chrome);
   parts.push(coverPath);
+  const drillPath = path.join(work, "01-drill.pdf");
+  printPdf(drillBookHtml(), drillPath, chrome);
+  parts.push(drillPath);
   GLOSSARY_SECTIONS.forEach((sec, i) => {
-    const partPath = path.join(work, `${String(i + 1).padStart(2, "0")}-${sec.id}.pdf`);
+    const partPath = path.join(work, `${String(i + 2).padStart(2, "0")}-${sec.id}.pdf`);
     printPdf(chapterHtml(sec.id, sec.label), partPath, chrome);
     parts.push(partPath);
   });
