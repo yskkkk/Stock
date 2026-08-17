@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useMobileBackHandler } from "../hooks/useMobileBackHandler";
 import { ko } from "../i18n/ko";
 import { MOBILE_BACK_PRIORITY } from "../lib/mobileBackStack";
+import UsFinancialGlossaryPanel from "./UsFinancialGlossaryPanel";
 import "./info-board-tab.css";
 
 type InfoBoardPostMeta = (typeof ko.infoBoard.posts)[number];
@@ -184,6 +185,18 @@ function OrlandoBrkPostBody() {
   );
 }
 
+function UsFinancialDictPostBody() {
+  const t = ko.infoBoard.usDict;
+  return (
+    <>
+      <p className="info-board-tab__article-lead">{t.lead}</p>
+      <p className="info-board-tab__disclaimer">{t.disclaimer}</p>
+      <p className="info-board-tab__source">{t.sourceNote}</p>
+      <UsFinancialGlossaryPanel />
+    </>
+  );
+}
+
 function PerEbitdaPostBody() {
   const rows = ko.infoBoard.perEbitdaRows;
   return (
@@ -232,6 +245,8 @@ function PerEbitdaPostBody() {
 
 function renderPostBody(postId: string) {
   switch (postId) {
+    case "us-financial-dictionary":
+      return <UsFinancialDictPostBody />;
     case "orlando-brk-valuation":
       return <OrlandoBrkPostBody />;
     case "per-ebitda":

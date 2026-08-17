@@ -1,0 +1,158 @@
+.us-fin-glossary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.us-fin-glossary__toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.us-fin-glossary__search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.us-fin-glossary__search-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.us-fin-glossary__search input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86rem;
+}
+
+.us-fin-glossary__search input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.us-fin-glossary__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+}
+
+.us-fin-glossary__chip {
+  min-height: 2.2rem;
+  padding: 0.22rem 0.62rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.us-fin-glossary__chip--on {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border));
+  background: color-mix(in srgb, var(--accent-dim, var(--accent)) 28%, var(--card));
+  color: var(--text);
+}
+
+.us-fin-glossary__count {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.us-fin-glossary__empty {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.us-fin-glossary__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.us-fin-glossary__item {
+  padding: 0.65rem 0.72rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm, 0.5rem);
+  background: color-mix(in srgb, var(--surface) 55%, var(--card));
+}
+
+.us-fin-glossary__item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.28rem 0.55rem;
+  margin-bottom: 0.28rem;
+}
+
+.us-fin-glossary__en {
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.us-fin-glossary__ko {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.us-fin-glossary__formula {
+  display: block;
+  margin: 0 0 0.35rem;
+  padding: 0.28rem 0.45rem;
+  border-radius: 0.35rem;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--accent, #2563eb) 75%, var(--text));
+  background: color-mix(in srgb, var(--accent, #2563eb) 8%, var(--card));
+}
+
+.us-fin-glossary__body {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.us-fin-glossary--compact .us-fin-glossary__item {
+  padding: 0.5rem 0.58rem;
+}
+
+.us-fin-glossary--compact .us-fin-glossary__en {
+  font-size: 0.8rem;
+}
+
+.us-fin-glossary--compact .us-fin-glossary__body {
+  font-size: 0.76rem;
+}
+
+@media (max-width: 720px) {
+  .us-fin-glossary__chip {
+    min-height: 2.45rem;
+  }
+
+  .us-fin-glossary__search input {
+    min-height: 2.7rem;
+    font-size: 1rem;
+  }
+}

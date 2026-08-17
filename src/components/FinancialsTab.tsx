@@ -20,6 +20,7 @@ import {
   yahooStockSymbolToTradingView,
 } from "../lib/tradingviewSymbols";
 import { fmtFinancialStatementCell } from "../lib/fmtFinancialStatement";
+import { lookupFinancialGlossary } from "../lib/usFinancialStatementGlossary";
 import type {
   FinancialPeriodMetrics,
   FinancialPeriodRow,
@@ -31,8 +32,10 @@ import type {
   StockSearchQuoteRow,
 } from "../types";
 import BuffettIntrinsicPanel from "./BuffettIntrinsicPanel";
+import SignalHintWrap from "./SignalHintWrap";
 import StockSearchHotRow, { rowToStockPick } from "./StockSearchHotRow";
 import TabShellFallback from "./TabShellFallback";
+import UsFinancialGlossaryPanel from "./UsFinancialGlossaryPanel";
 import "../financials-tab.css";
 
 const HANGUL_RE = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
@@ -76,6 +79,16 @@ function fmtYoyPct(pct: number | null | undefined): string {
   if (pct == null || !Number.isFinite(pct)) return "—";
   const sign = pct > 0 ? "+" : "";
   return `${sign}${pct.toFixed(1)}%`;
+}
+
+function FinancialTermLabel({ label }: { label: string }) {
+  const entry = lookupFinancialGlossary(label);
+  if (!entry) return <>{label}</>;
+  return (
+    <SignalHintWrap hint={entry.body} label={`${entry.en} · ${entry.ko}`}>
+      <span className="financials-tab__term">{label}</span>
+    </SignalHintWrap>
+  );
 }
 
 function yoyClass(pct: number | null | undefined): string {
@@ -642,7 +655,17 @@ export default function FinancialsTab({
           aria-label={ko.financials.metricsAria}
         >
           {!selected ? (
-            <p className="financials-tab__muted financials-tab__idle">{ko.financials.idle}</p>
+            <div className="financials-tab__idle-wrap">
+              <p className="financials-tab__muted financials-tab__idle">{ko.financials.idle}</p>
+              <section
+                className="financials-tab__glossary"
+                aria-label={ko.financials.glossaryTitle}
+              >
+                <h3 className="financials-tab__glossary-title">{ko.financials.glossaryTitle}</h3>
+                <p className="financials-tab__glossary-hint">{ko.financials.glossaryHint}</p>
+                <UsFinancialGlossaryPanel compact />
+              </section>
+            </div>
           ) : periodsLoading && periods.length === 0 ? (
             <TabShellFallback variant="body" rows={6} />
           ) : (
@@ -746,7 +769,9 @@ export default function FinancialsTab({
                         <tbody>
                           {metrics.map((m) => (
                             <tr key={m.key}>
-                              <th scope="row">{m.label}</th>
+                              <th scope="row">
+                                <FinancialTermLabel label={m.label} />
+                              </th>
                               <td className={m.verdictClass}>
                                 {m.badge ? (
                                   <span
@@ -810,6 +835,7 @@ export default function FinancialsTab({
                             ? ` · ${ko.financials.statementPrior} (${statement.priorPeriodLabel})`
                             : ""}
                         </p>
+                        <p className="financials-tab__glossary-hint">{ko.financials.glossaryHint}</p>
                       </header>
                       {statement.sections.map((section) => (
                         <div key={section.title} className="financials-tab__statement-section">
@@ -839,7 +865,9 @@ export default function FinancialsTab({
                             <tbody>
                               {section.rows.map((row) => (
                                 <tr key={`${section.title}:${row.label}`}>
-                                  <th scope="row">{row.label}</th>
+                                  <th scope="row">
+                                    <FinancialTermLabel label={row.label} />
+                                  </th>
                                   <td>
                                     {fmtFinancialStatementCell(
                                       row.value,
@@ -894,6 +922,12 @@ export default function FinancialsTab({
                   ) : null}
                 </section>
               ) : null}
+
+              <details className="financials-tab__glossary-details">
+                <summary>{ko.financials.glossaryToggle}</summary>
+                <p className="financials-tab__glossary-hint">{ko.financials.glossaryHint}</p>
+                <UsFinancialGlossaryPanel compact />
+              </details>
             </div>
           )}
         </section>

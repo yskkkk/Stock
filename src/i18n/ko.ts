@@ -1320,6 +1320,10 @@ export const ko = {
     statementPrevAnnounceChange: "이전 발표 대비",
     statementYoy: "전년 대비",
     statementItem: "항목",
+    glossaryTitle: "미국 재무제표 단어책",
+    glossaryHint:
+      "항목 이름에 마우스를 올리거나(모바일은 길게 누르면) 설명을 봅니다. 아래 단어책에서 전체를 검색할 수 있습니다.",
+    glossaryToggle: "단어책 열기",
     aiOpinionTitle: "AI 의견",
     aiOpinionLoading: "AI 분석 생성 중…",
     buffettTitle: "버핏식 내재가치",
@@ -1505,6 +1509,15 @@ export const ko = {
     openPostAria: (title: string) => `${title} 글 열기`,
     categoryLabel: "분류",
     posts: [
+      {
+        id: "us-financial-dictionary",
+        category: "단어책",
+        title: "미국 재무제표·SEC 공시 단어책",
+        excerpt:
+          "손익·재무상태·현금흐름 계정과 비율·약어·SEC 서류까지, 재무제표를 볼 때 나오는 단어를 찾아 설명합니다.",
+        publishedAt: "2026-08-17",
+        author: "운영",
+      },
       {
         id: "orlando-brk-valuation",
         category: "실전 가이드",
@@ -1745,6 +1758,19 @@ export const ko = {
         "실행: 적정가 아래 + 분할매수·장기 보유",
         "포트: 성장 + 방어",
       ],
+    },
+    usDict: {
+      lead:
+        "미국 10-K·10-Q 재무제표와 SEC 공시를 볼 때 나오는 계정·비율·약어를 모았습니다. ‘주요 용어’만 추리지 않고, 표에 실제로 뜨는 줄까지 설명합니다.",
+      disclaimer: "교육·참고용이며 투자 권유가 아닙니다. 회사마다 계정 이름·분류가 조금 다를 수 있습니다.",
+      sourceNote:
+        "손익·재무상태·현금흐름 전 계정, 비율·밸류, 읽는 법(YoY·GAAP·주석), SEC 서류(10-K·8-K·Form 4 등).",
+      searchLabel: "단어 찾기",
+      searchPlaceholder: "영문·한글·약어 (예: 매출채권, COGS, 10-Q, 이연수익)",
+      searchEmpty: "찾는 단어가 없습니다. 영문·한글·약어로 다시 검색해 보세요.",
+      allSections: "전체",
+      sectionAria: "단어 분류",
+      resultCount: (n: number) => `${n}개 단어`,
     },
     perEbitdaLead:
       "업종 특성에 따라 PER·EV/EBITDA의 적정 구간이 다릅니다. 참고용이며 투자 권유가 아닙니다.",

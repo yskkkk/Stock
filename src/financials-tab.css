@@ -616,6 +616,70 @@
   padding: var(--tab-card-pad-y-top, 0.9rem) var(--tab-card-pad-x, 1rem);
 }
 
+.financials-tab__idle-wrap {
+  padding: var(--tab-card-pad-y-top, 0.9rem) var(--tab-card-pad-x, 1rem) 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.financials-tab__idle-wrap .financials-tab__idle {
+  padding: 0;
+  margin: 0;
+}
+
+.financials-tab__glossary-title {
+  margin: 0 0 0.28rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.financials-tab__glossary-hint {
+  margin: 0.2rem 0 0.55rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.financials-tab__glossary-details {
+  margin-top: 0.75rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.financials-tab__glossary-details summary {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 650;
+  list-style: none;
+}
+
+.financials-tab__glossary-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.financials-tab__glossary-details summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1rem;
+  margin-right: 0.2rem;
+  color: var(--muted);
+}
+
+.financials-tab__glossary-details[open] summary::before {
+  content: "▾";
+}
+
+.financials-tab__term {
+  border-bottom: 1px dotted color-mix(in srgb, var(--muted) 75%, transparent);
+  cursor: help;
+}
+
 .financials-tab__error {
   color: var(--down);
 }
@@ -796,5 +860,9 @@
 
   .financials-tab__buffett-results {
     grid-template-columns: 1fr;
+  }
+
+  .financials-tab__glossary-details summary {
+    min-height: 2.75rem;
   }
 }
