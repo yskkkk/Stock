@@ -5,14 +5,25 @@
  *   node --experimental-strip-types --no-warnings scripts/build-us-financial-glossary-pdf.ts
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync, copyFileSync, unlinkSync } from "node:fs";
-import { homedir } from "node:os";
+import {
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  copyFileSync,
+  unlinkSync,
+  readFileSync,
+  mkdtempSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir, homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { PDFDocument } from "pdf-lib";
 import {
   GLOSSARY_SECTIONS,
   US_FINANCIAL_GLOSSARY,
   type GlossaryEntry,
+  type GlossarySectionId,
 } from "../src/lib/usFinancialStatementGlossary.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -27,6 +38,12 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function drillEn(en: string): string {
+  const paren = en.match(/\(([A-Za-z0-9&./\- ]{1,28})\)/);
+  if (paren) return paren[1].trim();
+  return en.split(/\s*[—/·|]\s*/)[0]?.trim() || en;
+}
+
 function findChromium(): string | null {
   const candidates = [
     process.env.MSEDGE_PATH,
@@ -39,155 +56,243 @@ function findChromium(): string | null {
   return candidates.find((p) => existsSync(p)) ?? null;
 }
 
-function renderHtml(): string {
-  const date = "2026-08-18";
-  const total = US_FINANCIAL_GLOSSARY.length;
-  const toc = GLOSSARY_SECTIONS.map((sec) => {
-    const n = US_FINANCIAL_GLOSSARY.filter((e) => e.section === sec.id).length;
-    return `<li><a href="#sec-${sec.id}">${esc(sec.label)}</a> <span class="toc-n">${n}</span></li>`;
-  }).join("");
+const BASE_CSS = `
+  @page { size: A4; margin: 8mm 10mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0 0 7mm;
+    font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+    color: #1a1a1a;
+    font-size: 7.4pt;
+    line-height: 1.36;
+  }
+  .running-foot {
+    position: fixed;
+    left: 10mm;
+    right: 10mm;
+    bottom: 6mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 6.6pt;
+    letter-spacing: 0.02em;
+    color: #666;
+    border-top: 0.45pt solid #b4b4b4;
+    padding-top: 1.2mm;
+  }
+  .running-foot .sec { font-weight: 700; color: #1a1a1a; }
+  h2 {
+    font-size: 10pt;
+    margin: 0 0 2mm;
+    padding-bottom: 1.1mm;
+    border-bottom: 1pt solid #111;
+    page-break-after: avoid;
+  }
+  h2 .count { font-weight: 500; font-size: 7pt; color: #666; }
+  .drill-cap {
+    margin: 0 0 1.3mm;
+    font-size: 6.6pt;
+    font-weight: 700;
+    color: #555;
+    letter-spacing: 0.04em;
+  }
+  .drill-cap--defs { margin-top: 2.6mm; }
+  .drill {
+    column-count: 2;
+    column-gap: 7mm;
+  }
+  .drill-row {
+    break-inside: avoid;
+    display: flex;
+    align-items: baseline;
+    gap: 1.4mm;
+    padding: 0.42mm 0;
+  }
+  .drill-en { font-weight: 700; flex: 0 1 auto; }
+  .drill-dots {
+    flex: 1 1 auto;
+    border-bottom: 0.45pt dotted #9a9a9a;
+    min-width: 4mm;
+    transform: translateY(-0.15em);
+  }
+  .drill-ko { color: #222; white-space: nowrap; flex: 0 0 auto; }
+  .term {
+    display: flex;
+    gap: 2mm;
+    padding: 1.05mm 0;
+    border-bottom: 0.3pt solid #e6e6e6;
+    page-break-inside: avoid;
+  }
+  .term-num {
+    flex: 0 0 4.8mm;
+    color: #999;
+    font-size: 6.5pt;
+    padding-top: 0.15mm;
+  }
+  .term-body { min-width: 0; flex: 1; }
+  .pair {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3mm 2.1mm;
+    margin: 0 0 0.35mm;
+  }
+  .pair .en { font-weight: 700; font-size: 7.5pt; line-height: 1.28; }
+  .pair .ko { color: #222; font-weight: 700; font-size: 7.3pt; }
+  .formula {
+    margin: 0 0 0.5mm;
+    padding: 0.35mm 1.2mm;
+    background: #f4f4f4;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 6.5pt;
+  }
+  .desc { margin: 0; color: #333; font-size: 7pt; line-height: 1.38; }
+  .cover { padding: 7mm 1mm 2mm; }
+  .cover .kicker { font-size: 7pt; letter-spacing: 0.1em; color: #555; margin: 0 0 4mm; }
+  .cover h1 { font-size: 15pt; line-height: 1.28; margin: 0 0 3.2mm; }
+  .cover .lead { font-size: 8pt; color: #333; max-width: 155mm; line-height: 1.45; }
+  .cover .meta { margin-top: 6mm; font-size: 7.2pt; color: #555; }
+  .cover .note { margin-top: 3mm; font-size: 7pt; color: #666; }
+  .toc { margin: 5mm 0 0; padding-left: 4.5mm; font-size: 7.6pt; }
+  .toc li { margin: 1mm 0; }
+  .toc a { color: #111; text-decoration: none; }
+  .toc-n { color: #777; }
+`;
 
-  const chapters = GLOSSARY_SECTIONS.map((sec) => {
-    const rows = US_FINANCIAL_GLOSSARY.filter((e) => e.section === sec.id);
-    const items = rows
-      .map((e: GlossaryEntry, i) => {
-        const formula = e.formula
-          ? `<p class="formula">${esc(e.formula)}</p>`
-          : "";
-        return `<article class="term">
-  <div class="term-num">${i + 1}</div>
-  <div class="term-body">
-    <h3>${esc(e.en)}</h3>
-    <p class="ko">${esc(e.ko)}</p>
-    ${formula}
-    <p class="desc">${esc(e.body)}</p>
-  </div>
-</article>`;
-      })
-      .join("\n");
-    return `<section id="sec-${sec.id}" class="chapter">
-  <h2>${esc(sec.label)} <span class="count">${rows.length}</span></h2>
-  ${items}
-</section>`;
-  }).join("\n");
-
+function wrapPage(sectionLabel: string, inner: string): string {
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
 <title>미국 재무제표 · SEC 공시 단어책</title>
-<style>
-  @page { size: A4; margin: 14mm 13mm 16mm; }
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0;
-    padding: 0;
-    font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
-    color: #1a1a1a;
-    font-size: 10.5pt;
-    line-height: 1.55;
-  }
-  .cover {
-    padding: 18mm 4mm 10mm;
-    border-bottom: 2px solid #111;
-    page-break-after: always;
-  }
-  .cover .kicker { font-size: 10pt; letter-spacing: 0.08em; color: #444; margin: 0 0 8mm; }
-  .cover h1 { font-size: 22pt; line-height: 1.3; margin: 0 0 6mm; }
-  .cover .lead { font-size: 11pt; color: #333; max-width: 150mm; }
-  .cover .meta { margin-top: 14mm; font-size: 9.5pt; color: #555; }
-  .cover .note { margin-top: 8mm; font-size: 9pt; color: #666; }
-  h2 {
-    font-size: 14pt;
-    margin: 0 0 6mm;
-    padding-bottom: 2.5mm;
-    border-bottom: 1.5px solid #111;
-    page-break-after: avoid;
-  }
-  h2 .count { font-weight: 500; font-size: 10pt; color: #666; }
-  .toc { margin: 8mm 0 0; padding-left: 5mm; }
-  .toc li { margin: 1.6mm 0; }
-  .toc a { color: #111; text-decoration: none; }
-  .toc-n { color: #777; font-size: 9.5pt; }
-  .chapter { page-break-before: always; }
-  .term {
-    display: flex;
-    gap: 4mm;
-    padding: 3.2mm 0;
-    border-bottom: 1px solid #e4e4e4;
-    page-break-inside: avoid;
-  }
-  .term-num {
-    flex: 0 0 8mm;
-    color: #888;
-    font-size: 9pt;
-    padding-top: 0.6mm;
-  }
-  .term-body { min-width: 0; flex: 1; }
-  .term h3 { margin: 0 0 1mm; font-size: 10.8pt; line-height: 1.35; }
-  .term .ko { margin: 0 0 1.5mm; color: #333; font-weight: 700; font-size: 10pt; }
-  .formula {
-    margin: 0 0 1.6mm;
-    padding: 1.4mm 2.2mm;
-    background: #f3f3f3;
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 9pt;
-  }
-  .desc { margin: 0; color: #222; }
-</style>
+<style>${BASE_CSS}</style>
 </head>
 <body>
-  <header class="cover">
-    <p class="kicker">US FINANCIAL STATEMENTS · SEC FILINGS</p>
-    <h1>미국 재무제표 · SEC 공시 단어책</h1>
-    <p class="lead">
-      10-K·10-Q 표에서 나오는 계정, 비율, 읽는 법 약어, SEC 서류를 모았습니다.
-      ‘주요 용어’만 추리지 않고 재무제표를 볼 때 알아야 할 단어를 설명합니다.
-    </p>
-    <p class="meta">단어 ${total}개 · ${date} · 교육·참고용 (투자 권유 아님)</p>
-    <p class="note">회사마다 계정 이름·분류가 조금 다를 수 있습니다. 표의 숫자와 주석(Notes)·MD&amp;A를 같이 보세요.</p>
-    <ol class="toc">${toc}</ol>
-  </header>
-  ${chapters}
+  <div class="running-foot">
+    <span>미국 재무제표 단어책</span>
+    <span class="sec">${esc(sectionLabel)}</span>
+  </div>
+  ${inner}
 </body>
 </html>`;
 }
 
-function printPdf(htmlPath: string, pdfPath: string) {
-  const chrome = findChromium();
-  if (!chrome) {
-    throw new Error("Edge/Chrome을 찾지 못했습니다. PDF를 만들 수 없습니다.");
-  }
-  mkdirSync(path.dirname(pdfPath), { recursive: true });
-  const fileUrl = pathToFileURL(htmlPath).href;
-  execFileSync(
-    chrome,
-    [
-      "--headless=new",
-      "--disable-gpu",
-      "--no-pdf-header-footer",
-      `--print-to-pdf=${pdfPath}`,
-      fileUrl,
-    ],
-    { stdio: "pipe", windowsHide: true, timeout: 120_000 },
+function coverHtml(): string {
+  const date = "2026-08-18";
+  const total = US_FINANCIAL_GLOSSARY.length;
+  const toc = GLOSSARY_SECTIONS.map((sec) => {
+    const n = US_FINANCIAL_GLOSSARY.filter((e) => e.section === sec.id).length;
+    return `<li>${esc(sec.label)} <span class="toc-n">${n}</span></li>`;
+  }).join("");
+  return wrapPage(
+    "목차",
+    `<header class="cover">
+      <p class="kicker">US FINANCIAL STATEMENTS · SEC FILINGS</p>
+      <h1>미국 재무제표 · SEC 공시 단어책</h1>
+      <p class="lead">
+        10-K·10-Q 표에서 나오는 계정, 비율, 읽는 법 약어, SEC 서류입니다.
+        각 소제목은 먼저 영·한 짝으로 외우고, 아래에서 뜻을 확인하세요.
+      </p>
+      <p class="meta">단어 ${total}개 · ${date} · 교육·참고용 (투자 권유 아님)</p>
+      <p class="note">회사마다 계정 이름이 조금 다를 수 있습니다. 표 숫자와 주석(Notes)·MD&amp;A를 같이 보세요.</p>
+      <ol class="toc">${toc}</ol>
+    </header>`,
   );
+}
+
+function chapterHtml(sectionId: GlossarySectionId, sectionLabel: string): string {
+  const rows = US_FINANCIAL_GLOSSARY.filter((e) => e.section === sectionId);
+  const drill = rows
+    .map(
+      (e) =>
+          `<div class="drill-row"><span class="drill-en">${esc(drillEn(e.en))}</span><span class="drill-dots"></span><span class="drill-ko">${esc(e.ko)}</span></div>`,
+    )
+    .join("");
+  const items = rows
+    .map((e: GlossaryEntry, i) => {
+      const formula = e.formula ? `<p class="formula">${esc(e.formula)}</p>` : "";
+      return `<article class="term">
+  <div class="term-num">${i + 1}</div>
+  <div class="term-body">
+    <p class="pair"><span class="en">${esc(e.en)}</span><span class="ko">${esc(e.ko)}</span></p>
+    ${formula}
+    <p class="desc">${esc(e.body)}</p>
+  </div>
+</article>`;
+    })
+    .join("\n");
+  return wrapPage(
+    sectionLabel,
+    `<section class="chapter">
+      <h2>${esc(sectionLabel)} <span class="count">${rows.length}</span></h2>
+      <p class="drill-cap">영·한 짝 — 한글을 가리고 영문을 떠올려 보세요</p>
+      <div class="drill">${drill}</div>
+      <p class="drill-cap drill-cap--defs">설명</p>
+      ${items}
+    </section>`,
+  );
+}
+
+function printPdf(html: string, pdfPath: string, chrome: string) {
+  const htmlPath = pdfPath.replace(/\.pdf$/i, ".html");
+  writeFileSync(htmlPath, html, "utf8");
+  try {
+    execFileSync(
+      chrome,
+      [
+        "--headless=new",
+        "--disable-gpu",
+        "--no-pdf-header-footer",
+        `--print-to-pdf=${pdfPath}`,
+        pathToFileURL(htmlPath).href,
+      ],
+      { stdio: "pipe", windowsHide: true, timeout: 120_000 },
+    );
+  } finally {
+    try {
+      unlinkSync(htmlPath);
+    } catch {
+      /* ignore */
+    }
+  }
   if (!existsSync(pdfPath)) {
     throw new Error(`PDF가 생성되지 않았습니다: ${pdfPath}`);
   }
 }
 
-const htmlPath = path.join(ROOT, "docs", "_us-financial-glossary-print.html");
-writeFileSync(htmlPath, renderHtml(), "utf8");
+async function mergePdfs(paths: string[], outPath: string) {
+  const merged = await PDFDocument.create();
+  for (const part of paths) {
+    const src = await PDFDocument.load(readFileSync(part));
+    const copied = await merged.copyPages(src, src.getPageIndices());
+    for (const page of copied) merged.addPage(page);
+  }
+  mkdirSync(path.dirname(outPath), { recursive: true });
+  writeFileSync(outPath, await merged.save());
+}
+
+const chrome = findChromium();
+if (!chrome) {
+  throw new Error("Edge/Chrome을 찾지 못했습니다. PDF를 만들 수 없습니다.");
+}
+
+const work = mkdtempSync(path.join(tmpdir(), "us-fin-glossary-"));
 try {
-  printPdf(htmlPath, DOCS_PDF);
+  const parts: string[] = [];
+  const coverPath = path.join(work, "00-cover.pdf");
+  printPdf(coverHtml(), coverPath, chrome);
+  parts.push(coverPath);
+  GLOSSARY_SECTIONS.forEach((sec, i) => {
+    const partPath = path.join(work, `${String(i + 1).padStart(2, "0")}-${sec.id}.pdf`);
+    printPdf(chapterHtml(sec.id, sec.label), partPath, chrome);
+    parts.push(partPath);
+  });
+  await mergePdfs(parts, DOCS_PDF);
   mkdirSync(path.dirname(DOWNLOADS_PDF), { recursive: true });
   copyFileSync(DOCS_PDF, DOWNLOADS_PDF);
 } finally {
-  try {
-    unlinkSync(htmlPath);
-  } catch {
-    /* ignore */
-  }
+  rmSync(work, { recursive: true, force: true });
 }
 
 console.log(`PDF ${US_FINANCIAL_GLOSSARY.length} terms`);

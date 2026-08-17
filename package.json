@@ -83,6 +83,7 @@
     "@vitejs/plugin-react": "^4.4.1",
     "concurrently": "^9.1.2",
     "jsdom": "^26.1.0",
+    "pdf-lib": "^1.17.1",
     "tree-kill": "^1.2.2",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
