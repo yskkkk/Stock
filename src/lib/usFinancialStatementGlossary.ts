@@ -17,7 +17,33 @@ export type GlossaryEntry = {
   aliases: readonly string[];
   formula?: string;
   body: string;
+  /** 암기 표에 쓰는 영어 표기. 없으면 en에서 안전하게 줄임. */
+  word?: string;
 };
+
+function looksLikeAbbrev(raw: string): boolean {
+  const t = String(raw ?? "").trim();
+  if (t.length < 2 || t.length > 22) return false;
+  if (/^(add-?back|expense|loss|equity|net)$/i.test(t)) return false;
+  if (/^[A-Z]{2,8}(\s*\/\s*[A-Z]{2,8})+$/.test(t)) return true;
+  if (/^[A-Z]{2,12}$/.test(t)) return true;
+  if (/^[A-Z][a-z]+[A-Z][a-zA-Z]*$/.test(t)) return true;
+  if (/^[A-Z0-9]{1,5}[&/.\-][A-Z0-9]{1,10}$/i.test(t)) return true;
+  if (/^\d{1,2}-[A-Z](\/[A-Z])?$/i.test(t)) return true;
+  return false;
+}
+
+/** 암기 표 영어 칸. P/E·P/B처럼 슬래시가 있는 약어를 P로 자르지 않는다. */
+export function glossaryMemoWord(entry: GlossaryEntry): string {
+  const explicit = String(entry.word ?? "").trim();
+  if (explicit) return explicit;
+  const en = String(entry.en ?? "").trim();
+  const paren = en.match(/\(([^)]{1,28})\)/);
+  if (paren && looksLikeAbbrev(paren[1])) {
+    return paren[1].replace(/\s+/g, " ").trim();
+  }
+  return en.split(/\s+[—–]\s+|\s+\/\s+/)[0]?.trim() || en;
+}
 
 export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
   // —— 손익계산서 ——
@@ -88,6 +114,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "income",
     en: "SG&A — Selling, General & Administrative",
     ko: "판매비와 관리비",
+    word: "SG&A",
     aliases: [
       "sg&a",
       "sga",
@@ -276,6 +303,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "income",
     en: "Other Income (Expense), net",
     ko: "기타 수익(비용)",
+    word: "Other Income, net",
     aliases: ["other income", "other expense", "other income expense net", "기타수익", "기타비용", "영업외손익"],
     body: "본업 밖 잡손익. 자산 매각차익, 환율, 투자자산 평가 등이 들어갑니다. 갑자기 커지면 일회성인지 주석을 봅니다.",
   },
@@ -661,7 +689,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     en: "Goodwill",
     ko: "영업권",
     aliases: ["goodwill", "영업권"],
-    body: "M&A 때 순자산 공정가치보다 더 준 돈. 브랜드·인력·시너오 기대치입니다. 매년 손상검사만 하고 정액 상각하지 않습니다. 손상 나면 한 번에 이익이 깎입니다.",
+    body: "M&A 때 순자산 공정가치보다 더 준 돈. 브랜드·인력·시너지 기대치입니다. 매년 손상검사만 하고 정액 상각하지 않습니다. 손상 나면 한 번에 이익이 깎입니다.",
   },
   {
     id: "intangibles",
@@ -831,6 +859,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "balance",
     en: "Common Stock / Preferred Stock",
     ko: "보통주·우선주 자본금",
+    word: "Common/Preferred Stock",
     aliases: ["common stock", "preferred stock", "share capital", "보통주", "우선주", "자본금"],
     body: "액면가 × 발행주식 수 수준의 자본금. 미국은 액면이 거의 0에 가까워 금액이 작습니다. 실제 납입 초과분은 APIC로 갑니다.",
   },
@@ -847,7 +876,6 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
       "paid-in capital",
       "주식발행초과금",
       "자본잉여금",
-      "자본최납금",
     ],
     body: "주식을 액면보다 비싸게 발행해 받은 돈. IPO·유상증자·옵션 행사 때 쌓입니다.",
   },
@@ -967,6 +995,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "cashflow",
     en: "Depreciation & Amortization (add-back)",
     ko: "감가·상각 가산 (현금흐름)",
+    word: "D&A (OCF 가산)",
     aliases: ["depreciation add back", "amortization add back"],
     body: "손익에 비용으로 넣었지만 현금이 안 나갔으므로 OCF에 다시 더합니다. 설비 투자의 현금은 투자활동(CapEx)에 따로 나갑니다.",
   },
@@ -975,6 +1004,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "cashflow",
     en: "Stock-based Compensation (add-back)",
     ko: "주식보상 가산 (현금흐름)",
+    word: "SBC (OCF 가산)",
     aliases: ["stock based compensation add back", "sbc add back"],
     body: "비현금 비용이라 OCF에 더해집니다. 그래서 SBC가 큰 회사는 OCF가 좋아 보여도 주주 희석은 진행 중입니다.",
   },
@@ -1042,6 +1072,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "cashflow",
     en: "Purchases / Sales of Marketable Securities",
     ko: "유가증권 매매 (투자)",
+    word: "Purchases/Sales of Securities",
     aliases: [
       "purchases of marketable securities",
       "sales of marketable securities",
@@ -1154,8 +1185,9 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
   {
     id: "per",
     section: "metrics",
-    en: "P/E / PER",
+    en: "P/E (PER)",
     ko: "주가수익비율",
+    word: "P/E (PER)",
     aliases: ["p/e", "pe", "per", "price to earnings", "price earnings", "per (주가수익비율)", "주가수익비율"],
     formula: "주가 ÷ EPS",
     body: "이익 1달러당 주가. TTM(지난 12개월)과 Forward(예상)를 구분합니다. 일회성 이익이 있으면 왜곡됩니다.",
@@ -1182,6 +1214,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "metrics",
     en: "BPS / Book Value per Share",
     ko: "주당순자산",
+    word: "BPS",
     aliases: ["bps", "book value per share", "bvps", "주당순자산", "bps (주당순자산)"],
     formula: "Shareholders' Equity ÷ Shares",
     body: "한 주당 장부 순자산. PBR의 분모입니다. 무형자산·자사주 회계에 따라 의미가 달라집니다.",
@@ -1189,8 +1222,9 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
   {
     id: "pbr",
     section: "metrics",
-    en: "P/B / PBR",
+    en: "P/B (PBR)",
     ko: "주가순자산비율",
+    word: "P/B (PBR)",
     aliases: ["p/b", "pb", "pbr", "price to book", "주가순자산비율", "pbr (주가순자산비율)"],
     formula: "주가 ÷ BPS",
     body: "장부가 대비 주가. 은행·지주처럼 자산이 본업인 업종에서 더 쓸모 있습니다. 1배 아래여도 자산 질이 나쁘면 쌀 수 없습니다.",
@@ -1198,8 +1232,9 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
   {
     id: "psr",
     section: "metrics",
-    en: "P/S — Price to Sales",
+    en: "P/S (PSR)",
     ko: "주가매출비율",
+    word: "P/S (PSR)",
     aliases: ["p/s", "ps", "psr", "price to sales", "주가매출비율"],
     formula: "시가총액 ÷ 매출",
     body: "적자·이익 왜곡이 있을 때 쓰는 배수. 이익률이 낮은 회사는 P/S만으로 비싸 보일 수 있습니다.",
@@ -1207,8 +1242,9 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
   {
     id: "pcf",
     section: "metrics",
-    en: "P/CF — Price to Cash Flow",
+    en: "P/CF (Price to Cash Flow)",
     ko: "주가현금흐름비율",
+    word: "P/CF",
     aliases: ["p/cf", "pcf", "price to cash flow", "주가현금흐름비율"],
     formula: "시가총액 ÷ 영업현금흐름",
     body: "회계 이익 대신 현금 기준 배수. 감가·운전자본 차이가 큰 회사에 보조로 씁니다.",
@@ -1236,6 +1272,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "metrics",
     en: "EV/EBITDA",
     ko: "EV/EBITDA",
+    word: "EV/EBITDA",
     aliases: ["ev/ebitda", "ev ebitda", "enterprise value to ebitda"],
     body: "자본구조가 다른 회사끼리 비교할 때 쓰는 현금이익 배수. 금융주는 잘 안 씁니다. 설비 산업에서 PER보다 덜 왜곡되는 경우가 많습니다.",
   },
@@ -1244,6 +1281,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "metrics",
     en: "EV/Sales",
     ko: "EV/매출",
+    word: "EV/Sales",
     aliases: ["ev/sales", "ev/revenue", "ev sales", "ev/매출"],
     body: "매출 1달러당 기업가치. 아직 이익이 안 난 성장주 비교에 씁니다.",
   },
@@ -1306,7 +1344,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "metrics",
     en: "ROIC — Return on Invested Capital",
     ko: "투하자본수익률",
-    aliases: ["roic", "return on invested capital", "roiic", "투하자본수익률", "투하자본이익률"],
+    aliases: ["roic", "return on invested capital", "투하자본수익률", "투하자본이익률"],
     formula: "NOPAT ÷ Invested Capital",
     body: "본업에 넣은 자본(자기자본+순부채 등) 대비 세후영업이익. 자본배분의 핵심 성적표입니다. WACC보다 높으면 가치를 창출한다고 봅니다.",
   },
@@ -1371,7 +1409,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     ko: "현금회수주기",
     aliases: ["ccc", "cash conversion cycle", "현금회수주기", "현금순환주기"],
     formula: "DSO + DIO − DPO",
-    body: "현금이 재고·외상으로 나갔다가 돌아오는 기간. 짧을수록 운전자본 효율이 좋습니다. 음수면 고객·협력자 돈으로 사업을 도는 경우에 가깝습니다.",
+    body: "현금이 재고·외상으로 나갔다가 돌아오는 기간. 짧을수록 운전자본 효율이 좋습니다. 음수면 고객·협력사 돈으로 사업을 도는 경우에 가깝습니다.",
   },
   {
     id: "interest-cover",
@@ -1387,6 +1425,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "metrics",
     en: "Debt-to-Equity / Leverage",
     ko: "부채비율",
+    word: "D/E",
     aliases: ["debt to equity", "d/e", "leverage", "부채비율", "부채자본비율"],
     formula: "총부채 ÷ 자본 (또는 총차입 ÷ 자본)",
     body: "레버리지. 정의(총부채 vs 이자부부채)가 자료마다 달라 분자를 확인합니다.",
@@ -1761,6 +1800,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "sec",
     en: "PRE 14A / DEFA14A",
     ko: "예비·추가 위임장",
+    word: "PRE 14A / DEFA14A",
     aliases: ["pre 14a", "pre14a", "defa14a", "defa 14a"],
     body: "PRE 14A는 SEC에 미리 내는 초안, DEFA14A는 주총 관련 추가 설명·홍보 자료입니다.",
   },
@@ -1777,6 +1817,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "sec",
     en: "Form NT 10-K / NT 10-Q",
     ko: "제출 연기 신청",
+    word: "NT 10-K / NT 10-Q",
     aliases: ["nt 10-k", "nt 10-q", "nt10k", "nt10q", "late filing"],
     body: "기한 내 제출이 어려울 때 사유를 적는 서류. 회계 문제·내부통제 이슈의 경고등이 될 수 있습니다.",
   },
@@ -1793,6 +1834,7 @@ export const US_FINANCIAL_GLOSSARY: readonly GlossaryEntry[] = [
     section: "sec",
     en: "10-K Item 1 / 7 / 8",
     ko: "10-K 주요 항목",
+    word: "10-K Item 1·7·8",
     aliases: ["item 1", "item 7", "item 8", "business", "financial statements"],
     body: "Item 1 사업 내용, Item 7 MD&A, Item 8 감사 재무제표·주석. 숫자만 볼 때 8, 해석은 7입니다.",
   },

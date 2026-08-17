@@ -22,6 +22,7 @@ import { PDFDocument } from "pdf-lib";
 import {
   GLOSSARY_SECTIONS,
   US_FINANCIAL_GLOSSARY,
+  glossaryMemoWord,
   type GlossaryEntry,
   type GlossarySectionId,
 } from "../src/lib/usFinancialStatementGlossary.ts";
@@ -36,12 +37,6 @@ function esc(s: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function drillEn(en: string): string {
-  const paren = en.match(/\(([A-Za-z0-9&./\- ]{1,28})\)/);
-  if (paren) return paren[1].trim();
-  return en.split(/\s*[—/·|]\s*/)[0]?.trim() || en;
 }
 
 function findChromium(): string | null {
@@ -262,7 +257,7 @@ function memoRows(rows: readonly GlossaryEntry[], withBanner?: string): string {
     .map(
       (e) =>
         `<tr>
-          <td class="c-en">${esc(drillEn(e.en))}</td>
+          <td class="c-en">${esc(glossaryMemoWord(e))}</td>
           <td class="c-ko">${esc(e.ko)}</td>
           <td class="c-mean">${esc(meaningCell(e))}</td>
         </tr>`,

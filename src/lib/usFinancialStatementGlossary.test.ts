@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   GLOSSARY_SECTIONS,
   US_FINANCIAL_GLOSSARY,
+  glossaryMemoWord,
   lookupFinancialGlossary,
   searchFinancialGlossary,
 } from "./usFinancialStatementGlossary";
@@ -72,6 +73,32 @@ describe("usFinancialStatementGlossary", () => {
   it("does not map 영업활동현금흐름 to 현금", () => {
     expect(lookupFinancialGlossary("현금")?.id).toBe("cash");
     expect(lookupFinancialGlossary("영업활동현금흐름")?.id).toBe("ocf");
+  });
+
+  it("keeps P/E P/B P/S P/CF distinct in the memorization table", () => {
+    const byId = Object.fromEntries(
+      US_FINANCIAL_GLOSSARY.map((e) => [e.id, glossaryMemoWord(e)]),
+    );
+    expect(byId.per).toBe("P/E (PER)");
+    expect(byId.pbr).toBe("P/B (PBR)");
+    expect(byId.psr).toBe("P/S (PSR)");
+    expect(byId.pcf).toBe("P/CF");
+    expect(byId["ev-ebitda"]).toBe("EV/EBITDA");
+    expect(byId.ar).toBe("A/R");
+    expect(byId.ap).toBe("A/P");
+  });
+
+  it("never shortens a memo word to a single letter", () => {
+    for (const entry of US_FINANCIAL_GLOSSARY) {
+      const word = glossaryMemoWord(entry);
+      expect(word.length, `${entry.id}: ${word}`).toBeGreaterThan(1);
+    }
+  });
+
+  it("uses unique memorization words", () => {
+    const words = US_FINANCIAL_GLOSSARY.map((e) => glossaryMemoWord(e));
+    const dup = words.filter((w, i) => words.indexOf(w) !== i);
+    expect(dup, `duplicates: ${[...new Set(dup)].join(", ")}`).toEqual([]);
   });
 
   it("filters by section and search query", () => {
