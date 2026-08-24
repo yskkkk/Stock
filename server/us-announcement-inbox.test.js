@@ -19,7 +19,7 @@ import {
   shouldSendAnnouncementAlert,
   wasAnnouncementAlerted,
 } from "./us-announcement-inbox-store.js";
-import { classifySecForm, buildEdgarDocumentUrl } from "./us-announcement-edgar.js";
+import { classifySecForm, buildEdgarDocumentUrl, collectClassifiedFilingsFromBucket } from "./us-announcement-edgar.js";
 import { consensusEpsChangedEnough, metricsFromYahooSnapshot } from "./us-announcement-consensus.js";
 import { buildAnnouncementNotifyText } from "./us-announcement-notify.js";
 import { buildFilingHeadlineAndDetail, extractFilingNumberLines, buildArticleFromFiling, buildDeepAnalysisFromFiling, pickFilingExcerpts, isFilingNoise, koSummarizeFilingSentence } from "./us-announcement-summarize.js";
@@ -199,6 +199,52 @@ describe("us-announcement-store dedupe", () => {
     expect(b.inserted).toBe(false);
   });
 
+  it("history import keeps same-day filings with different accession", () => {
+    const store = emptyUsAnnouncementStore();
+    const day = Date.parse("2026-07-30T16:00:00-04:00");
+    const a = insertAnnouncementCard(
+      store,
+      {
+        id: "a",
+        symbol: "AAPL",
+        kind: "guidance",
+        title: "8-K item 2.02",
+        form: "8-K",
+        accession: "acc-a",
+        filedAt: day,
+        source: "t",
+        metrics: {},
+        ai: { summary: "", generatedAt: 0 },
+        links: {},
+        createdAt: day,
+      },
+      [],
+      { accessionOnly: true },
+    );
+    expect(a.inserted).toBe(true);
+    const b = insertAnnouncementCard(
+      store,
+      {
+        id: "b",
+        symbol: "AAPL",
+        kind: "guidance",
+        title: "8-K item 8.01",
+        form: "8-K",
+        accession: "acc-b",
+        filedAt: day,
+        source: "t",
+        metrics: {},
+        ai: { summary: "", generatedAt: 0 },
+        links: {},
+        createdAt: day,
+      },
+      [],
+      { accessionOnly: true },
+    );
+    expect(b.inserted).toBe(true);
+    expect(store.cards).toHaveLength(2);
+  });
+
   it("blocks identical demo titles", () => {
     const store = emptyUsAnnouncementStore();
     const filedAt = Date.now();
@@ -305,6 +351,31 @@ describe("us-announcement-edgar helpers", () => {
     );
     expect(url).toContain("sec.gov/Archives/edgar/data/320193/");
     expect(url).toContain("aapl-8k.htm");
+  });
+
+  it("collects classified filings without date/count cap when sinceMs is 0", () => {
+    const old = Date.parse("2010-03-15T16:00:00-04:00");
+    const recent = Date.parse("2026-01-10T16:00:00-04:00");
+    const filings = collectClassifiedFilingsFromBucket(
+      {
+        form: ["4", "8-K", "10-K", "S-1"],
+        filingDate: ["2026-01-10", "2026-01-10", "2010-03-15", "2010-01-01"],
+        accessionNumber: ["acc-4", "acc-8k", "acc-10k", "acc-s1"],
+        primaryDocument: ["a.htm", "b.htm", "c.htm", "d.htm"],
+        primaryDocDescription: ["", "Current report", "Annual report", "IPO"],
+      },
+      {
+        cik: "0000320193",
+        symbol: "AAPL",
+        sinceMs: 0,
+        limit: 100_000,
+      },
+    );
+    expect(filings.map((f) => f.accession)).toEqual(["acc-8k", "acc-10k"]);
+    expect(filings[0].kind).toBe("guidance");
+    expect(filings[1].kind).toBe("earnings");
+    expect(filings[1].filedAt).toBe(old);
+    expect(filings[0].filedAt).toBe(recent);
   });
 });
 
@@ -598,6 +669,44 @@ describe("filing headline/detail", () => {
 });
 
 describe("dedupe form4 cards", () => {
+  it("keeps same-day 8-Ks with different accession", () => {
+    const store = emptyUsAnnouncementStore();
+    const day = Date.parse("2024-01-15T16:00:00-04:00");
+    store.cards = [
+      {
+        id: "a",
+        symbol: "AAPL",
+        kind: "guidance",
+        title: "8-K item 2.02",
+        form: "8-K",
+        accession: "acc-1",
+        filedAt: day,
+        source: "t",
+        metrics: {},
+        ai: { summary: "", generatedAt: 0 },
+        links: {},
+        createdAt: 1,
+      },
+      {
+        id: "b",
+        symbol: "AAPL",
+        kind: "guidance",
+        title: "8-K item 8.01",
+        form: "8-K",
+        accession: "acc-2",
+        filedAt: day,
+        source: "t",
+        metrics: {},
+        ai: { summary: "", generatedAt: 0 },
+        links: {},
+        createdAt: 2,
+      },
+    ];
+    const { removed } = dedupeRegisteredAnnouncementCards(store);
+    expect(removed).toBe(0);
+    expect(store.cards).toHaveLength(2);
+  });
+
   it("removes form 4 governance spam", () => {
     const store = emptyUsAnnouncementStore();
     store.cards = [

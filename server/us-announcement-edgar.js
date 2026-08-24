@@ -110,67 +110,191 @@ export function buildEdgarDocumentUrl(cik, accession, primaryDocument) {
   return `https://www.sec.gov/Archives/edgar/data/${cikNum}/${acc}/`;
 }
 
+const ALL_HISTORY_FILING_LIMIT = 100_000;
+const SEC_ARCHIVE_FILE_RE = /^CIK\d+-submissions-\d+\.json$/i;
+
+/**
+ * @param {unknown} bucket
+ */
+function filingArraysFromBucket(bucket) {
+  if (!bucket || typeof bucket !== "object") return null;
+  const rec = /** @type {Record<string, unknown>} */ (bucket);
+  if (Array.isArray(rec.form)) return rec;
+  const nestedRecent = rec.recent;
+  if (
+    nestedRecent &&
+    typeof nestedRecent === "object" &&
+    Array.isArray(/** @type {Record<string, unknown>} */ (nestedRecent).form)
+  ) {
+    return /** @type {Record<string, unknown>} */ (nestedRecent);
+  }
+  const filings = rec.filings;
+  if (filings && typeof filings === "object") {
+    const recent = /** @type {Record<string, unknown>} */ (filings).recent;
+    if (
+      recent &&
+      typeof recent === "object" &&
+      Array.isArray(/** @type {Record<string, unknown>} */ (recent).form)
+    ) {
+      return /** @type {Record<string, unknown>} */ (recent);
+    }
+  }
+  return null;
+}
+
+/**
+ * submissions recent / 아카이브 JSON에서 분류된 공시만 수집.
+ * @param {unknown} bucket
+ * @param {{
+ *   cik: string;
+ *   symbol: string;
+ *   sinceMs?: number;
+ *   limit?: number;
+ *   seenAccessions?: Set<string>;
+ * }} ctx
+ */
+export function collectClassifiedFilingsFromBucket(bucket, ctx) {
+  const arrays = filingArraysFromBucket(bucket);
+  const cik = String(ctx.cik ?? "");
+  const symbol = String(ctx.symbol ?? "")
+    .trim()
+    .toUpperCase();
+  const sinceMs = Number.isFinite(Number(ctx.sinceMs)) ? Number(ctx.sinceMs) : 0;
+  const limit = Math.max(0, Number(ctx.limit) || 0);
+  const seen = ctx.seenAccessions instanceof Set ? ctx.seenAccessions : new Set();
+  if (!arrays || !cik || limit <= 0) return [];
+
+  const forms = Array.isArray(arrays.form) ? arrays.form : [];
+  const dates = Array.isArray(arrays.filingDate) ? arrays.filingDate : [];
+  const accessions = Array.isArray(arrays.accessionNumber)
+    ? arrays.accessionNumber
+    : [];
+  const primaries = Array.isArray(arrays.primaryDocument)
+    ? arrays.primaryDocument
+    : [];
+  const descriptions = Array.isArray(arrays.primaryDocDescription)
+    ? arrays.primaryDocDescription
+    : [];
+
+  /** @type {Array<{
+   *   form: string;
+   *   filedAt: number;
+   *   accession: string;
+   *   title: string;
+   *   kind: "guidance"|"governance"|"earnings";
+   *   url: string;
+   * }>} */
+  const filings = [];
+  for (let i = 0; i < forms.length && filings.length < limit; i++) {
+    const form = String(forms[i] ?? "");
+    const kind = classifySecForm(form);
+    if (!kind) continue;
+    const dateStr = String(dates[i] ?? "");
+    const filedAt = Date.parse(`${dateStr}T16:00:00-04:00`);
+    if (!Number.isFinite(filedAt) || filedAt < sinceMs) continue;
+    const accession = String(accessions[i] ?? "").trim();
+    if (accession && seen.has(accession)) continue;
+    if (accession) seen.add(accession);
+    const primary = String(primaries[i] ?? "");
+    const desc = String(descriptions[i] ?? "").trim();
+    filings.push({
+      form,
+      filedAt,
+      accession,
+      title: desc || `${symbol} ${form}`,
+      kind,
+      url: buildEdgarDocumentUrl(cik, accession, primary),
+    });
+  }
+  return filings;
+}
+
+/**
+ * @param {number} ms
+ */
+function sleepMs(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * @param {unknown} sinceMs
+ * @param {boolean} allHistory
+ */
+function resolveFilingSinceMs(sinceMs, allHistory) {
+  if (allHistory) {
+    if (sinceMs == null || sinceMs === "") return 0;
+    const n = Number(sinceMs);
+    return Number.isFinite(n) ? n : 0;
+  }
+  const n = Number(sinceMs);
+  if (Number.isFinite(n) && n > 0) return n;
+  return Date.now() - 14 * 24 * 60 * 60 * 1000;
+}
+
 /**
  * @param {string} symbol
- * @param {{ limit?: number; sinceMs?: number }} [opts]
+ * @param {{ limit?: number; sinceMs?: number; allHistory?: boolean }} [opts]
  */
 export async function fetchRecentSecFilingsForSymbol(symbol, opts = {}) {
   const sym = String(symbol ?? "")
     .trim()
     .toUpperCase();
-  const limit = Math.min(80, Math.max(1, Number(opts.limit) || 12));
-  const sinceMs =
-    Number(opts.sinceMs) || Date.now() - 14 * 24 * 60 * 60 * 1000;
+  const allHistory = opts.allHistory === true;
+  const limit = allHistory
+    ? Math.min(
+        ALL_HISTORY_FILING_LIMIT,
+        Math.max(1, Number(opts.limit) || ALL_HISTORY_FILING_LIMIT),
+      )
+    : Math.min(80, Math.max(1, Number(opts.limit) || 12));
+  const sinceMs = resolveFilingSinceMs(opts.sinceMs, allHistory);
 
   const cik = await resolveSecCikForSymbol(sym);
   if (!cik) return { symbol: sym, cik: null, filings: [] };
 
   try {
     const data = await secGetJson(`/submissions/CIK${cik}.json`);
-    const recent = data?.filings?.recent;
-    if (!recent || typeof recent !== "object") {
-      return { symbol: sym, cik, filings: [] };
-    }
-    const forms = Array.isArray(recent.form) ? recent.form : [];
-    const dates = Array.isArray(recent.filingDate) ? recent.filingDate : [];
-    const accessions = Array.isArray(recent.accessionNumber)
-      ? recent.accessionNumber
-      : [];
-    const primaries = Array.isArray(recent.primaryDocument)
-      ? recent.primaryDocument
-      : [];
-    const descriptions = Array.isArray(recent.primaryDocDescription)
-      ? recent.primaryDocDescription
-      : [];
+    /** @type {Set<string>} */
+    const seenAccessions = new Set();
+    const filings = collectClassifiedFilingsFromBucket(data?.filings?.recent, {
+      cik,
+      symbol: sym,
+      sinceMs,
+      limit,
+      seenAccessions,
+    });
 
-    /** @type {Array<{
-     *   form: string;
-     *   filedAt: number;
-     *   accession: string;
-     *   title: string;
-     *   kind: "guidance"|"governance"|"earnings";
-     *   url: string;
-     * }>} */
-    const filings = [];
-    for (let i = 0; i < forms.length && filings.length < limit; i++) {
-      const form = String(forms[i] ?? "");
-      const kind = classifySecForm(form);
-      if (!kind) continue;
-      const dateStr = String(dates[i] ?? "");
-      const filedAt = Date.parse(`${dateStr}T16:00:00-04:00`);
-      if (!Number.isFinite(filedAt) || filedAt < sinceMs) continue;
-      const accession = String(accessions[i] ?? "");
-      const primary = String(primaries[i] ?? "");
-      const desc = String(descriptions[i] ?? "").trim();
-      filings.push({
-        form,
-        filedAt,
-        accession,
-        title: desc || `${sym} ${form}`,
-        kind,
-        url: buildEdgarDocumentUrl(cik, accession, primary),
-      });
+    if (allHistory && filings.length < limit) {
+      const files = Array.isArray(data?.filings?.files) ? data.filings.files : [];
+      for (const file of files) {
+        if (filings.length >= limit) break;
+        const name = String(file?.name ?? "").trim();
+        if (!SEC_ARCHIVE_FILE_RE.test(name)) continue;
+        await sleepMs(120);
+        try {
+          const extra = await secGetJson(
+            `https://data.sec.gov/submissions/${encodeURIComponent(name)}`,
+          );
+          filings.push(
+            ...collectClassifiedFilingsFromBucket(extra, {
+              cik,
+              symbol: sym,
+              sinceMs,
+              limit: limit - filings.length,
+              seenAccessions,
+            }),
+          );
+        } catch (e) {
+          liveTradeLogWarn(
+            "[us-announcement] EDGAR archive fetch fail",
+            sym,
+            name,
+            e instanceof Error ? e.message : e,
+          );
+        }
+      }
     }
+
+    filings.sort((a, b) => Number(b.filedAt) - Number(a.filedAt));
     return { symbol: sym, cik, filings };
   } catch (e) {
     liveTradeLogWarn(

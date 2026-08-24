@@ -1442,7 +1442,7 @@ export const ko = {
   usAnnouncement: {
     title: "미국 발표",
     subtitle:
-      "관심 티커를 고른 뒤 「티커 스캔」으로 최근 약 180일 공시를 불러 등록합니다. 백그라운드는 신규만 알림합니다.",
+      "관심 티커를 고른 뒤 「티커 스캔」으로 EDGAR에 있는 해당 티커 공시를 전부 불러 등록합니다. 백그라운드는 신규만 알림합니다.",
     filterAll: "전체",
     kindGuidance: "가이던스",
     kindConsensus: "컨센",
@@ -1456,9 +1456,9 @@ export const ko = {
     scanNow: "지금 스캔(등록)",
     scanPickTicker: "티커 선택 후 스캔",
     scanTicker: "{sym} 스캔·등록",
-    scanTickerTitle: "{sym} 최근 공시(약 180일)를 불러 등록",
+    scanTickerTitle: "{sym} 공시 전체를 불러 등록",
     scanNeedTicker: "먼저 관심 종목 칩을 눌러 티커를 선택하세요.",
-    scanningTicker: "{sym} 과거 공시 불러오는 중…",
+    scanningTicker: "{sym} 공시 전체 불러오는 중…",
     scanning: "스캔 중…",
     reload: "새로고침",
     loading: "불러오는 중…",
@@ -1491,9 +1491,9 @@ export const ko = {
     scanOkNone:
       "스캔 완료 — 새로 등록할 발표가 없습니다. 이미 반영된 공시만 있습니다 (전체 {total}건).",
     scanOkTickerNew:
-      "{sym} 스캔 완료 — 최근 {days}일에서 {n}건 등록 (이 티커 {total}건).",
+      "{sym} 스캔 완료 — 전체 공시에서 {n}건 등록 (이 티커 {total}건).",
     scanOkTickerNone:
-      "{sym} 스캔 완료 — 최근 {days}일 신규 없음 (이 티커 {total}건).",
+      "{sym} 스캔 완료 — 신규 없음 (이 티커 {total}건).",
     scanPartialErrors: "일부 오류 {n}건.",
     watchFail: "관심 종목 추가에 실패했습니다.",
     seedFail: "데모 카드 생성에 실패했습니다.",

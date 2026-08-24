@@ -1603,6 +1603,10 @@ export function createApp() {
         });
         return;
       }
+      if (historyImport) {
+        req.setTimeout(15 * 60 * 1000);
+        res.setTimeout(15 * 60 * 1000);
+      }
       const result = await tickUsAnnouncementInbox({
         notify,
         symbols,

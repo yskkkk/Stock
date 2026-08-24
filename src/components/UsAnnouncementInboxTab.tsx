@@ -244,7 +244,7 @@ export default function UsAnnouncementInboxTab() {
         const res = await fetchUsAnnouncements({
           kind: k || undefined,
           symbol: String(sym).trim() || undefined,
-          limit: 100,
+          limit: String(sym).trim() ? 10_000 : 200,
         });
         setCards(res.cards);
         setWatchlist(res.watchlist);
@@ -286,8 +286,6 @@ export default function UsAnnouncementInboxTab() {
       const tick = await tickUsAnnouncements({
         symbols: [sym],
         historyImport: true,
-        historyDays: 180,
-        filingLimit: 40,
         notify: false,
       });
       const inserted = Number(tick.inserted) || 0;
@@ -296,21 +294,18 @@ export default function UsAnnouncementInboxTab() {
       const res = await load({ symbol: sym, kind: "" });
       setKind("");
       const total = res?.cards?.length ?? 0;
-      const days = tick.historyDays ?? 180;
 
       if (inserted > 0) {
         setScanStatus(
           ko.usAnnouncement.scanOkTickerNew
             .replace("{sym}", sym)
             .replace("{n}", String(inserted))
-            .replace("{days}", String(days))
             .replace("{total}", String(total)),
         );
       } else {
         setScanStatus(
           ko.usAnnouncement.scanOkTickerNone
             .replace("{sym}", sym)
-            .replace("{days}", String(days))
             .replace("{total}", String(total)),
         );
       }

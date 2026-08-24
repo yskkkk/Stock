@@ -6,7 +6,8 @@ import path from "node:path";
 import { resolveServerDataDir } from "./data-path.js";
 
 const FILE = "us-announcement-inbox.json";
-const MAX_CARDS = 400;
+/** 티커 전체 공시 스캔(아카이브)까지 담을 수 있게. 폴러는 여전히 최근만 넣음. */
+const MAX_CARDS = 20_000;
 
 /** @typedef {"guidance"|"consensus"|"governance"|"earnings"} UsAnnouncementKind */
 
@@ -221,8 +222,9 @@ export function buildTitleDedupeKey(symbol, kind, title) {
  *   accession?: string | null;
  *   filedAt?: number;
  * }} card
+ * @param {{ accessionOnly?: boolean }} [opts]
  */
-export function buildAnnouncementDedupeKeys(card) {
+export function buildAnnouncementDedupeKeys(card, opts = {}) {
   const sym = String(card.symbol ?? "")
     .trim()
     .toUpperCase();
@@ -232,6 +234,9 @@ export function buildAnnouncementDedupeKeys(card) {
   const acc = String(card.accession ?? "").trim();
   if (acc) {
     keys.push(buildAnnouncementDedupeKey(sym, kind, acc));
+    if (opts.accessionOnly === true) {
+      return [...new Set(keys.filter(Boolean))];
+    }
   }
   keys.push(buildDayKindDedupeKey(sym, kind, Number(card.filedAt) || Date.now()));
   const title = String(card.title ?? "").trim();
@@ -364,12 +369,13 @@ export function shouldSendAnnouncementAlert(args) {
  * @param {UsAnnouncementStore} store
  * @param {UsAnnouncementCard} card
  * @param {string | string[]} [extraKeys]
+ * @param {{ accessionOnly?: boolean }} [opts]
  */
-export function insertAnnouncementCard(store, card, extraKeys = []) {
+export function insertAnnouncementCard(store, card, extraKeys = [], opts = {}) {
   const allKeys = [
     ...new Set([
       ...(Array.isArray(extraKeys) ? extraKeys : [String(extraKeys || "")]),
-      ...buildAnnouncementDedupeKeys(card),
+      ...buildAnnouncementDedupeKeys(card, opts),
     ].filter(Boolean)),
   ];
   if (hasAnyAnnouncementDedupeKey(store, allKeys)) {
@@ -405,7 +411,10 @@ export function dedupeRegisteredAnnouncementCards(store) {
       .toUpperCase();
     if (form === "3" || form === "4" || form === "5") continue;
 
-    const keys = buildAnnouncementDedupeKeys(card);
+    const acc = String(card?.accession ?? "").trim();
+    const keys = buildAnnouncementDedupeKeys(card, {
+      accessionOnly: Boolean(acc),
+    });
     if (keys.some((k) => seen.has(k))) continue;
     for (const k of keys) seen.add(k);
     kept.push(card);
@@ -436,7 +445,7 @@ export function listAnnouncementCards(store, q = {}) {
   const kind = String(q.kind ?? "")
     .trim()
     .toLowerCase();
-  const limit = Math.min(200, Math.max(1, Number(q.limit) || 80));
+  const limit = Math.min(20_000, Math.max(1, Number(q.limit) || 80));
   let rows = store.cards;
   if (sym) rows = rows.filter((c) => c.symbol === sym);
   if (

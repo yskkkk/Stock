@@ -360,6 +360,7 @@ export function tickUsAnnouncements(body?: {
   historyDays?: number;
   filingLimit?: number;
 }) {
+  const historyImport = body?.historyImport === true;
   return fetchJson<{
     ok: boolean;
     watched: number;
@@ -373,6 +374,9 @@ export function tickUsAnnouncements(body?: {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
+    signal: historyImport
+      ? AbortSignal.timeout(15 * 60 * 1000)
+      : undefined,
   });
 }
 

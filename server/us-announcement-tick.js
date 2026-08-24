@@ -56,13 +56,18 @@ function yahooAnalysisUrl(symbol) {
  * @param {import("./us-announcement-inbox-store.js").UsAnnouncementCard} card
  * @param {string} dedupeKey
  * @param {boolean} [notify]
- * @param {{ deepEnrich?: boolean }} [opts]
+ * @param {{ deepEnrich?: boolean; accessionOnly?: boolean }} [opts]
  */
 async function commitCard(card, dedupeKey, notify = true, opts = {}) {
   let store = loadUsAnnouncementStoreSync();
   const keys = [
     ...new Set(
-      [dedupeKey, ...buildAnnouncementDedupeKeys(card)].filter(Boolean),
+      [
+        dedupeKey,
+        ...buildAnnouncementDedupeKeys(card, {
+          accessionOnly: opts.accessionOnly === true,
+        }),
+      ].filter(Boolean),
     ),
   ];
   if (hasAnyAnnouncementDedupeKey(store, keys)) {
@@ -166,7 +171,9 @@ async function commitCard(card, dedupeKey, notify = true, opts = {}) {
     if (!card.about) card.about = ai.summary;
   }
 
-  const result = insertAnnouncementCard(store, card, keys);
+  const result = insertAnnouncementCard(store, card, keys, {
+    accessionOnly: opts.accessionOnly === true,
+  });
   if (!result.inserted || !result.card) {
     return { inserted: false, card: null };
   }
@@ -338,6 +345,8 @@ export async function cleanupAndEnrichAnnouncementInbox(opts = {}) {
  *   filingLimit?: number;
  *   deepEnrich?: boolean;
  *   forceNotifyOff?: boolean;
+ *   allHistory?: boolean;
+ *   accessionOnly?: boolean;
  * }} [opts]
  */
 export async function scanSecFilingsForSymbol(symbol, opts = {}) {
@@ -350,10 +359,14 @@ export async function scanSecFilingsForSymbol(symbol, opts = {}) {
     : shouldNotifyAnnouncement(opts.notify, storeAtStart, sym);
   const backfill =
     opts.forceNotifyOff === true || !isSymbolAnnouncementPrimed(storeAtStart, sym);
-  const filingLimit = Math.min(60, Math.max(1, Number(opts.filingLimit) || 15));
+  const allHistory = opts.allHistory === true;
+  const filingLimit = allHistory
+    ? Math.max(1, Number(opts.filingLimit) || 100_000)
+    : Math.min(60, Math.max(1, Number(opts.filingLimit) || 15));
   const pack = await fetchRecentSecFilingsForSymbol(sym, {
     limit: filingLimit,
     sinceMs: opts.sinceMs,
+    allHistory,
   });
 
   /** @type {Awaited<ReturnType<typeof fetchYahooConsensusSnapshot>> | null} */
@@ -366,21 +379,28 @@ export async function scanSecFilingsForSymbol(symbol, opts = {}) {
 
   /** @type {import("./us-announcement-inbox-store.js").UsAnnouncementCard[]} */
   const inserted = [];
-  for (const f of pack.filings) {
+  const accessionOnly = opts.accessionOnly === true;
+  const filings = [...pack.filings].sort(
+    (a, b) => Number(a.filedAt) - Number(b.filedAt),
+  );
+  for (const f of filings) {
     const dedupeKey = buildAnnouncementDedupeKey(
       sym,
       f.kind,
       f.accession || `${f.form}|${f.filedAt}`,
     );
     const store = loadUsAnnouncementStoreSync();
-    const keys = buildAnnouncementDedupeKeys({
-      symbol: sym,
-      kind: f.kind,
-      title: f.title,
-      form: f.form,
-      accession: f.accession,
-      filedAt: f.filedAt,
-    });
+    const keys = buildAnnouncementDedupeKeys(
+      {
+        symbol: sym,
+        kind: f.kind,
+        title: f.title,
+        form: f.form,
+        accession: f.accession,
+        filedAt: f.filedAt,
+      },
+      { accessionOnly },
+    );
     if (hasAnyAnnouncementDedupeKey(store, keys)) continue;
 
     let metrics = buildAnnouncementMetrics({
@@ -416,6 +436,7 @@ export async function scanSecFilingsForSymbol(symbol, opts = {}) {
     };
     const res = await commitCard(card, dedupeKey, notify, {
       deepEnrich: opts.deepEnrich !== false,
+      accessionOnly,
     });
     if (res.inserted && res.card) inserted.push(res.card);
   }
@@ -543,15 +564,21 @@ export async function scanConsensusForSymbol(symbol, opts = {}) {
  */
 export async function tickUsAnnouncementInbox(opts = {}) {
   const historyImport = opts.historyImport === true;
-  const historyDays = Math.min(
-    730,
-    Math.max(14, Number(opts.historyDays) || (historyImport ? 180 : 14)),
-  );
-  const sinceMs =
-    Number(opts.sinceMs) ||
-    Date.now() - historyDays * 24 * 60 * 60 * 1000;
+  const historyDays = historyImport
+    ? null
+    : Math.min(
+        730,
+        Math.max(14, Number(opts.historyDays) || 14),
+      );
+  const sinceMs = historyImport
+    ? opts.sinceMs != null && Number.isFinite(Number(opts.sinceMs))
+      ? Number(opts.sinceMs)
+      : 0
+    : Number(opts.sinceMs) > 0
+      ? Number(opts.sinceMs)
+      : Date.now() - /** @type {number} */ (historyDays) * 24 * 60 * 60 * 1000;
   const filingLimit = historyImport
-    ? Math.min(80, Math.max(20, Number(opts.filingLimit) || 40))
+    ? Math.max(1, Number(opts.filingLimit) || 100_000)
     : Math.min(40, Math.max(8, Number(opts.filingLimit) || 15));
 
   if (historyImport) {
@@ -600,6 +627,8 @@ export async function tickUsAnnouncementInbox(opts = {}) {
         filingLimit,
         deepEnrich: !historyImport,
         forceNotifyOff: historyImport,
+        allHistory: historyImport,
+        accessionOnly: historyImport,
       });
       allInserted.push(...a.inserted);
       if (a.backfill || historyImport) backfilled += a.inserted.length;
@@ -658,7 +687,7 @@ export async function tickUsAnnouncementInbox(opts = {}) {
     `symbols=${symbols.length}`,
     `inserted=${allInserted.length}`,
     `backfill=${backfilled}`,
-    `history=${historyImport ? historyDays : 0}`,
+    `history=${historyImport ? "all" : 0}`,
     `errors=${errors.length}`,
   );
 
