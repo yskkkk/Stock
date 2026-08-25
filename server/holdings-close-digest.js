@@ -5,6 +5,7 @@ import { getKstParts, isKrBusinessDay } from "./kr-business-day.js";
 import { getTradingSessionKey } from "./market-hours.js";
 import { collectUserHeldSymbolsAsync } from "./holdings-news-symbols.js";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
+import { refreshTossLedgerSnapshotForUserAsync } from "./live-trade-toss-ledger.js";
 import { loadNews } from "./news.js";
 import { getMarketIndices } from "./market-indices.js";
 import {
@@ -76,6 +77,18 @@ export function formatSignedPct(n) {
   if (!Number.isFinite(v)) return "—";
   const abs = Math.abs(v).toFixed(2);
   return v > 0 ? `+${abs}%` : v < 0 ? `-${abs}%` : "0.00%";
+}
+
+/**
+ * @param {number | null | undefined} qty
+ */
+export function formatHoldingQty(qty) {
+  const n = Number(qty);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  if (Math.abs(n - Math.round(n)) < 1e-6) {
+    return `${Math.round(n).toLocaleString("ko-KR")}주`;
+  }
+  return `${n.toLocaleString("ko-KR", { maximumFractionDigits: 4 })}주`;
 }
 
 /**
@@ -271,7 +284,20 @@ export async function buildHoldingsCloseDigest(opts) {
       ? `all:${getHoldingsCloseSessionKey("kr", now)}+${getHoldingsCloseSessionKey("us", now)}`
       : getHoldingsCloseSessionKey(market, now);
 
-  const held = userId ? await collectUserHeldSymbolsAsync(userId) : [];
+  if (userId) {
+    try {
+      await refreshTossLedgerSnapshotForUserAsync(userId);
+    } catch (e) {
+      liveTradeLogWarn(
+        "[holdings-close-digest] toss refresh failed",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+
+  const held = userId
+    ? await collectUserHeldSymbolsAsync(userId, { accountStocksOnly: true })
+    : [];
   const filtered = (
     market === "all" ? held : held.filter((h) => h.market === market)
   ).filter((h) => isDigestEquitySymbol(h.symbol, h.market));
@@ -315,6 +341,7 @@ export async function buildHoldingsCloseDigest(opts) {
    *   name: string;
    *   market: "kr"|"us";
    *   priceLabel: string;
+   *   qtyLabel: string;
    *   changeLabel: string;
    *   changePercent: number | null;
    *   news: Array<{
@@ -370,6 +397,7 @@ export async function buildHoldingsCloseDigest(opts) {
       name: h.name,
       market: h.market,
       priceLabel: formatHoldingPrice(q?.price, q?.currency, h.market),
+      qtyLabel: formatHoldingQty(h.quantity),
       changeLabel: formatSignedPct(changePercent),
       changePercent,
       news: newsOut,

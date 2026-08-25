@@ -116,6 +116,7 @@ test("text email includes market, price, sentiment, impact, and link", () => {
         name: "Apple",
         market: "us",
         priceLabel: "$188.50",
+        qtyLabel: "15주",
         changeLabel: "+1.20%",
         changePercent: 1.2,
         news: [
@@ -135,6 +136,7 @@ test("text email includes market, price, sentiment, impact, and link", () => {
     userId: "x",
   });
   assert.match(text, /오늘 시장/);
+  assert.match(text, /15주/);
   assert.match(text, /Apple \(AAPL\)/);
   assert.match(text, /\[호재\]/);
   assert.match(text, /https:\/\/example.com\/aapl/);

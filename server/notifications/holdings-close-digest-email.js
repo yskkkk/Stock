@@ -116,7 +116,7 @@ export function buildHoldingsCloseDigestEmailHtml(digest) {
               .join("");
       return `<div style="margin:0 0 18px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">
   <p style="margin:0 0 4px;font-size:16px;font-weight:800">${escapeHtml(row.name)} <span style="font-weight:600;color:#64748b">(${escapeHtml(row.symbol)})</span></p>
-  <p style="margin:0;font-size:14px">종가·최근가 ${escapeHtml(row.priceLabel)} · <span style="font-weight:800;color:${changeColor(row.changePercent)}">${escapeHtml(row.changeLabel)}</span></p>
+  <p style="margin:0;font-size:14px">${row.qtyLabel ? `${escapeHtml(row.qtyLabel)} · ` : ""}최근가 ${escapeHtml(row.priceLabel)} · <span style="font-weight:800;color:${changeColor(row.changePercent)}">${escapeHtml(row.changeLabel)}</span></p>
   ${newsHtml}
 </div>`;
     })
@@ -124,12 +124,12 @@ export function buildHoldingsCloseDigestEmailHtml(digest) {
 
   const emptyHoldings =
     (digest.rows ?? []).length === 0
-      ? `<p style="margin:0 0 12px;font-size:14px;color:#64748b">이 세션에 해당하는 보유 주식(암호화폐 제외)이 없습니다.</p>`
+      ? `<p style="margin:0 0 12px;font-size:14px;color:#64748b">토스 실계좌에서 수량 있는 주식을 찾지 못했습니다. 종목보관함·시뮬 포지션은 넣지 않습니다.</p>`
       : "";
 
   return `<!DOCTYPE html><html lang="ko"><body style="margin:0;padding:0;background:#f1f5f9;font-family:'Pretendard',system-ui,sans-serif;color:#0f172a">
 <div style="max-width:640px;margin:0 auto;padding:20px 16px">
-  <p style="margin:0 0 8px;font-size:12px;color:#64748b">YSTOCK · 장 마감 브리핑 · ${escapeHtml(digest.marketLabel)}</p>
+  <p style="margin:0 0 8px;font-size:12px;color:#64748b">YSTOCK · 실계좌 장 마감 브리핑 · ${escapeHtml(digest.marketLabel)}</p>
   <h1 style="margin:0 0 14px;font-size:20px;font-weight:800;line-height:1.35">${escapeHtml(digest.dateLabel)} 장 마감</h1>
   <div style="margin:0 0 18px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">
     <p style="margin:0 0 6px;font-size:13px;font-weight:800;color:#334155">오늘 시장</p>
@@ -147,7 +147,7 @@ export function buildHoldingsCloseDigestEmailHtml(digest) {
 export function buildHoldingsCloseDigestEmailText(digest) {
   /** @type {string[]} */
   const lines = [
-    `YSTOCK 장 마감 브리핑 · ${digest.marketLabel}`,
+    `YSTOCK 실계좌 장 마감 브리핑 · ${digest.marketLabel}`,
     digest.dateLabel,
     "",
     "[오늘 시장]",
@@ -155,12 +155,12 @@ export function buildHoldingsCloseDigestEmailText(digest) {
     "",
   ];
   if (!digest.rows.length) {
-    lines.push("이 세션에 해당하는 보유 주식이 없습니다.");
+    lines.push("토스 실계좌에서 수량 있는 주식을 찾지 못했습니다. 종목보관함·시뮬 포지션은 넣지 않습니다.");
   }
   for (const row of digest.rows) {
     lines.push("————————————————");
     lines.push(`${row.name} (${row.symbol})`);
-    lines.push(`가격 ${row.priceLabel} · 당일 ${row.changeLabel}`);
+    lines.push(`${row.qtyLabel ? `${row.qtyLabel} · ` : ""}가격 ${row.priceLabel} · 당일 ${row.changeLabel}`);
     if (!row.news.length) {
       lines.push("최근 24시간 주요 뉴스 없음.");
     }

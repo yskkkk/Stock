@@ -289,7 +289,7 @@ export const POLLER_CATALOG = {
     envDisable: "STOCK_HOLDINGS_CLOSE_DIGEST=0",
     isBootEnabled: () => process.env.STOCK_HOLDINGS_CLOSE_DIGEST !== "0",
     descriptionKo:
-      "국내 15:40(KST)·미국 16:10(ET) 이후 세션당 1회, 보유 종목 시세·뉴스 호재/악재·당일 등락 방향·시장 흐름을 메일로 보냅니다. STOCK_HOLDINGS_CLOSE_DIGEST_TO로 수신자를 지정합니다.",
+      "국내 15:40(KST)·미국 16:10(ET) 이후 세션당 1회, 토스 실계좌에서 수량>0인 주식만 시세·뉴스 호재/악재·당일 등락·시장 흐름을 메일로 보냅니다. 종목보관함·시뮬은 제외. STOCK_HOLDINGS_CLOSE_DIGEST_TO로 수신자를 지정합니다.",
   },
   "us-announcement-inbox": {
     labelKo: "미국 발표 인박스",
