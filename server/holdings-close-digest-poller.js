@@ -1,5 +1,6 @@
 /**
- * 장 마감 보유 종목 브리핑 폴러 — KR 15:40 KST · US 16:10 ET 이후 세션당 1회
+ * 장 마감 보유 종목 브리핑 폴러 — 보유 시장이 모두 끝난 뒤 세션당 한 통
+ * (KR 15:40 KST · US 16:10 ET)
  */
 import {
   holdingsCloseDigestEnabled,

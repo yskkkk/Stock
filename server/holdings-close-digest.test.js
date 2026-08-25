@@ -4,11 +4,15 @@ import {
   buildMarketFlowText,
   describeNewsPriceImpact,
   formatHoldingPrice,
+  formatSessionMove,
   formatSignedPct,
+  isCombinedDigestDue,
   isHoldingsCloseDigestDue,
   pickSessionNewsItems,
+  splitDigestRowsByStyle,
 } from "./holdings-close-digest.js";
 import {
+  buildHoldingsCloseDigestEmailHtml,
   buildHoldingsCloseDigestEmailText,
 } from "./notifications/holdings-close-digest-email.js";
 
@@ -101,8 +105,42 @@ test("is due after US 16:10 ET on a weekday", () => {
   );
 });
 
-test("text email includes market, price, sentiment, impact, and link", () => {
-  const text = buildHoldingsCloseDigestEmailText({
+test("session move uses open-to-close, not previous-close percent", () => {
+  const move = formatSessionMove({
+    open: 100,
+    close: 102,
+    changePercent: 5,
+    currency: "USD",
+    market: "us",
+  });
+  assert.equal(move.openLabel, "$100.00");
+  assert.equal(move.closeLabel, "$102.00");
+  assert.equal(move.changeLabel, "+2.00%");
+  assert.equal(move.diffLabel, "+$2.00");
+});
+
+test("splits holdings into value and growth columns", () => {
+  const split = splitDigestRowsByStyle([
+    { symbol: "PG", style: "value" },
+    { symbol: "GOOGL", style: "growth" },
+    { symbol: "V", style: "value" },
+  ]);
+  assert.equal(split.value.map((r) => r.symbol).join(","), "PG,V");
+  assert.equal(split.growth.map((r) => r.symbol).join(","), "GOOGL");
+});
+
+test("combined digest waits until every held market has closed", () => {
+  const afterKrBeforeUs = new Date("2026-08-25T06:45:00Z");
+  const afterUs = new Date("2026-08-25T20:15:00Z");
+  assert.equal(isCombinedDigestDue(afterKrBeforeUs, ["us"]), false);
+  assert.equal(isCombinedDigestDue(afterKrBeforeUs, ["kr"]), true);
+  assert.equal(isCombinedDigestDue(afterKrBeforeUs, ["kr", "us"]), false);
+  assert.equal(isCombinedDigestDue(afterUs, ["kr", "us"]), true);
+  assert.equal(isCombinedDigestDue(afterUs, ["kr"]), false);
+});
+
+test("text email uses style columns, open/close, and omits quantity", () => {
+  const digest = {
     market: "all",
     marketLabel: "국내·미국",
     dateLabel: "2026년 8월 25일 화",
@@ -112,13 +150,27 @@ test("text email includes market, price, sentiment, impact, and link", () => {
     indices: [],
     rows: [
       {
+        symbol: "PG",
+        name: "Procter",
+        market: "us",
+        style: "value",
+        openLabel: "$160.00",
+        closeLabel: "$161.20",
+        changeLabel: "+0.75%",
+        diffLabel: "+$1.20",
+        changePercent: 0.75,
+        news: [],
+      },
+      {
         symbol: "AAPL",
         name: "Apple",
         market: "us",
-        priceLabel: "$188.50",
-        qtyLabel: "15주",
-        changeLabel: "+1.20%",
-        changePercent: 1.2,
+        style: "growth",
+        openLabel: "$186.00",
+        closeLabel: "$188.50",
+        changeLabel: "+1.34%",
+        diffLabel: "+$2.50",
+        changePercent: 1.34,
         news: [
           {
             title: "Apple beats earnings",
@@ -127,18 +179,33 @@ test("text email includes market, price, sentiment, impact, and link", () => {
             publishedLabel: "8. 25. 22:00",
             labelKo: "호재",
             sentiment: "positive",
-            impact: "당일 +1.20% 상승 — 호재와 같은 방향으로 움직였습니다.",
+            impact: "종가 등락 +1.34% 상승 — 호재와 같은 방향으로 움직였습니다.",
           },
         ],
       },
     ],
     truncated: false,
     userId: "x",
-  });
+  };
+  const text = buildHoldingsCloseDigestEmailText(digest);
   assert.match(text, /오늘 시장/);
-  assert.match(text, /15주/);
+  assert.match(text, /【가치·방어주】/);
+  assert.match(text, /【성장주】/);
+  assert.match(text, /시가 \$186\.00 → 종가 \$188\.50/);
+  assert.match(text, /등락 \+1\.34%/);
   assert.match(text, /Apple \(AAPL\)/);
   assert.match(text, /\[호재\]/);
   assert.match(text, /https:\/\/example.com\/aapl/);
   assert.match(text, /호재와 같은 방향/);
+  assert.doesNotMatch(text, /\d+주/);
+
+  const html = buildHoldingsCloseDigestEmailHtml(digest);
+  assert.match(html, /가치·방어주/);
+  assert.match(html, /성장주/);
+  assert.match(html, /width="50%"/);
+  assert.match(html, /width="33%"/);
+  assert.match(html, /시가/);
+  assert.match(html, /종가/);
+  assert.match(html, /등락/);
+  assert.doesNotMatch(html, /\d+주/);
 });

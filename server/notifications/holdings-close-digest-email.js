@@ -12,11 +12,13 @@ import {
 } from "../users-store.js";
 import { resolveServerDataDir } from "../data-path.js";
 import { liveTradeLogInfo, liveTradeLogWarn } from "../live-trade-log.js";
+import { collectUserHeldSymbolsAsync } from "../holdings-news-symbols.js";
 import {
   buildHoldingsCloseDigest,
   holdingsCloseDigestEnabled,
-  isHoldingsCloseDigestDue,
+  isCombinedDigestDue,
   listHoldingsCloseDigestRecipientEmailsSync,
+  splitDigestRowsByStyle,
 } from "../holdings-close-digest.js";
 
 function sentLogPath() {
@@ -90,45 +92,81 @@ function changeColor(changePercent) {
   return n > 0 ? "#15803d" : "#b91c1c";
 }
 
+function renderStockCard(row) {
+  const newsHtml =
+    row.news.length === 0
+      ? `<p style="margin:8px 0 0;font-size:13px;color:#64748b">최근 24시간 주요 뉴스 없음.</p>`
+      : row.news
+          .map((n) => {
+            const t = toneColor(n.labelKo);
+            const link = n.url
+              ? `<a href="${escapeHtml(n.url)}" style="color:#1e5fc4;font-weight:700;text-decoration:none">원문</a>`
+              : "";
+            return `<div style="margin:8px 0 0;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fafafa">
+  <p style="margin:0 0 4px"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${t.bg};color:${t.fg};font-size:11px;font-weight:800">${escapeHtml(n.labelKo)}</span>
+  <span style="margin-left:6px;font-size:11px;color:#64748b">${escapeHtml(n.publishedLabel)}${n.source ? ` · ${escapeHtml(n.source)}` : ""}</span></p>
+  <p style="margin:0 0 4px;font-size:13px;font-weight:700;line-height:1.4">${escapeHtml(n.title)}</p>
+  <p style="margin:0 0 6px;font-size:12px;line-height:1.5;color:#334155">${escapeHtml(n.impact)}</p>
+  ${link}
+</div>`;
+          })
+          .join("");
+  const diffBit = row.diffLabel
+    ? `<span style="display:block;font-size:11px;font-weight:600;color:#64748b">${escapeHtml(row.diffLabel)}</span>`
+    : "";
+  return `<div style="margin:0 0 12px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">
+  <p style="margin:0 0 8px;font-size:15px;font-weight:800">${escapeHtml(row.name)} <span style="font-weight:600;color:#64748b">(${escapeHtml(row.symbol)})</span></p>
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="font-size:13px;line-height:1.35">
+    <tr>
+      <td width="33%" valign="top" style="width:33%;padding:0 6px 0 0;text-align:left">
+        <span style="display:block;font-size:11px;color:#64748b">시가</span>
+        <span style="font-weight:700">${escapeHtml(row.openLabel)}</span>
+      </td>
+      <td width="34%" valign="top" style="width:34%;padding:0 3px;text-align:center">
+        <span style="display:block;font-size:11px;color:#64748b">종가</span>
+        <span style="font-weight:700">${escapeHtml(row.closeLabel)}</span>
+      </td>
+      <td width="33%" valign="top" style="width:33%;padding:0 0 0 6px;text-align:right">
+        <span style="display:block;font-size:11px;color:#64748b">등락</span>
+        <span style="font-weight:800;color:${changeColor(row.changePercent)}">${escapeHtml(row.changeLabel)}</span>
+        ${diffBit}
+      </td>
+    </tr>
+  </table>
+  ${newsHtml}
+</div>`;
+}
+
+function renderStyleColumn(title, rows, emptyText) {
+  const body =
+    rows.length === 0
+      ? `<p style="margin:0;font-size:13px;color:#64748b">${escapeHtml(emptyText)}</p>`
+      : rows.map(renderStockCard).join("");
+  return `<p style="margin:0 0 10px;font-size:14px;font-weight:800;letter-spacing:-0.02em">${escapeHtml(title)}</p>${body}`;
+}
+
 /**
  * @param {Awaited<ReturnType<typeof buildHoldingsCloseDigest>>} digest
  */
 export function buildHoldingsCloseDigestEmailHtml(digest) {
-  const rowsHtml = (digest.rows ?? [])
-    .map((row) => {
-      const newsHtml =
-        row.news.length === 0
-          ? `<p style="margin:8px 0 0;font-size:13px;color:#64748b">최근 24시간 주요 뉴스 없음.</p>`
-          : row.news
-              .map((n) => {
-                const t = toneColor(n.labelKo);
-                const link = n.url
-                  ? `<a href="${escapeHtml(n.url)}" style="color:#1e5fc4;font-weight:700;text-decoration:none">원문</a>`
-                  : "";
-                return `<div style="margin:10px 0 0;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fafafa">
-  <p style="margin:0 0 6px"><span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${t.bg};color:${t.fg};font-size:12px;font-weight:800">${escapeHtml(n.labelKo)}</span>
-  <span style="margin-left:8px;font-size:12px;color:#64748b">${escapeHtml(n.publishedLabel)}${n.source ? ` · ${escapeHtml(n.source)}` : ""}</span></p>
-  <p style="margin:0 0 6px;font-size:14px;font-weight:700;line-height:1.45">${escapeHtml(n.title)}</p>
-  <p style="margin:0 0 8px;font-size:13px;line-height:1.55;color:#334155">${escapeHtml(n.impact)}</p>
-  ${link}
-</div>`;
-              })
-              .join("");
-      return `<div style="margin:0 0 18px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">
-  <p style="margin:0 0 4px;font-size:16px;font-weight:800">${escapeHtml(row.name)} <span style="font-weight:600;color:#64748b">(${escapeHtml(row.symbol)})</span></p>
-  <p style="margin:0;font-size:14px">${row.qtyLabel ? `${escapeHtml(row.qtyLabel)} · ` : ""}최근가 ${escapeHtml(row.priceLabel)} · <span style="font-weight:800;color:${changeColor(row.changePercent)}">${escapeHtml(row.changeLabel)}</span></p>
-  ${newsHtml}
-</div>`;
-    })
-    .join("");
-
+  const split = splitDigestRowsByStyle(digest.rows ?? []);
   const emptyHoldings =
     (digest.rows ?? []).length === 0
       ? `<p style="margin:0 0 12px;font-size:14px;color:#64748b">토스 실계좌에서 수량 있는 주식을 찾지 못했습니다. 종목보관함·시뮬 포지션은 넣지 않습니다.</p>`
       : "";
 
+  const columns =
+    (digest.rows ?? []).length === 0
+      ? ""
+      : `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse">
+  <tr>
+    <td valign="top" width="50%" style="width:50%;padding:0 8px 0 0;vertical-align:top">${renderStyleColumn("가치·방어주", split.value, "해당 없음")}</td>
+    <td valign="top" width="50%" style="width:50%;padding:0 0 0 8px;vertical-align:top">${renderStyleColumn("성장주", split.growth, "해당 없음")}</td>
+  </tr>
+</table>`;
+
   return `<!DOCTYPE html><html lang="ko"><body style="margin:0;padding:0;background:#f1f5f9;font-family:'Pretendard',system-ui,sans-serif;color:#0f172a">
-<div style="max-width:640px;margin:0 auto;padding:20px 16px">
+<div style="max-width:760px;margin:0 auto;padding:20px 16px">
   <p style="margin:0 0 8px;font-size:12px;color:#64748b">YSTOCK · 실계좌 장 마감 브리핑 · ${escapeHtml(digest.marketLabel)}</p>
   <h1 style="margin:0 0 14px;font-size:20px;font-weight:800;line-height:1.35">${escapeHtml(digest.dateLabel)} 장 마감</h1>
   <div style="margin:0 0 18px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">
@@ -136,8 +174,8 @@ export function buildHoldingsCloseDigestEmailHtml(digest) {
     <p style="margin:0;font-size:14px;line-height:1.7;color:#0f172a">${escapeHtml(digest.marketFlow)}</p>
   </div>
   ${emptyHoldings}
-  ${rowsHtml}
-  <p style="margin:14px 0 0;font-size:11px;line-height:1.5;color:#94a3b8">투자 판단은 본인 책임입니다. 뉴스 호재/악재는 제목 키워드 기반 자동 분류이며, 주가 영향은 당일 등락 방향과의 일치 여부입니다. 사실과 다를 수 있습니다.</p>
+  ${columns}
+  <p style="margin:14px 0 0;font-size:11px;line-height:1.5;color:#94a3b8">투자 판단은 본인 책임입니다. 뉴스 호재/악재는 제목 키워드 기반 자동 분류이며, 주가 영향은 시가 대비 종가 등락 방향과의 일치 여부입니다. 한 통으로 보냅니다.</p>
 </div></body></html>`;
 }
 
@@ -145,6 +183,7 @@ export function buildHoldingsCloseDigestEmailHtml(digest) {
  * @param {Awaited<ReturnType<typeof buildHoldingsCloseDigest>>} digest
  */
 export function buildHoldingsCloseDigestEmailText(digest) {
+  const split = splitDigestRowsByStyle(digest.rows ?? []);
   /** @type {string[]} */
   const lines = [
     `YSTOCK 실계좌 장 마감 브리핑 · ${digest.marketLabel}`,
@@ -156,25 +195,40 @@ export function buildHoldingsCloseDigestEmailText(digest) {
   ];
   if (!digest.rows.length) {
     lines.push("토스 실계좌에서 수량 있는 주식을 찾지 못했습니다. 종목보관함·시뮬 포지션은 넣지 않습니다.");
-  }
-  for (const row of digest.rows) {
-    lines.push("————————————————");
-    lines.push(`${row.name} (${row.symbol})`);
-    lines.push(`${row.qtyLabel ? `${row.qtyLabel} · ` : ""}가격 ${row.priceLabel} · 당일 ${row.changeLabel}`);
-    if (!row.news.length) {
-      lines.push("최근 24시간 주요 뉴스 없음.");
-    }
-    for (const n of row.news) {
-      lines.push("");
-      lines.push(`[${n.labelKo}] ${n.title}`);
-      lines.push(`${n.publishedLabel}${n.source ? ` · ${n.source}` : ""}`);
-      lines.push(n.impact);
-      if (n.url) lines.push(n.url);
-    }
     lines.push("");
   }
+
+  /** @param {string} title @param {typeof digest.rows} group */
+  const dump = (title, group) => {
+    lines.push(`【${title}】`);
+    if (!group.length) {
+      lines.push("해당 없음");
+      lines.push("");
+      return;
+    }
+    for (const row of group) {
+      lines.push(`${row.name} (${row.symbol})`);
+      lines.push(`시가 ${row.openLabel} → 종가 ${row.closeLabel}`);
+      lines.push(`등락 ${row.changeLabel}${row.diffLabel ? ` (${row.diffLabel})` : ""}`);
+      if (!row.news.length) {
+        lines.push("최근 24시간 주요 뉴스 없음.");
+      }
+      for (const n of row.news) {
+        lines.push(`[${n.labelKo}] ${n.title}`);
+        lines.push(`${n.publishedLabel}${n.source ? ` · ${n.source}` : ""}`);
+        lines.push(n.impact);
+        if (n.url) lines.push(n.url);
+      }
+      lines.push("");
+    }
+  };
+
+  if (digest.rows.length) {
+    dump("가치·방어주", split.value);
+    dump("성장주", split.growth);
+  }
   lines.push(
-    "투자 판단은 본인 책임입니다. 호재/악재는 제목 키워드 자동 분류이며 주가 영향은 당일 등락 방향과의 일치 여부입니다.",
+    "투자 판단은 본인 책임입니다. 호재/악재는 제목 키워드 자동 분류이며 주가 영향은 시가 대비 종가 등락 방향과의 일치 여부입니다. 한 통으로 보냅니다.",
   );
   return lines.join("\n");
 }
@@ -258,18 +312,10 @@ export async function tickHoldingsCloseDigestEmail(opts = {}) {
   const force = opts.force === true;
   const now = opts.now instanceof Date ? opts.now : new Date();
   const requested = opts.market;
+  const forceOne = force === true;
 
   /** @type {Array<"kr"|"us"|"all">} */
-  let markets;
-  if (requested === "all" || force) {
-    markets = requested === "kr" || requested === "us" ? [requested] : ["all"];
-  } else if (requested === "kr" || requested === "us") {
-    markets = [requested];
-  } else {
-    markets = /** @type {Array<"kr"|"us">} */ (
-      ["kr", "us"].filter((m) => isHoldingsCloseDigestDue(m, now))
-    );
-  }
+  const markets = requested === "kr" || requested === "us" ? [requested] : ["all"];
 
   if (!markets.length) {
     return { ok: true, reason: "not_due", sent: 0, markets: [] };
@@ -287,6 +333,15 @@ export async function tickHoldingsCloseDigestEmail(opts = {}) {
   for (const market of markets) {
     for (const t of targets) {
       try {
+        if (!forceOne && market === "all") {
+          const held = await collectUserHeldSymbolsAsync(t.userId, {
+            accountStocksOnly: true,
+          });
+          const heldMarkets = held.map((h) => h.market);
+          if (!isCombinedDigestDue(now, heldMarkets)) continue;
+        } else if (!forceOne && (market === "kr" || market === "us")) {
+          if (!isCombinedDigestDue(now, [market])) continue;
+        }
         const digest = await buildHoldingsCloseDigest({
           userId: t.userId,
           market,

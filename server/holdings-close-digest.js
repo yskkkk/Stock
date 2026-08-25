@@ -5,7 +5,10 @@ import { getKstParts, isKrBusinessDay } from "./kr-business-day.js";
 import { getTradingSessionKey } from "./market-hours.js";
 import { collectUserHeldSymbolsAsync } from "./holdings-news-symbols.js";
 import { fetchQuoteSnapshotsForSymbols } from "./picks-live-quotes.js";
+import { loadChartQuoteSnapshot } from "./stock-data.js";
 import { refreshTossLedgerSnapshotForUserAsync } from "./live-trade-toss-ledger.js";
+import { classifyAccountHoldingStyle } from "../shared/account-holding-style-policy.js";
+import { getAccountHoldingStyleSnapshotSync } from "./account-holding-style-store.js";
 import { loadNews } from "./news.js";
 import { getMarketIndices } from "./market-indices.js";
 import {
@@ -110,6 +113,80 @@ export function formatHoldingPrice(price, currency, market = "us") {
 }
 
 /**
+ * @param {number | null | undefined} delta
+ * @param {string | undefined} currency
+ * @param {"kr"|"us"} [market]
+ */
+export function formatSignedPrice(delta, currency, market = "us") {
+  const d = Number(delta);
+  if (!Number.isFinite(d) || d === 0) return "";
+  const abs = formatHoldingPrice(Math.abs(d), currency, market);
+  return d > 0 ? `+${abs}` : `-${abs}`;
+}
+
+/**
+ * 시가 → 종가 · 등락 (수량 없음)
+ * @param {{
+ *   open?: number | null;
+ *   close?: number | null;
+ *   changePercent?: number | null;
+ *   currency?: string;
+ *   market?: "kr"|"us";
+ * }} args
+ */
+export function formatSessionMove(args = {}) {
+  const market = args.market === "kr" ? "kr" : "us";
+  const open = Number(args.open);
+  const close = Number(args.close);
+  const hasOpen = Number.isFinite(open) && open > 0;
+  const hasClose = Number.isFinite(close) && close > 0;
+  let changePercent = Number.NaN;
+  if (hasOpen && hasClose) {
+    changePercent = ((close - open) / open) * 100;
+  } else {
+    changePercent = Number(args.changePercent);
+  }
+  const diff = hasOpen && hasClose ? close - open : Number.NaN;
+  return {
+    openLabel: hasOpen ? formatHoldingPrice(open, args.currency, market) : "—",
+    closeLabel: hasClose ? formatHoldingPrice(close, args.currency, market) : "—",
+    changeLabel: formatSignedPct(changePercent),
+    diffLabel: formatSignedPrice(diff, args.currency, market),
+    changePercent: Number.isFinite(changePercent) ? changePercent : null,
+  };
+}
+
+/**
+ * @param {Array<{ style?: "growth"|"value" }>} rows
+ */
+export function splitDigestRowsByStyle(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  return {
+    value: list.filter((r) => r.style !== "growth"),
+    growth: list.filter((r) => r.style === "growth"),
+  };
+}
+
+/**
+ * 보유 시장이 모두 마감된 뒤에만 한 통을 보낸다.
+ * @param {Date} now
+ * @param {Iterable<"kr"|"us"|string>} markets
+ */
+export function isCombinedDigestDue(now, markets) {
+  const set = new Set(
+    [...markets].map((m) => String(m).toLowerCase()).filter((m) => m === "kr" || m === "us"),
+  );
+  if (!set.size) return false;
+  // 한·미를 같이 들고 있으면 늦은 쪽(미국 마감) 뒤에 한 통. 미국 16:10 ET는 이미 다음 날 KST 아침이라
+  // KR 15:40 당일 체크로는 영원히 안 맞는다.
+  if (set.has("kr") && set.has("us")) {
+    return isHoldingsCloseDigestDue("us", now);
+  }
+  if (set.has("us")) return isHoldingsCloseDigestDue("us", now);
+  return isHoldingsCloseDigestDue("kr", now);
+}
+
+/**
  * 뉴스 톤과 당일 등락을 맞춰 「어떤 영향으로 보이는지」 한 줄.
  * 인과를 단정하지 않고 방향 일치/불일치만 적습니다.
  * @param {{
@@ -126,30 +203,30 @@ export function describeNewsPriceImpact(args = {}) {
   const pctLabel = hasPct ? formatSignedPct(pct) : "등락 미확인";
 
   if (!hasPct) {
-    return "당일 등락을 확인하지 못해, 주가 영향은 원문과 시세를 함께 보세요.";
+    return "시가·종가 등락을 확인하지 못해, 주가 영향은 원문과 시세를 함께 보세요.";
   }
   if (sentiment === "positive" && up) {
-    return `당일 ${pctLabel} 상승 — 호재와 같은 방향으로 움직였습니다.`;
+    return `종가 등락 ${pctLabel} 상승 — 호재와 같은 방향으로 움직였습니다.`;
   }
   if (sentiment === "positive" && down) {
-    return `당일 ${pctLabel} 하락 — 호재로 분류됐지만 주가는 내렸습니다. 이미 반영됐거나 다른 악재·차익실현 가능성을 같이 보세요.`;
+    return `종가 등락 ${pctLabel} 하락 — 호재로 분류됐지만 주가는 시가보다 내렸습니다. 이미 반영됐거나 다른 악재·차익실현 가능성을 같이 보세요.`;
   }
   if (sentiment === "negative" && down) {
-    return `당일 ${pctLabel} 하락 — 악재와 같은 방향으로 움직였습니다.`;
+    return `종가 등락 ${pctLabel} 하락 — 악재와 같은 방향으로 움직였습니다.`;
   }
   if (sentiment === "negative" && up) {
-    return `당일 ${pctLabel} 상승 — 악재로 분류됐지만 주가는 올랐습니다. 이미 소화됐거나 다른 호재가 있을 수 있습니다.`;
+    return `종가 등락 ${pctLabel} 상승 — 악재로 분류됐지만 주가는 시가보다 올랐습니다. 이미 소화됐거나 다른 호재가 있을 수 있습니다.`;
   }
   if (sentiment === "neutral") {
-    return `당일 ${pctLabel}. 뉴스 방향이 뚜렷하지 않아 등락과의 연결은 참고만 하세요.`;
+    return `종가 등락 ${pctLabel}. 뉴스 방향이 뚜렷하지 않아 시가·종가와의 연결은 참고만 하세요.`;
   }
   if (up) {
-    return `당일 ${pctLabel} 상승. 뉴스 톤과 주가 방향의 연결은 제한적입니다.`;
+    return `종가 등락 ${pctLabel} 상승. 뉴스 톤과 주가 방향의 연결은 제한적입니다.`;
   }
   if (down) {
-    return `당일 ${pctLabel} 하락. 뉴스 톤과 주가 방향의 연결은 제한적입니다.`;
+    return `종가 등락 ${pctLabel} 하락. 뉴스 톤과 주가 방향의 연결은 제한적입니다.`;
   }
-  return `당일 ${pctLabel}로 보합권입니다. 뉴스와 주가의 연결은 제한적입니다.`;
+  return `종가 등락 ${pctLabel}로 보합권입니다. 뉴스와 주가의 연결은 제한적입니다.`;
 }
 
 /**
@@ -188,22 +265,17 @@ export function buildMarketFlowText(items, focus = "all") {
   const fxLine = line(fx);
   if (fxLine) parts.push(fxLine + ".");
 
-  const focusRow = focus === "kr" ? kospi : focus === "us" ? nasdaq : kospi || nasdaq;
-  const chg = Number(focusRow?.changePercent);
-  if (Number.isFinite(chg)) {
-    if (focus === "kr" || focus === "all") {
-      if (chg > 0.3) parts.push("국내 증시는 상승 마감 흐름입니다.");
-      else if (chg < -0.3) parts.push("국내 증시는 하락 마감 흐름입니다.");
-      else if (focus === "kr") parts.push("국내 증시는 보합권에서 마감하는 흐름입니다.");
-    }
-    if (focus === "us") {
-      const usChg = Number(nasdaq?.changePercent);
-      if (Number.isFinite(usChg)) {
-        if (usChg > 0.3) parts.push("미국 증시는 상승 마감 흐름입니다.");
-        else if (usChg < -0.3) parts.push("미국 증시는 하락 마감 흐름입니다.");
-        else parts.push("미국 증시는 보합권에서 마감하는 흐름입니다.");
-      }
-    }
+  const krChg = Number(kospi?.changePercent);
+  if ((focus === "kr" || focus === "all") && Number.isFinite(krChg)) {
+    if (krChg > 0.3) parts.push("국내 증시는 상승 마감 흐름입니다.");
+    else if (krChg < -0.3) parts.push("국내 증시는 하락 마감 흐름입니다.");
+    else parts.push("국내 증시는 보합권에서 마감하는 흐름입니다.");
+  }
+  const usChg = Number(nasdaq?.changePercent);
+  if ((focus === "us" || focus === "all") && Number.isFinite(usChg)) {
+    if (usChg > 0.3) parts.push("미국 증시는 상승 마감 흐름입니다.");
+    else if (usChg < -0.3) parts.push("미국 증시는 하락 마감 흐름입니다.");
+    else parts.push("미국 증시는 보합권에서 마감하는 흐름입니다.");
   }
 
   return parts.join(" ").trim() || "지수 시세를 아직 확인하지 못했습니다.";
@@ -335,14 +407,32 @@ export async function buildHoldingsCloseDigest(opts) {
   }
 
   const marketFlow = buildMarketFlowText(indices.items ?? [], market);
+  const styleOverrides = userId
+    ? getAccountHoldingStyleSnapshotSync(userId).overrides
+    : {};
+
+  /** @type {Record<string, { open?: number; price?: number; changePercent?: number; currency?: string }>} */
+  const sessionBars = {};
+  await Promise.all(
+    symbols.map(async (h) => {
+      try {
+        const bar = await loadChartQuoteSnapshot(h.symbol);
+        if (bar) sessionBars[h.symbol] = bar;
+      } catch {
+        /* quote fallback */
+      }
+    }),
+  );
 
   /** @type {Array<{
    *   symbol: string;
    *   name: string;
    *   market: "kr"|"us";
-   *   priceLabel: string;
-   *   qtyLabel: string;
+   *   style: "growth"|"value";
+   *   openLabel: string;
+   *   closeLabel: string;
    *   changeLabel: string;
+   *   diffLabel: string;
    *   changePercent: number | null;
    *   news: Array<{
    *     title: string;
@@ -358,10 +448,25 @@ export async function buildHoldingsCloseDigest(opts) {
 
   for (const h of symbols) {
     const q = quotes[h.symbol] ?? quotes[h.symbol.replace(/\.(KS|KQ)$/i, "")];
-    const changePercent =
-      q?.changePercent != null && Number.isFinite(Number(q.changePercent))
-        ? Number(q.changePercent)
-        : null;
+    const bar = sessionBars[h.symbol] ?? {};
+    const close =
+      Number(bar.price) > 0
+        ? Number(bar.price)
+        : Number(q?.price) > 0
+          ? Number(q.price)
+          : null;
+    const open = Number(bar.open) > 0 ? Number(bar.open) : null;
+    const move = formatSessionMove({
+      open,
+      close,
+      changePercent: open == null ? (bar.changePercent ?? q?.changePercent ?? null) : null,
+      currency: bar.currency ?? q?.currency,
+      market: h.market,
+    });
+    const style = classifyAccountHoldingStyle(
+      { symbol: h.symbol, name: h.name, market: h.market },
+      styleOverrides,
+    );
     /** @type {typeof rows[0]["news"]} */
     const newsOut = [];
     try {
@@ -381,7 +486,7 @@ export async function buildHoldingsCloseDigest(opts) {
           sentiment: brief.sentiment,
           impact: describeNewsPriceImpact({
             sentiment: brief.sentiment,
-            changePercent,
+            changePercent: move.changePercent,
           }),
         });
       }
@@ -396,10 +501,12 @@ export async function buildHoldingsCloseDigest(opts) {
       symbol: h.symbol,
       name: h.name,
       market: h.market,
-      priceLabel: formatHoldingPrice(q?.price, q?.currency, h.market),
-      qtyLabel: formatHoldingQty(h.quantity),
-      changeLabel: formatSignedPct(changePercent),
-      changePercent,
+      style,
+      openLabel: move.openLabel,
+      closeLabel: move.closeLabel,
+      changeLabel: move.changeLabel,
+      diffLabel: move.diffLabel,
+      changePercent: move.changePercent,
       news: newsOut,
     });
     await sleep(80);

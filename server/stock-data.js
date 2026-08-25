@@ -282,6 +282,7 @@ function parseChartResult(symbol, result, displayInterval, yahooInterval, aggreg
 
   const dayVolume = resolveDayVolume(meta, candles, displayInterval);
   const turnover = computeTurnover(dayVolume, price);
+  const prevClose = meta.chartPreviousClose ?? meta.previousClose;
 
   return {
     symbol: meta.symbol ?? symbol,
@@ -299,6 +300,17 @@ function parseChartResult(symbol, result, displayInterval, yahooInterval, aggreg
         meta.longName,
       ),
       price,
+      open:
+        typeof lastCandle?.open === "number" && Number.isFinite(lastCandle.open)
+          ? lastCandle.open
+          : typeof meta.regularMarketOpen === "number" &&
+              Number.isFinite(meta.regularMarketOpen)
+            ? meta.regularMarketOpen
+            : undefined,
+      previousClose:
+        typeof prevClose === "number" && Number.isFinite(prevClose)
+          ? prevClose
+          : undefined,
       change,
       changePercent,
       currency: meta.currency,
