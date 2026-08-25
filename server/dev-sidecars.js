@@ -25,6 +25,7 @@ import { startFinancialsArchivePoller } from "./stock-financials-archive-poller.
 import { startStockShareStructurePoller } from "./stock-share-structure-poller.js";
 import { startMaAlignMa120WatchPoller } from "./ma-align-ma120-watch.js";
 import { startHoldingsNewsEmailPoller } from "./holdings-news-poller.js";
+import { startHoldingsCloseDigestPoller } from "./holdings-close-digest-poller.js";
 import { startUsAnnouncementInboxPoller } from "./us-announcement-poller.js";
 import { startTossRebalanceSchedulePoller } from "./toss-rebalance-schedule-poller.js";
 import { startVirtualUserContinuousPoller } from "./virtual-user-poller.js";
@@ -54,6 +55,7 @@ function registerDevSidecarPollers() {
   registerPollerLazyStarter("share-structure", startStockShareStructurePoller);
   registerPollerLazyStarter("ma120-near-watch", startMaAlignMa120WatchPoller);
   registerPollerLazyStarter("holdings-news", startHoldingsNewsEmailPoller);
+  registerPollerLazyStarter("holdings-close-digest", startHoldingsCloseDigestPoller);
   registerPollerLazyStarter("us-announcement-inbox", startUsAnnouncementInboxPoller);
   registerPollerLazyStarter("toss-rebalance-schedule", startTossRebalanceSchedulePoller);
   registerPollerLazyStarter("virtual-user-continuous", startVirtualUserContinuousPoller);
@@ -96,6 +98,7 @@ export function startStockDevSidecarsOnce(modeLabel) {
   startStockShareStructurePoller();
   startMaAlignMa120WatchPoller();
   startHoldingsNewsEmailPoller();
+  startHoldingsCloseDigestPoller();
   startUsAnnouncementInboxPoller();
   startTossRebalanceSchedulePoller();
   startVirtualUserContinuousPoller();

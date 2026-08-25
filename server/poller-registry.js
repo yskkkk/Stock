@@ -279,6 +279,18 @@ export const POLLER_CATALOG = {
     descriptionKo:
       "빗썸·토스·실매매 포트폴리오 보유 심볼에 대한 속보를 주기 조회해 이메일로 발송합니다. 기본 off, env opt-in.",
   },
+  "holdings-close-digest": {
+    labelKo: "장 마감 보유 종목 브리핑",
+    groupKo: "알림",
+    intervalMs: () => {
+      const n = Number(process.env.STOCK_HOLDINGS_CLOSE_DIGEST_POLL_MS ?? 120_000);
+      return Number.isFinite(n) && n >= 30_000 ? Math.min(n, 900_000) : 120_000;
+    },
+    envDisable: "STOCK_HOLDINGS_CLOSE_DIGEST=0",
+    isBootEnabled: () => process.env.STOCK_HOLDINGS_CLOSE_DIGEST !== "0",
+    descriptionKo:
+      "국내 15:40(KST)·미국 16:10(ET) 이후 세션당 1회, 보유 종목 시세·뉴스 호재/악재·당일 등락 방향·시장 흐름을 메일로 보냅니다. STOCK_HOLDINGS_CLOSE_DIGEST_TO로 수신자를 지정합니다.",
+  },
   "us-announcement-inbox": {
     labelKo: "미국 발표 인박스",
     groupKo: "알림",
