@@ -1,0 +1,21 @@
+---
+description: 티스토리 공개 글 URL을 열지 않는다(조회수 방지)
+alwaysApply: true
+---
+
+# 티스토리 조회수 — 공개 URL 금지
+
+`yourtimesaver.tistory.com` **공개 주소는 작성자·에이전트가 열어도 조회수가 오른다.**
+
+## 하지 말 것
+
+- `https://yourtimesaver.tistory.com/` 홈
+- `https://yourtimesaver.tistory.com/17` 같은 글 주소
+- 브라우저·WebFetch·curl·스크린샷으로 위 주소 열기
+- 채팅에 공개 글 URL을 적어 클릭을 유도하기
+
+## 할 것
+
+- 확인·수정은 `/manage/posts`, `/manage/newpost/{id}?type=post` 만
+- 본문 확인은 로컬 `C:\tistory-travel\data\published\*.json` 의 `html`
+- 로그·답변에는 관리자 주소만 적는다
