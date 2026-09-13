@@ -7,4 +7,4 @@ alwaysApply: true
 
 여행 블로그 작업은 `C:\tistory-travel`. 스킬 `travel-qa`.
 
-공개 URL 금지. 올린 글은 PUT. `npm run qa` / `qa:fix`. 오류는 `data/qa-ledger.json`에 남기고 다음 글에 같은 규칙을 적용한다.
+공개 URL 금지. 올린 글은 PUT. `npm run qa` / `qa:fix`. 오류는 `data/qa-ledger.json`에 남기고 다음 글에 같은 규칙을 적용한다. 관광지 사진에 모텔·호텔·넘버25가 있으면 장소 전경으로 교체한다.
