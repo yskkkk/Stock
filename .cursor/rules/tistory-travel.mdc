@@ -14,7 +14,8 @@ alwaysApply: true
 ## 발행
 
 이미 올린 글은 **제자리 수정(PUT)**. 지우고 다시 만들지 않는다. 올린 id를 대기열에 다시 넣지 않는다.
-대기열 업로드는 Windows 작업(`TistoryTravelQueueLoop`·`TistoryTravelQueueWatch`)이 Cursor 없이 돌린다. 하루 15편 한도가 풀리면 이어서 올린다.
+대기열 업로드는 Windows 작업(`TistoryTravelQueueLoop`·`TistoryTravelQueueWatch`)과 시작프로그램 VBS가 Cursor 없이 돌린다. PC를 재부팅·로그온하면 다시 켜진다. 하루 15편 한도가 풀리면 이어서 올린다.
+점검 루프(`run-qa-loop.js`, 작업 `TistoryTravelQaWatch`)가 올린 글 전부를 보고 모자란 부분을 한꺼번에 고친 뒤 PUT한다.
 
 ## 관광지
 
