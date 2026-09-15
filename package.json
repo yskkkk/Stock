@@ -9,6 +9,8 @@
     "autostart:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-stock-dev-autostart.ps1",
     "autostart:uninstall": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/uninstall-stock-dev-autostart.ps1",
     "autostart:now": "scripts\\start-stock-dev-at-login.cmd",
+    "cursor:autostart": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-cursor-autostart.ps1",
+    "cursor:autostart:uninstall": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/uninstall-cursor-autostart.ps1",
     "wol:enable": "scripts\\enable-wol-intel.cmd",
     "wol:test": "scripts\\test-wol-packet-receive.cmd",
     "wol:wake-test": "scripts\\test-wol-wake.cmd",
