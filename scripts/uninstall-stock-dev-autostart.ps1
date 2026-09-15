@@ -1,9 +1,10 @@
-# Stock dev 자동 기동 — 시작 프로그램 해제
+# Stock 자동 기동 해제 — 시작 프로그램·Run 키·작업 스케줄러
 $ErrorActionPreference = "Stop"
 
 $ShortcutName = "Stock-Dev-AutoStart.lnk"
 $StartupDir = [Environment]::GetFolderPath("Startup")
 $ShortcutPath = Join-Path $StartupDir $ShortcutName
+$RunKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
 
 if (Test-Path $ShortcutPath) {
   Remove-Item -LiteralPath $ShortcutPath -Force
@@ -12,10 +13,10 @@ if (Test-Path $ShortcutPath) {
   Write-Host "시작 프로그램 항목 없음 — 이미 해제됨"
 }
 
-# 예전 작업 스케줄러 등록이 있으면 함께 제거
-$TaskName = "Stock-Dev-AutoStart"
-$existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-if ($existing) {
-  Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
-  Write-Host "작업 스케줄러 '$TaskName' 도 해제함"
+Remove-ItemProperty -Path $RunKey -Name "StockDev" -ErrorAction SilentlyContinue
+Write-Host "HKCU Run StockDev 해제"
+
+foreach ($name in @("Stock-Dev-AutoStart", "StockDevLogon", "StockDevWatch")) {
+  cmd.exe /c "schtasks /Delete /F /TN `"$name`" >nul 2>&1"
+  Write-Host "작업 '$name' 해제"
 }
