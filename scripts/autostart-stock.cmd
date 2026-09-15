@@ -22,7 +22,7 @@ if errorlevel 1 (
 
 echo [Stock] starting npm run dev:guard >> logs\autostart-stock.log
 if "%QUIET%"=="1" (
-  start "Stock dev:guard" /D "%CD%" cmd /k "scripts\autostart-stock.cmd"
+  start "Stock dev:guard" /MIN cmd /c "cd /d "%CD%" && "%ProgramFiles%\nodejs\npm.cmd" run dev:guard >> logs\dev-guard-run.log 2>&1"
   exit /b 0
 )
 
@@ -34,5 +34,5 @@ call "%ProgramFiles%\nodejs\npm.cmd" run dev:guard
 echo.
 echo [Stock] dev:guard ended. exit=%errorlevel% >> logs\autostart-stock.log
 echo [Stock] dev:guard ended. exit=%errorlevel%
-pause
+if not "%QUIET%"=="1" pause
 endlocal

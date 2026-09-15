@@ -395,6 +395,40 @@ export function createApp() {
     }
   });
 
+  /** 한국투자 계좌 카카오 스킬 프록시 (kis-account-web :3780) */
+  app.post(
+    "/api/kakao/skill",
+    asyncRoute(async (req, res) => {
+      try {
+        const upstream = await fetch("http://127.0.0.1:3780/api/kakao/skill", {
+          method: "POST",
+          headers: { "content-type": "application/json; charset=utf-8" },
+          body: JSON.stringify(req.body ?? {}),
+        });
+        const text = await upstream.text();
+        res.status(upstream.status);
+        res.setHeader(
+          "content-type",
+          upstream.headers.get("content-type") || "application/json; charset=utf-8",
+        );
+        res.send(text);
+      } catch (err) {
+        res.status(502).json({
+          version: "2.0",
+          template: {
+            outputs: [
+              {
+                simpleText: {
+                  text: "계좌 서버에 연결하지 못했습니다. 잠시 후 다시 시도하세요.",
+                },
+              },
+            ],
+          },
+        });
+      }
+    }),
+  );
+
   app.post(
     "/api/server-open-request",
     asyncRoute(async (req, res) => {
