@@ -12,19 +12,47 @@ function Write-Watch($line) {
 
 function Test-StockUp {
   try {
-    $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 "http://127.0.0.1:$port/api/access/status"
+    $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 "http://127.0.0.1:$port/api/health"
     return $r.StatusCode -ge 200 -and $r.StatusCode -lt 500
   } catch {
-    return $false
+    try {
+      $r2 = Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 "http://127.0.0.1:$port/api/access/status"
+      return $r2.StatusCode -ge 200 -and $r2.StatusCode -lt 500
+    } catch {
+      return $false
+    }
   }
 }
 
 function Get-StockProcs {
   $nodes = @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -and ($_.CommandLine -match "dev-server-guard\.mjs|vite\.js") })
+    Where-Object {
+      $_.CommandLine -and (
+        $_.CommandLine -match "C:\\Stock.*dev-server-guard\.mjs|C:\\Stock.*vite\.js|scripts\\dev-server-guard\.mjs|vite\\bin\\vite\.js"
+      ) -and ($_.CommandLine -notmatch "kis-account")
+    })
   $cmds = @(Get-CimInstance Win32_Process -Filter "Name='cmd.exe'" -ErrorAction SilentlyContinue |
     Where-Object { $_.CommandLine -and ($_.CommandLine -match "autostart-stock\.cmd") })
   return @($nodes) + @($cmds)
+}
+
+function Stop-StockProcs {
+  $procs = @(Get-StockProcs)
+  foreach ($p in $procs) {
+    try {
+      Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+    } catch {}
+  }
+  Start-Sleep -Seconds 1
+  # free port leftovers
+  $lines = @(netstat -ano | Select-String ":$port\s+.*LISTENING")
+  foreach ($l in $lines) {
+    if ($l.Line -match "\s(\d+)\s*$") {
+      $id = [int]$Matches[1]
+      try { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue } catch {}
+    }
+  }
+  Start-Sleep -Seconds 1
 }
 
 if (-not (Test-Path $root)) { throw "no $root" }
@@ -35,21 +63,16 @@ if (Test-StockUp) {
 
 $live = @(Get-StockProcs)
 if ($live.Count -gt 0) {
-  Write-Watch ("starting pid=" + (($live | ForEach-Object { $_.ProcessId }) -join ","))
-  for ($w = 0; $w -lt 20; $w += 1) {
-    Start-Sleep -Seconds 2
-    if (Test-StockUp) { Write-Watch "running after-wait"; exit 0 }
-  }
+  Write-Watch ("unhealthy-procs pid=" + (($live | ForEach-Object { $_.ProcessId }) -join ",") + " — restart")
+  Stop-StockProcs
 }
 
 if (-not (Test-Path $cmd)) { throw "missing $cmd" }
-Start-Process -FilePath $cmd -WorkingDirectory $root
-for ($w = 0; $w -lt 25; $w += 1) {
+Start-Process -FilePath $cmd -ArgumentList "/quiet" -WorkingDirectory $root -WindowStyle Minimized
+for ($w = 0; $w -lt 45; $w += 1) {
   Start-Sleep -Seconds 2
-  if (Test-StockUp) { Write-Watch "started"; exit 0 }
-  $again = @(Get-StockProcs)
-  if ($again.Count -gt 0 -and $w -ge 3) {
-    Write-Watch ("launched pid=" + (($again | ForEach-Object { $_.ProcessId }) -join ","))
+  if (Test-StockUp) {
+    Write-Watch "started"
     exit 0
   }
 }
