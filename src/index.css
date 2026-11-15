@@ -12544,6 +12544,28 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
     display: none !important;
   }
 
+  /*
+   * PC fine-pointer keeps a non-`--mobile` side dock under ≤1179.
+   * That host is `position:fixed` for painting, but in this flex column
+   * `.app__shell` has `order: 2` while the dock host stays `order: 0` with
+   * `min-height: 100dvh` — so an empty viewport-tall block sits ABOVE the
+   * main content. Drop in-flow height; leave mobile `--mobile` sheet alone.
+   */
+  .app__right-panel--dock:has(
+    .app-live-trade-side-dock:not(.app-live-trade-side-dock--mobile)
+  ) {
+    min-height: 0 !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    order: 3;
+    overflow: visible;
+  }
+
+  .app__right-panel--dock
+    .app-live-trade-side-dock:not(.app-live-trade-side-dock--mobile) {
+    min-height: 0;
+  }
+
   .app__viewport {
     display: flex;
     flex-direction: column;
