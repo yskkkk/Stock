@@ -1893,14 +1893,19 @@ export function createApp() {
       res.json({
         ok: true,
         message: "재기동을 시작했습니다. 잠시 후 페이지가 새로고침됩니다.",
+        mode: "process",
       });
       setTimeout(() => {
-        void restartNodeOrViteDev(httpServer).catch((e) => {
-          console.warn(
-            "[restart] admin trigger failed:",
-            e instanceof Error ? e.message : e,
-          );
-        });
+        // Vite soft `server.restart()`만 하면 프로세스가 안 죽고 사이드카 once
+        // 플래그도 남아 «재기동 안 됨»처럼 보인다 — 관리자 버튼은 강제 respawn.
+        void restartNodeOrViteDev(httpServer, { forceProcess: true }).catch(
+          (e) => {
+            console.warn(
+              "[restart] admin trigger failed:",
+              e instanceof Error ? e.message : e,
+            );
+          },
+        );
       }, 280);
     }),
   );
