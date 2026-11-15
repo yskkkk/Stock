@@ -1,0 +1,22 @@
+---
+description: 중간 진행 보고 금지 — 작업 완료 시에만 보고
+alwaysApply: true
+---
+
+# 보고 시점 (사용자 메모 · 영구)
+
+**중간 진행 업데이트·중간 설명 금지. 완료됐을 때만 보고한다.**
+
+## 기본
+
+- 작업 중 「지금 ~ 하는 중」「원인 보는 중」「곧 고칠게요」 등 **중간 보고·중계 금지** (채팅·보이스 동일).
+- SendToCall / 채팅도 **완료 시점**(또는 실주문 승인·구체적 blocker 한 줄)에만.
+- 단계별 현황 나열·부분 설명으로 턴을 채우지 않는다.
+
+## 완료 시
+
+- 짧게 결과만. 사용자가 요약을 요청하지 않으면 변경 목록을 길게 쓰지 않는다 (`@concise-chat`).
+
+## 저장
+
+- 에이전트 스토어: `/cursor/stores/self/agent-preferences.json` → `communication.reportOnlyWhenComplete`
