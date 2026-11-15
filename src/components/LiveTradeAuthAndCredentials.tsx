@@ -1544,6 +1544,14 @@ function AuthEmailCodeCells({
   );
 }
 
+/** 인증번호 TTL 카운트다운 표시 (예: 10:00) */
+function formatAuthCodeTimer(totalSec: number): string {
+  const sec = Math.max(0, Math.floor(totalSec));
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 export default function LiveTradeAuthPanel({
   user,
   registrationOpen,
@@ -1687,11 +1695,16 @@ export default function LiveTradeAuthPanel({
       setVerificationCode("");
       setCodeVerified(false);
       setCodeSent(true);
-      setSendCooldownSec(60);
-      // 안내 문구만 1분 — 실제 인증번호 TTL과 무관
+      // 타이머·안내 = 서버 인증번호 TTL(기본 10분)
+      const ttlSec = Math.max(
+        1,
+        Math.floor(Number(res.expiresInSec) || 10 * 60),
+      );
+      setSendCooldownSec(ttlSec);
+      const validMin = Math.max(1, Math.round(ttlSec / 60));
       const validHint = ko.app.liveTradeAuthCodeValidMinutes.replace(
         "{n}",
-        "1",
+        String(validMin),
       );
       setCodeMsg(
         res.devCode
@@ -1700,7 +1713,7 @@ export default function LiveTradeAuthPanel({
       );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes("잠시")) setSendCooldownSec(60);
+      if (msg.includes("잠시")) setSendCooldownSec(10 * 60);
       setErr(msg);
     } finally {
       setSendCodeBusy(false);
@@ -1917,7 +1930,7 @@ export default function LiveTradeAuthPanel({
                     onClick={() => void sendVerificationCode()}
                   >
                     {sendCooldownSec > 0
-                      ? `${sendCooldownSec}${ko.app.liveTradeAuthSendCodeCooldown}`
+                      ? `${formatAuthCodeTimer(sendCooldownSec)}${ko.app.liveTradeAuthSendCodeCooldown}`
                       : codeSent
                         ? ko.app.liveTradeAuthSendCodeAgain
                         : ko.app.liveTradeAuthSendCode}

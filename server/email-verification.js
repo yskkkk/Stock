@@ -14,7 +14,8 @@ import {
   upsertPendingVerificationSync,
 } from "./email-verification-store.js";
 
-const SEND_COOLDOWN_MS = 60 * 1000;
+/** 재발송 대기 = 인증번호 TTL과 동일(기본 10분) */
+const SEND_COOLDOWN_MS = 10 * 60 * 1000;
 
 /** @typedef {"register" | "login"} EmailVerifyPurpose */
 
