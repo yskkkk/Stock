@@ -10,7 +10,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, ".data");
 const FILE = path.join(DATA_DIR, "email-verifications.json");
 
-const TTL_MS = 10 * 60 * 1000;
+/** 로그인·회원가입 이메일 인증번호 유효 시간 — 1분 */
+const TTL_MS = 60 * 1000;
 const MAX_VERIFY_ATTEMPTS = 8;
 
 function ensureDirSync() {

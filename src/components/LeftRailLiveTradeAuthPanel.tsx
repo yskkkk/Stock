@@ -7,7 +7,7 @@ import {
 import { ko } from "../i18n/ko";
 
 function LeftRailLiveTradeAuthPanelInner() {
-  const { user, authChecked } = useLiveTradeAuth();
+  const { user, authChecked, sessionValidMinutes } = useLiveTradeAuth();
 
   const onLogout = useCallback(() => {
     void logoutLiveTradeAndClearCaches();
@@ -24,6 +24,7 @@ function LeftRailLiveTradeAuthPanelInner() {
       <LiveTradeAuthSignedInCard
         user={user}
         variant="rail"
+        sessionValidMinutes={sessionValidMinutes}
         onLogout={onLogout}
       />
     </aside>

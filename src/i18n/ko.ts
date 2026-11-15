@@ -585,6 +585,8 @@ export const ko = {
     liveTradeAuthPasswordRegister: "비밀번호 (8자 이상)",
     liveTradeAuthVerifyDone: "이메일 인증이 완료되었습니다.",
     liveTradeAuthSendCodeDone: "인증 메일을 보냈습니다.",
+    liveTradeAuthCodeValidMinutes: "인증번호는 {n}분간 유효합니다.",
+    liveTradeAuthSessionValidMinutes: "로그인이 {n}분간 유효합니다.",
     liveTradeAuthSendCodeAgain: "인증 코드 다시 받기",
     liveTradeAuthSendCode: "인증 코드 받기",
     liveTradeAuthSendCodeCooldown: "초 후 다시 받기",

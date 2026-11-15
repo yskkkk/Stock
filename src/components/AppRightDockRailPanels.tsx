@@ -40,7 +40,8 @@ export default function AppRightDockRailPanels({
   onOpenLiveTrading?: () => void;
   onOpenHoldingChart?: (h: TossTestHolding) => void;
 }) {
-  const { user, authChecked, registrationOpen } = useLiveTradeAuth();
+  const { user, authChecked, registrationOpen, sessionValidMinutes } =
+    useLiveTradeAuth();
   const ctx = useLiveTradeCardSidePanelOptional();
   const registerSideTab = ctx?.registerSideTab;
 
@@ -83,6 +84,7 @@ export default function AppRightDockRailPanels({
               <LiveTradeAuthSignedInCard
                 user={user}
                 variant="dock"
+                sessionValidMinutes={sessionValidMinutes}
                 onLogout={onLogout}
               />
             </>
