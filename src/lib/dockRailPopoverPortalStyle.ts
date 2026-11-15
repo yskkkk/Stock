@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { DESKTOP_DOCK_LAYOUT_MQ } from "../hooks/useDesktopDockLayout";
+import { DESKTOP_SIDE_DOCK_MQ } from "../hooks/useDesktopDockLayout";
 
 const DEFAULT_GAP_PX = 9;
 const MOBILE_POPOVER_EST_WIDTH_PX = 300;
@@ -25,7 +25,7 @@ export function dockRailPopoverPortalStyle(
   const vh = window.innerHeight;
   const mobile =
     typeof window !== "undefined" &&
-    !window.matchMedia(DESKTOP_DOCK_LAYOUT_MQ).matches;
+    !window.matchMedia(DESKTOP_SIDE_DOCK_MQ).matches;
 
   if (mobile) {
     const pad = 8;

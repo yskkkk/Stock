@@ -17,7 +17,7 @@ import { BithumbBrandMark, TossBrandMark } from "./ExchangeBrandMarks";
 import LiveTradeDockApiRail from "./LiveTradeDockApiRail";
 import LiveTradeDockPollerRail from "./LiveTradeDockPollerRail";
 import LiveTradeDockYsHead from "./LiveTradeDockYsHead";
-import { useDesktopDockLayout } from "../hooks/useDesktopDockLayout";
+import { useDesktopSideDockLayout } from "../hooks/useDesktopDockLayout";
 import { useNestedVerticalScroll } from "../hooks/useNestedVerticalScroll";
 import { refreshLiveTradingStatusNow } from "../hooks/useLiveTradingStatusPoll";
 import { invalidateLiveTradingPrefetch } from "../lib/tabPrefetch";
@@ -403,7 +403,7 @@ export default function AppLiveTradeSideDock({
   );
   const panel = ctx?.panel ?? null;
   const openPanel = ctx?.openPanel;
-  const wide = useDesktopDockLayout();
+  const wide = useDesktopSideDockLayout();
   const [open, setOpen] = useState(false);
   const [panelWidthPx, setPanelWidthPx] = useState(() => {
     const saved = readDockPanelWidthPref();

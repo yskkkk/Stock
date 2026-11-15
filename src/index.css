@@ -10443,6 +10443,79 @@ html:not([data-theme="light"]) {
   box-shadow: -6px 0 24px rgba(0, 0, 0, 0.18);
 }
 
+/* PC 우측 도크 — `--mobile` 없을 때(마우스 PC·≥1180). 모바일 하단 규칙은 그대로. */
+.app__right-panel--dock:has(
+  .app-live-trade-side-dock:not(.app-live-trade-side-dock--mobile)
+) {
+  display: block;
+  justify-self: end;
+  align-self: start;
+  flex: none;
+  width: 0 !important;
+  max-width: 0 !important;
+  min-height: 100dvh;
+  margin-right: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+.app__right-panel--dock
+  .app-live-trade-side-dock:not(.app-live-trade-side-dock--mobile) {
+  visibility: visible;
+  pointer-events: auto;
+  position: fixed;
+  top: 0;
+  right: calc(
+    var(--live-trade-dock-rail-width, 3.25rem) + env(safe-area-inset-right, 0px)
+  );
+  bottom: 0;
+  left: auto;
+  width: max-content;
+  max-width: calc(var(--live-trade-dock-panel-width, 26rem) + 0.72rem);
+  height: auto;
+  min-height: 100dvh;
+  max-height: none;
+  z-index: 50;
+  align-items: stretch;
+}
+
+.app__right-panel--dock
+  .app-live-trade-side-dock:not(.app-live-trade-side-dock--mobile).app-live-trade-side-dock--collapsed {
+  width: 0 !important;
+  max-width: 0 !important;
+  min-width: 0 !important;
+  overflow: visible;
+}
+
+.app__right-panel--dock
+  .app-live-trade-side-dock:not(.app-live-trade-side-dock--mobile).app-live-trade-side-dock--open {
+  width: auto;
+  max-width: calc(var(--live-trade-dock-panel-width, 26rem) + 0.72rem);
+  pointer-events: auto;
+}
+
+[data-live-trade-side-dock-rail]:not(
+  .app-live-trade-side-dock__rail--mobile-bottom
+) {
+  position: fixed;
+  top: 0;
+  right: env(safe-area-inset-right, 0px);
+  bottom: 0;
+  left: auto;
+  z-index: 140;
+  width: var(--live-trade-dock-rail-width, 3.25rem) !important;
+  min-width: var(--live-trade-dock-rail-width, 3.25rem) !important;
+  max-width: var(--live-trade-dock-rail-width, 3.25rem) !important;
+  height: 100dvh;
+  max-height: 100dvh;
+  flex: none !important;
+  flex-direction: column;
+  padding-right: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  pointer-events: auto !important;
+}
+
 .app-live-trade-side-dock--open .app-live-trade-side-dock__rail,
 .app-live-trade-side-dock--collapsed .app-live-trade-side-dock__rail {
   width: var(--live-trade-dock-rail-width, 2.68rem);
@@ -12285,18 +12358,22 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
     --mobile-dock-bar-height: 3.25rem;
   }
 
-  #root > .app .app__scroll {
+  /* Bottom-bar reserve only when the mobile dock class is active (phones).
+     PC fine-pointer keeps the right dock even under 1180 CSS px. */
+  #root > .app .app__scroll:has(.app-live-trade-side-dock--mobile) {
     padding-bottom: calc(
       var(--mobile-dock-bar-height) + env(safe-area-inset-bottom, 0px)
     );
   }
 
+  /* Keep the dock host painted under ≤1179px; rail still portals to body. */
   .app__right-panel--dock {
-    display: block;
+    display: block !important;
     pointer-events: none;
   }
 
-  .app__right-panel--dock .app-live-trade-side-dock {
+  /* Bottom-sheet host — only when JS marks mobile (unchanged look for phones). */
+  .app__right-panel--dock .app-live-trade-side-dock--mobile {
     visibility: visible;
     pointer-events: none;
     position: fixed;
@@ -12462,7 +12539,8 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
     padding: 0;
   }
 
-  .app__right-panel {
+  /* Hide empty right column; keep --dock so mobile sheet + rail can paint. */
+  .app__right-panel:not(.app__right-panel--dock) {
     display: none !important;
   }
 
