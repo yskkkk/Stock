@@ -15,7 +15,7 @@ import {
   createSessionSync,
   deleteSessionSync,
   getSessionSync,
-  sessionTtlMinutesLabel,
+  AUTH_VALIDITY_MESSAGE_MINUTES,
   sessionTtlMs,
 } from "./user-sessions-store.js";
 import { migrateProgramsForAccountOnceSync } from "./live-trade-programs-store.js";
@@ -315,8 +315,8 @@ export function registerUserAuthRoutes(app) {
         ok: true,
         user: { id: user.id, email: user.email },
         sessionExpiresInSec: Math.max(1, Math.floor(sessionTtlMs() / 1000)),
-        sessionValidMinutes: sessionTtlMinutesLabel(),
-        messageKo: `로그인이 ${sessionTtlMinutesLabel()}분간 유효합니다.`,
+        sessionValidMinutes: AUTH_VALIDITY_MESSAGE_MINUTES,
+        messageKo: `로그인이 ${AUTH_VALIDITY_MESSAGE_MINUTES}분간 유효합니다.`,
       });
     } catch (e) {
       res.status(400).json({
@@ -369,8 +369,8 @@ export function registerUserAuthRoutes(app) {
         ok: true,
         user: { id: user.id, email: user.email },
         sessionExpiresInSec: Math.max(1, Math.floor(sessionTtlMs() / 1000)),
-        sessionValidMinutes: sessionTtlMinutesLabel(),
-        messageKo: `로그인이 ${sessionTtlMinutesLabel()}분간 유효합니다.`,
+        sessionValidMinutes: AUTH_VALIDITY_MESSAGE_MINUTES,
+        messageKo: `로그인이 ${AUTH_VALIDITY_MESSAGE_MINUTES}분간 유효합니다.`,
       });
     } catch (e) {
       res.status(400).json({
@@ -420,8 +420,8 @@ export function registerUserAuthRoutes(app) {
       registrationOpen: isRegistrationOpen(),
       emailVerificationRequired: isRegistrationOpen(),
       sessionExpiresInSec: Math.max(1, Math.floor(sessionTtlMs() / 1000)),
-      sessionValidMinutes: sessionTtlMinutesLabel(),
-      messageKo: `로그인이 ${sessionTtlMinutesLabel()}분간 유효합니다.`,
+      sessionValidMinutes: AUTH_VALIDITY_MESSAGE_MINUTES,
+      messageKo: `로그인이 ${AUTH_VALIDITY_MESSAGE_MINUTES}분간 유효합니다.`,
     });
   });
 }

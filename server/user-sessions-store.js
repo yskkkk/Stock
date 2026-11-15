@@ -7,8 +7,11 @@ import { readJsonStoreSync, writeJsonStoreSync } from "./store-json.js";
 
 const SESSIONS_FILE = "user-sessions.json";
 
-/** 기본 로그인 세션 유효 시간 — 1분 */
-const DEFAULT_TTL_MS = 60 * 1000;
+/** 기본 로그인 세션 유효 시간 — 30일 */
+const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** 사용자 안내 문구에만 쓰는 분 수(실제 세션 TTL과 무관) */
+export const AUTH_VALIDITY_MESSAGE_MINUTES = 1;
 
 function defaultStore() {
   return { sessions: [] };
@@ -32,8 +35,8 @@ function writeStoreSync(store) {
 }
 
 /**
- * 로그인 세션 TTL(ms).
- * `USER_SESSION_TTL_MINUTES`(기본 1) 우선, 없으면 `USER_SESSION_TTL_DAYS`.
+ * 로그인 세션 TTL(ms). 기본 30일.
+ * `USER_SESSION_TTL_MINUTES`가 있으면 우선, 없으면 `USER_SESSION_TTL_DAYS`(기본 30).
  */
 export function sessionTtlMs() {
   const minutesRaw = process.env.USER_SESSION_TTL_MINUTES;
@@ -43,17 +46,12 @@ export function sessionTtlMs() {
       return Math.min(365 * 24 * 60, m) * 60 * 1000;
     }
   }
-  const daysRaw = process.env.USER_SESSION_TTL_DAYS;
-  if (daysRaw != null && String(daysRaw).trim() !== "") {
-    const d = Number(daysRaw);
-    if (Number.isFinite(d) && d > 0) {
-      return Math.min(365, d) * 24 * 60 * 60 * 1000;
-    }
-  }
-  return DEFAULT_TTL_MS;
+  const n = Number(process.env.USER_SESSION_TTL_DAYS ?? "30");
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_TTL_MS;
+  return Math.min(365, n) * 24 * 60 * 60 * 1000;
 }
 
-/** 안내 문구용 — 분 단위(최소 1) */
+/** 실제 세션 TTL의 분 환산(최소 1) */
 export function sessionTtlMinutesLabel() {
   return Math.max(1, Math.round(sessionTtlMs() / 60_000));
 }

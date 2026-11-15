@@ -1688,13 +1688,10 @@ export default function LiveTradeAuthPanel({
       setCodeVerified(false);
       setCodeSent(true);
       setSendCooldownSec(60);
-      const validMin = Math.max(
-        1,
-        Math.round(Number(res.expiresInSec ?? 60) / 60),
-      );
+      // 안내 문구만 1분 — 실제 인증번호 TTL과 무관
       const validHint = ko.app.liveTradeAuthCodeValidMinutes.replace(
         "{n}",
-        String(validMin),
+        "1",
       );
       setCodeMsg(
         res.devCode

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  AUTH_VALIDITY_MESSAGE_MINUTES,
   sessionTtlMinutesLabel,
   sessionTtlMs,
 } from "./user-sessions-store.js";
@@ -15,11 +16,15 @@ describe("sessionTtlMs", () => {
     else process.env.USER_SESSION_TTL_DAYS = prevDays;
   });
 
-  it("defaults to 1 minute when unset", () => {
+  it("defaults to 30 days when unset", () => {
     delete process.env.USER_SESSION_TTL_MINUTES;
     delete process.env.USER_SESSION_TTL_DAYS;
-    expect(sessionTtlMs()).toBe(60_000);
-    expect(sessionTtlMinutesLabel()).toBe(1);
+    expect(sessionTtlMs()).toBe(30 * 24 * 60 * 60 * 1000);
+    expect(sessionTtlMinutesLabel()).toBe(30 * 24 * 60);
+  });
+
+  it("keeps display message minutes at 1 regardless of TTL", () => {
+    expect(AUTH_VALIDITY_MESSAGE_MINUTES).toBe(1);
   });
 
   it("honors USER_SESSION_TTL_MINUTES", () => {
@@ -29,7 +34,7 @@ describe("sessionTtlMs", () => {
     expect(sessionTtlMinutesLabel()).toBe(5);
   });
 
-  it("falls back to USER_SESSION_TTL_DAYS when minutes unset", () => {
+  it("honors USER_SESSION_TTL_DAYS", () => {
     delete process.env.USER_SESSION_TTL_MINUTES;
     process.env.USER_SESSION_TTL_DAYS = "2";
     expect(sessionTtlMs()).toBe(2 * 24 * 60 * 60 * 1000);
