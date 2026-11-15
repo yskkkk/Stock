@@ -5,6 +5,9 @@ import { markViteRestartStarting } from "./vite-restart-marker.js";
 /** Vite `configureServer`에서 등록. 있으면 http close + process.exit 대신 Vite 재시작만 한다. */
 let viteIntegratedRestart = null;
 
+/** Vite `httpServer` — `req.socket.server`가 비거나 다를 때 관리자 강제 재기동용 */
+let viteHttpServer = null;
+
 /**
  * @param {null | (() => void | Promise<void>)} fn
  */
@@ -12,8 +15,24 @@ export function registerViteIntegratedRestart(fn) {
   viteIntegratedRestart = typeof fn === "function" ? fn : null;
 }
 
+/**
+ * @param {import("http").Server | null | undefined} server
+ */
+export function registerViteHttpServer(server) {
+  viteHttpServer =
+    server && typeof server.close === "function" ? server : null;
+}
+
 export function isViteIntegratedRestartActive() {
   return typeof viteIntegratedRestart === "function";
+}
+
+/**
+ * @param {import("http").Server | null | undefined} httpServer
+ */
+function resolveHttpServer(httpServer) {
+  if (httpServer && typeof httpServer.close === "function") return httpServer;
+  return viteHttpServer;
 }
 
 /**
@@ -21,10 +40,16 @@ export function isViteIntegratedRestartActive() {
  * Express 미들웨어의 `req.socket?.server`는 Vite와 맞지 않을 때가 있어, 여기서 우선 처리한다.
  *
  * @param {import("http").Server | null | undefined} httpServer
+ * @param {{ forceProcess?: boolean }} [opts]
+ *   `forceProcess: true` — 관리자 «서버 재기동» 등. Vite soft restart를 건너뛰고
+ *   프로세스를 다시 띄운다(사이드카·폴러 `once` 플래그·메모리 상태까지 초기화).
  * @returns {Promise<boolean>}
  */
-export async function restartNodeOrViteDev(httpServer) {
-  if (isViteIntegratedRestartActive()) {
+export async function restartNodeOrViteDev(httpServer, opts = {}) {
+  const forceProcess = opts?.forceProcess === true;
+  const server = resolveHttpServer(httpServer);
+
+  if (!forceProcess && isViteIntegratedRestartActive()) {
     try {
       markViteRestartStarting();
       appendServerEventLog(
@@ -39,7 +64,14 @@ export async function restartNodeOrViteDev(httpServer) {
       return false;
     }
   }
-  return respawnNodeProcess(httpServer);
+
+  if (forceProcess) {
+    appendServerEventLog(
+      "restart",
+      "force process respawn (admin / explicit full restart)",
+    );
+  }
+  return respawnNodeProcess(server);
 }
 
 /**
