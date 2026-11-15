@@ -12291,8 +12291,9 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
     );
   }
 
+  /* Keep the dock host painted under ≤1179px; rail still portals to body. */
   .app__right-panel--dock {
-    display: block;
+    display: block !important;
     pointer-events: none;
   }
 
@@ -12462,7 +12463,8 @@ html:not([data-theme="light"]) .app-live-trade-side-dock__host .live-trading-tab
     padding: 0;
   }
 
-  .app__right-panel {
+  /* Hide empty right column; keep --dock so mobile sheet + rail can paint. */
+  .app__right-panel:not(.app__right-panel--dock) {
     display: none !important;
   }
 
