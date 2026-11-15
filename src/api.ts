@@ -1119,6 +1119,12 @@ export interface AuthMeResponse {
   user: AuthUser;
   registrationOpen?: boolean;
   emailVerificationRequired?: boolean;
+  /** 로그인 세션 유효 시간(초) — 기본 60 */
+  sessionExpiresInSec?: number;
+  /** 로그인 세션 유효 시간(분) — 기본 1 */
+  sessionValidMinutes?: number;
+  /** 로그인 유효 안내 */
+  messageKo?: string;
 }
 
 const AUTH_ME_TTL_MS = 8_000;

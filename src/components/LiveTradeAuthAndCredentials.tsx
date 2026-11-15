@@ -53,12 +53,17 @@ export function useLiveTradeAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [registrationOpen, setRegistrationOpen] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  const [sessionValidMinutes, setSessionValidMinutes] = useState(1);
 
   const refreshAuth = useCallback(async () => {
     try {
       const me = await fetchAuthMe();
       setUser(me.user);
       setRegistrationOpen(me.registrationOpen !== false);
+      const mins = Number(me.sessionValidMinutes);
+      setSessionValidMinutes(
+        Number.isFinite(mins) && mins > 0 ? Math.round(mins) : 1,
+      );
       return me.user;
     } catch {
       setUser(null);
@@ -85,6 +90,7 @@ export function useLiveTradeAuth() {
     setUser,
     registrationOpen,
     authChecked,
+    sessionValidMinutes,
     refreshAuth,
   };
 }
@@ -671,10 +677,13 @@ export function LiveTradeAuthSignedInCard({
   user,
   onLogout,
   variant = "inline",
+  sessionValidMinutes = 1,
 }: {
   user: AuthUser;
   onLogout: () => void;
   variant?: "inline" | "rail" | "dock";
+  /** 로그인 세션 유효 시간(분). 기본 1분 */
+  sessionValidMinutes?: number;
 }) {
   const rootClass =
     variant === "rail"
@@ -682,6 +691,10 @@ export function LiveTradeAuthSignedInCard({
       : variant === "dock"
         ? "app-dock-rail-panel__auth live-trading-tab__auth live-trading-tab__auth--signed"
         : "live-trading-tab__auth card live-trading-tab__auth--signed";
+  const sessionHint = ko.app.liveTradeAuthSessionValidMinutes.replace(
+    "{n}",
+    String(Math.max(1, Math.round(sessionValidMinutes))),
+  );
 
   return (
     <section className={rootClass} aria-live="polite">
@@ -695,6 +708,7 @@ export function LiveTradeAuthSignedInCard({
               {ko.app.liveTradeAuthSignedIn}
             </p>
             <p className="live-trading-tab__auth-signed-email">{user.email}</p>
+            <p className="live-trading-tab__auth-session-hint">{sessionHint}</p>
           </div>
         </div>
         <button
@@ -1674,10 +1688,18 @@ export default function LiveTradeAuthPanel({
       setCodeVerified(false);
       setCodeSent(true);
       setSendCooldownSec(60);
+      const validMin = Math.max(
+        1,
+        Math.round(Number(res.expiresInSec ?? 60) / 60),
+      );
+      const validHint = ko.app.liveTradeAuthCodeValidMinutes.replace(
+        "{n}",
+        String(validMin),
+      );
       setCodeMsg(
         res.devCode
-          ? `${ko.app.liveTradeAuthSendCodeDone} (개발: ${res.devCode})`
-          : ko.app.liveTradeAuthSendCodeDone,
+          ? `${ko.app.liveTradeAuthSendCodeDone} ${validHint} (개발: ${res.devCode})`
+          : `${ko.app.liveTradeAuthSendCodeDone} ${validHint}`,
       );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

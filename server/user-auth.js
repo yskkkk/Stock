@@ -15,6 +15,8 @@ import {
   createSessionSync,
   deleteSessionSync,
   getSessionSync,
+  sessionTtlMinutesLabel,
+  sessionTtlMs,
 } from "./user-sessions-store.js";
 import { migrateProgramsForAccountOnceSync } from "./live-trade-programs-store.js";
 import {
@@ -155,12 +157,13 @@ function cookieSecure() {
  * @param {string} sessionId
  */
 function setSessionCookie(res, sessionId) {
+  const maxAgeSec = Math.max(1, Math.floor(sessionTtlMs() / 1000));
   const parts = [
     `${COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",
-    `Max-Age=${Math.floor(30 * 24 * 60 * 60)}`,
+    `Max-Age=${maxAgeSec}`,
   ];
   if (cookieSecure()) parts.push("Secure");
   res.setHeader("Set-Cookie", parts.join("; "));
@@ -311,6 +314,9 @@ export function registerUserAuthRoutes(app) {
       res.json({
         ok: true,
         user: { id: user.id, email: user.email },
+        sessionExpiresInSec: Math.max(1, Math.floor(sessionTtlMs() / 1000)),
+        sessionValidMinutes: sessionTtlMinutesLabel(),
+        messageKo: `로그인이 ${sessionTtlMinutesLabel()}분간 유효합니다.`,
       });
     } catch (e) {
       res.status(400).json({
@@ -362,6 +368,9 @@ export function registerUserAuthRoutes(app) {
       res.json({
         ok: true,
         user: { id: user.id, email: user.email },
+        sessionExpiresInSec: Math.max(1, Math.floor(sessionTtlMs() / 1000)),
+        sessionValidMinutes: sessionTtlMinutesLabel(),
+        messageKo: `로그인이 ${sessionTtlMinutesLabel()}분간 유효합니다.`,
       });
     } catch (e) {
       res.status(400).json({
@@ -410,6 +419,9 @@ export function registerUserAuthRoutes(app) {
       },
       registrationOpen: isRegistrationOpen(),
       emailVerificationRequired: isRegistrationOpen(),
+      sessionExpiresInSec: Math.max(1, Math.floor(sessionTtlMs() / 1000)),
+      sessionValidMinutes: sessionTtlMinutesLabel(),
+      messageKo: `로그인이 ${sessionTtlMinutesLabel()}분간 유효합니다.`,
     });
   });
 }

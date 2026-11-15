@@ -1542,6 +1542,13 @@ html[data-theme="dark"] .live-trading-tab__auth-code-msg {
   color: var(--text-muted, #6b7280);
 }
 
+.live-trading-tab__auth-session-hint {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--muted, #64748b);
+}
+
 .live-trading-tab__auth-signed-email {
   margin: 0.1rem 0 0;
   font-size: 0.92rem;
