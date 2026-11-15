@@ -589,7 +589,7 @@ export const ko = {
     liveTradeAuthSessionValidMinutes: "로그인이 {n}분간 유효합니다.",
     liveTradeAuthSendCodeAgain: "인증 코드 다시 받기",
     liveTradeAuthSendCode: "인증 코드 받기",
-    liveTradeAuthSendCodeCooldown: "초 후 다시 받기",
+    liveTradeAuthSendCodeCooldown: " 후 다시 받기",
     liveTradePfTabTrade: "매수·매도",
     liveTradePfTabOpenOrders: "미체결",
     liveTradePfOrderSideSell: "매도",
