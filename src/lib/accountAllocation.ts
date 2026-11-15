@@ -499,3 +499,17 @@ export function computeStyleTargetDrift(
     valueCapitalToAddKrw: capitalToAddOnlyBuy(valueKrw, equityKrw, tv),
   };
 }
+
+/** 토스 괴리 알림 — |성장| 또는 |가치| 괴리(%p)가 임계값 이상이면 true */
+export function isStyleDriftBeyondThreshold(
+  drift: StyleTargetDrift | null | undefined,
+  thresholdPctPoints: number,
+): boolean {
+  if (!drift) return false;
+  const t = Number(thresholdPctPoints);
+  if (!Number.isFinite(t) || t < 0) return false;
+  return (
+    Math.abs(drift.growthDriftPctPoints) >= t ||
+    Math.abs(drift.valueDriftPctPoints) >= t
+  );
+}

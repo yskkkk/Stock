@@ -1333,6 +1333,62 @@ html[data-theme="light"] .account-manage-tab__stat--trio.is-down .account-manage
   color: var(--muted);
 }
 
+.account-manage-tab__drift-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: color-mix(in srgb, var(--panel, #fff) 92%, var(--accent, #1e5fc4) 8%);
+}
+
+.account-manage-tab__drift-alert-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.account-manage-tab__drift-alert-hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.account-manage-tab__drift-alert-toggle,
+.account-manage-tab__drift-alert-threshold {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.account-manage-tab__drift-alert-threshold input {
+  width: 4.2rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: var(--panel, #fff);
+  color: var(--text);
+  font-size: 0.76rem;
+}
+
+.account-manage-tab__drift-alert-status {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.account-manage-tab__drift-alert-status--breach {
+  color: var(--danger, #c62828);
+  font-weight: 700;
+}
+
 .account-manage-tab__style-target-adds {
   margin: 0.25rem 0 0;
   padding: 0;

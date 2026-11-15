@@ -405,20 +405,15 @@ export async function tickLiveTradeAutoSell() {
 
     try {
 
-      if (isArmed && pos.market === "kr") {
-
+      // 토스(국내·미국) armed: 가짜 시뮬 매도로 장부만 닫지 않음
+      if (isArmed && (pos.market === "kr" || pos.market === "us")) {
         liveTradeLogWarn(
-
-          "[live-trade:auto-sell] KR 실매매 자동매도 미지원 — 수동 매도 필요:",
-
+          "[live-trade:auto-sell] 토스 실매매 자동매도 미지원 — 수동/박스권 매도 필요:",
           pos.symbol,
-
+          pos.market,
           hit.note,
-
         );
-
         continue;
-
       }
 
       if (isArmed && pos.market === "crypto") {

@@ -15,6 +15,11 @@ import {
   listTossOpenOrdersWithCredentials,
   placeManualTossOrderForUser,
 } from "./toss-trading-adapter.js";
+import { normalizeLiveTradeMarket } from "./live-trade-market.js";
+import {
+  liveTradeSellLockKey,
+  withLiveTradeSellLock,
+} from "./live-trade-sell-inflight.js";
 
 /**
  * @param {unknown} v
@@ -211,15 +216,34 @@ export async function cancelTossOpenOrderForUser(userId, orderId) {
 export async function placeTossOrderForUser(userId, body) {
   const uid = String(userId ?? "").trim();
   if (!uid) throw new Error("로그인이 필요합니다.");
-  const result = await placeManualTossOrderForUser(uid, {
-    symbol: String(body?.symbol ?? ""),
+  const symbol = String(body?.symbol ?? "");
+  const market = normalizeLiveTradeMarket(body?.market, symbol);
+  const side = String(body?.side ?? "").trim().toLowerCase();
+  const orderArgs = {
+    symbol,
     market: body?.market,
     side: body?.side,
     orderType: body?.orderType,
     amount: body?.amount != null ? Number(body.amount) : undefined,
     quantity: body?.quantity != null ? Number(body.quantity) : undefined,
     price: body?.price != null ? Number(body.price) : undefined,
-  });
+  };
+
+  /** @type {Awaited<ReturnType<typeof placeManualTossOrderForUser>>} */
+  let result;
+  if (side === "sell") {
+    const lockKey = liveTradeSellLockKey(uid, market, symbol);
+    const locked = await withLiveTradeSellLock(lockKey, () =>
+      placeManualTossOrderForUser(uid, orderArgs),
+    );
+    if (!locked.ok) {
+      throw new Error(locked.error ?? "같은 종목 매도가 이미 진행 중입니다.");
+    }
+    result = locked.value;
+  } else {
+    result = await placeManualTossOrderForUser(uid, orderArgs);
+  }
+
   if (!result.ok) {
     throw new Error(result.error ?? "주문에 실패했습니다.");
   }

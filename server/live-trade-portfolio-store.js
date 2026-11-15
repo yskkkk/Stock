@@ -198,11 +198,52 @@ export function writePortfolioStoreSync(store) {
   writeStoreSync(store);
 }
 
+/** 포트폴리오 JSON 단일 비행 — 읽기·수정·쓰기 동시성 직렬화 */
+let portfolioMutationDepth = 0;
+/** @type {Promise<unknown>} */
+let portfolioMutationTail = Promise.resolve();
+
+/**
+ * 동기 RMW를 한 줄로 직렬화(재진입 금지).
+ * @template T
+ * @param {() => T} fn
+ * @returns {T}
+ */
+export function withPortfolioStoreMutationSync(fn) {
+  if (portfolioMutationDepth > 0) {
+    throw new Error("portfolio store: re-entrant mutation");
+  }
+  portfolioMutationDepth += 1;
+  try {
+    return fn();
+  } finally {
+    portfolioMutationDepth -= 1;
+  }
+}
+
+/**
+ * await가 끼는 경로용 — Promise 체인으로 파일 쓰기 순서를 보장.
+ * @template T
+ * @param {() => Promise<T> | T} fn
+ * @returns {Promise<T>}
+ */
+export function enqueuePortfolioStoreMutation(fn) {
+  const run = portfolioMutationTail.then(() =>
+    withPortfolioStoreMutationSync(() => fn()),
+  );
+  portfolioMutationTail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
 function writeStoreSync(store) {
   ensureDirSync();
   const file = portfolioFilePath();
   const tmp = `${file}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(store, null, 0), "utf8");
+  // 한 줄 JSON — 동시 rename 경합 시에도 파서가 깨지지 않게 단일 레코드
+  fs.writeFileSync(tmp, `${JSON.stringify(store)}\n`, "utf8");
   fs.renameSync(tmp, file);
 }
 
@@ -756,76 +797,79 @@ export async function recordLiveTradeSimBuyAsync(input, userId) {
  * }} input
  */
 export function recordLiveTradeSellSync(input, userId) {
-  const programId = String(input.programId ?? "").trim();
-  const symbol = String(input.symbol ?? "").trim().toUpperCase();
-  const market = normalizeLiveTradeMarket(input.market, symbol);
-  const price = Number(input.price);
-  if (!programId || !symbol || !Number.isFinite(price) || price <= 0) {
-    throw new Error("매도 기록에 필요한 값이 없습니다.");
-  }
-  const tradeAtMs =
-    typeof input.atMs === "number" && Number.isFinite(input.atMs) && input.atMs > 0
-      ? input.atMs
-      : Date.now();
-  const prog = getLiveTradeProgramSync(programId, userId);
-  if (!prog) {
-    throw new Error("프로그램을 찾을 수 없습니다.");
-  }
+  return withPortfolioStoreMutationSync(() => {
+    const programId = String(input.programId ?? "").trim();
+    const symbol = String(input.symbol ?? "").trim().toUpperCase();
+    const market = normalizeLiveTradeMarket(input.market, symbol);
+    const price = Number(input.price);
+    if (!programId || !symbol || !Number.isFinite(price) || price <= 0) {
+      throw new Error("매도 기록에 필요한 값이 없습니다.");
+    }
+    const tradeAtMs =
+      typeof input.atMs === "number" && Number.isFinite(input.atMs) && input.atMs > 0
+        ? input.atMs
+        : Date.now();
+    const prog = getLiveTradeProgramSync(programId, userId);
+    if (!prog) {
+      throw new Error("프로그램을 찾을 수 없습니다.");
+    }
 
-  const store = readStoreSync();
-  const { positions } = buildPositionsFromTrades(store.trades, programId);
-  const key = positionKey(programId, market, symbol);
-  const pos = positions.find(
-    (p) => positionKey(p.programId, p.market, p.symbol) === key,
-  );
-  if (!pos || pos.quantity <= 0) {
-    throw new Error("보유 수량이 없습니다.");
-  }
+    const store = readStoreSync();
+    const { positions } = buildPositionsFromTrades(store.trades, programId);
+    const key = positionKey(programId, market, symbol);
+    const pos = positions.find(
+      (p) => positionKey(p.programId, p.market, p.symbol) === key,
+    );
+    if (!pos || pos.quantity <= 0) {
+      throw new Error("보유 수량이 없습니다.");
+    }
 
-  let quantity = Number(input.quantity);
-  if (!Number.isFinite(quantity) || quantity <= 0) quantity = pos.quantity;
-  quantity = Math.min(quantity, pos.quantity);
-  quantity = normalizeSellQuantity(quantity, market);
-  if (quantity <= 0) throw new Error("매도 수량이 올바르지 않습니다.");
+    let quantity = Number(input.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) quantity = pos.quantity;
+    quantity = Math.min(quantity, pos.quantity);
+    quantity = normalizeSellQuantity(quantity, market);
+    if (quantity <= 0) throw new Error("매도 수량이 올바르지 않습니다.");
 
-  const avgEntry = pos.quantity > 1e-9 && pos.costBasis > 0 ? pos.costBasis / pos.quantity : 0;
-  const customEntry = Number(input.entryPrice);
-  const entryForSell =
-    Number.isFinite(customEntry) && customEntry > 0 ? customEntry : avgEntry;
-  const uid = String(userId ?? "").trim();
-  const oneWayFee = getOneWayFeeRateForUserMarketSync(uid, market);
-  const sellAmount = quantity * price;
+    const avgEntry =
+      pos.quantity > 1e-9 && pos.costBasis > 0 ? pos.costBasis / pos.quantity : 0;
+    const customEntry = Number(input.entryPrice);
+    const entryForSell =
+      Number.isFinite(customEntry) && customEntry > 0 ? customEntry : avgEntry;
+    const uid = String(userId ?? "").trim();
+    const oneWayFee = getOneWayFeeRateForUserMarketSync(uid, market);
+    const sellAmount = quantity * price;
 
-  const trade = normalizeTrade({
-    id: randomUUID(),
-    programId,
-    programName: prog.name,
-    side: "sell",
-    symbol,
-    name: pos.name,
-    market,
-    quantity,
-    price,
-    amount: sellAmount,
-    feeAmount: sellAmount * oneWayFee,
-    entryPrice: entryForSell > 0 ? entryForSell : null,
-    boxId:
-      typeof input.boxId === "string" && input.boxId.trim()
-        ? input.boxId.trim()
-        : null,
-    boxTimeframe:
-      typeof input.boxTimeframe === "string" && input.boxTimeframe.trim()
-        ? input.boxTimeframe.trim()
-        : null,
-    note: input.note ?? null,
-    simulated: Boolean(input.simulated),
-    orderId: input.orderId ?? null,
-    atMs: tradeAtMs,
+    const trade = normalizeTrade({
+      id: randomUUID(),
+      programId,
+      programName: prog.name,
+      side: "sell",
+      symbol,
+      name: pos.name,
+      market,
+      quantity,
+      price,
+      amount: sellAmount,
+      feeAmount: sellAmount * oneWayFee,
+      entryPrice: entryForSell > 0 ? entryForSell : null,
+      boxId:
+        typeof input.boxId === "string" && input.boxId.trim()
+          ? input.boxId.trim()
+          : null,
+      boxTimeframe:
+        typeof input.boxTimeframe === "string" && input.boxTimeframe.trim()
+          ? input.boxTimeframe.trim()
+          : null,
+      note: input.note ?? null,
+      simulated: Boolean(input.simulated),
+      orderId: input.orderId ?? null,
+      atMs: tradeAtMs,
+    });
+    if (!trade) throw new Error("매도 기록을 저장하지 못했습니다.");
+    store.trades.push(trade);
+    writeStoreSync(store);
+    return trade;
   });
-  if (!trade) throw new Error("매도 기록을 저장하지 못했습니다.");
-  store.trades.push(trade);
-  writeStoreSync(store);
-  return trade;
 }
 
 /**

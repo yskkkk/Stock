@@ -15,6 +15,7 @@ import {
   accountSymbolSliceLabel,
   buildAccountAllocationSlices,
   computeStyleTargetDrift,
+  isStyleDriftBeyondThreshold,
   portfolioShareChangePct,
   tossHoldingsToAccountRows,
   type AccountAllocMode,
@@ -58,6 +59,7 @@ import {
   type AccountManageDisplayCurrency,
 } from "../hooks/useAccountManageDisplayCurrency";
 import { useAccountStyleTargetWeights } from "../hooks/useAccountStyleTargetWeights";
+import { useTossRebalanceAlertSettings } from "../hooks/useTossRebalanceAlertSettings";
 import { useSnapshotFreshness } from "./AccountSnapshotFreshness";
 import {
   ACCOUNT_TAB_BITHUMB_POLL_MS,
@@ -219,6 +221,14 @@ export default function AccountManageTab({
   );
   const [styleTargetParts, setStyleTargetParts, setStyleGrowthParts] =
     useAccountStyleTargetWeights(user?.id, provider);
+  const {
+    settings: tossDriftAlert,
+    setEnabled: setTossDriftAlertEnabled,
+    setThresholdPctPoints: setTossDriftAlertThreshold,
+  } = useTossRebalanceAlertSettings(
+    user?.id,
+    Boolean(user) && provider === "toss",
+  );
   const { hiddenTickers, isHidden, toggleHidden, clearHidden } =
     useAccountHiddenHoldings(user?.id);
   const [rebalanceOpen, setRebalanceOpen] = useState(false);
@@ -695,6 +705,21 @@ export default function AccountManageTab({
   const styleTargetDrift = useMemo(
     () => computeStyleTargetDrift(styleSlices, styleTargetParts),
     [styleSlices, styleTargetParts],
+  );
+  const tossDriftAlertBreached = useMemo(
+    () =>
+      provider === "toss" &&
+      tossDriftAlert.enabled &&
+      isStyleDriftBeyondThreshold(
+        styleTargetDrift,
+        tossDriftAlert.thresholdPctPoints,
+      ),
+    [
+      provider,
+      tossDriftAlert.enabled,
+      tossDriftAlert.thresholdPctPoints,
+      styleTargetDrift,
+    ],
   );
 
   const styleSourceCounts = useMemo(() => {
@@ -2799,6 +2824,89 @@ export default function AccountManageTab({
                       {ko.app.accountManageStyleTargetHint}
                     </p>
                   </div>
+                  {provider === "toss" ? (
+                    <div
+                      className="account-manage-tab__drift-alert"
+                      data-vu="toss-drift-alert"
+                    >
+                      <div className="account-manage-tab__drift-alert-head">
+                        <h4 className="account-manage-tab__drift-alert-title">
+                          {ko.app.accountManageDriftAlertTitle}
+                        </h4>
+                        <p className="account-manage-tab__drift-alert-hint">
+                          {ko.app.accountManageDriftAlertHint}
+                        </p>
+                      </div>
+                      <label className="account-manage-tab__drift-alert-toggle">
+                        <input
+                          type="checkbox"
+                          checked={tossDriftAlert.enabled}
+                          aria-label={ko.app.accountManageDriftAlertToggleAria}
+                          onChange={(e) =>
+                            setTossDriftAlertEnabled(e.target.checked)
+                          }
+                        />
+                        <span>{ko.app.accountManageDriftAlertToggle}</span>
+                      </label>
+                      {tossDriftAlert.enabled ? (
+                        <label className="account-manage-tab__drift-alert-threshold">
+                          <span>{ko.app.accountManageDriftAlertThreshold}</span>
+                          <input
+                            type="number"
+                            min={0.5}
+                            max={50}
+                            step={0.5}
+                            inputMode="decimal"
+                            value={tossDriftAlert.thresholdPctPoints}
+                            aria-label={
+                              ko.app.accountManageDriftAlertThresholdAria
+                            }
+                            onChange={(e) => {
+                              const n = Number(e.target.value);
+                              if (!Number.isFinite(n)) return;
+                              setTossDriftAlertThreshold(n);
+                            }}
+                          />
+                        </label>
+                      ) : null}
+                      {tossDriftAlert.enabled && styleTargetDrift ? (
+                        <p
+                          className={[
+                            "account-manage-tab__drift-alert-status",
+                            tossDriftAlertBreached
+                              ? "account-manage-tab__drift-alert-status--breach"
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                          role={tossDriftAlertBreached ? "status" : undefined}
+                        >
+                          {tossDriftAlertBreached
+                            ? ko.app.accountManageDriftAlertBreached
+                                .replace(
+                                  "{threshold}",
+                                  String(tossDriftAlert.thresholdPctPoints),
+                                )
+                                .replace(
+                                  "{growthDrift}",
+                                  formatDriftPctPoints(
+                                    styleTargetDrift.growthDriftPctPoints,
+                                  ),
+                                )
+                                .replace(
+                                  "{valueDrift}",
+                                  formatDriftPctPoints(
+                                    styleTargetDrift.valueDriftPctPoints,
+                                  ),
+                                )
+                            : ko.app.accountManageDriftAlertOk.replace(
+                                "{threshold}",
+                                String(tossDriftAlert.thresholdPctPoints),
+                              )}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="account-manage-tab__style-target-presets">
                     {(
                       [
