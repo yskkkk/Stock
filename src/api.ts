@@ -1325,6 +1325,33 @@ export function putAccountHoldingStyleOverride(
   );
 }
 
+/** 토스 계좌 — 성장/가치 괴리 알림 (계좌별 파일) */
+export type TossRebalanceAlertSettings = {
+  enabled: boolean;
+  thresholdPctPoints: number;
+  updatedAtMs: number | null;
+};
+
+export function fetchTossRebalanceAlertSettings() {
+  return fetchJson<{ ok: boolean; settings: TossRebalanceAlertSettings }>(
+    "/api/user/toss-rebalance-alert",
+  );
+}
+
+export function putTossRebalanceAlertSettings(body: {
+  enabled?: boolean;
+  thresholdPctPoints?: number;
+}) {
+  return fetchJson<{ ok: boolean; settings: TossRebalanceAlertSettings }>(
+    "/api/user/toss-rebalance-alert",
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
 export function saveUserCredential(
   exchange: "bithumb" | "toss",
   body: {

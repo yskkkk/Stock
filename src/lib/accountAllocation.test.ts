@@ -216,4 +216,26 @@ describe("computeStyleTargetDrift", () => {
     expect(drift!.growthCapitalToAddKrw).toBeNull();
     expect(drift!.valueCapitalToAddKrw).toBe(0);
   });
+
+  it("flags drift beyond threshold", async () => {
+    const { computeStyleTargetDrift, isStyleDriftBeyondThreshold } =
+      await import("./accountAllocation");
+    const atTarget = computeStyleTargetDrift(
+      [
+        { key: "__growth__", valueKrw: 800 },
+        { key: "__value__", valueKrw: 200 },
+      ],
+      { growth: 8, value: 2 },
+    );
+    expect(isStyleDriftBeyondThreshold(atTarget, 5)).toBe(false);
+    const drifted = computeStyleTargetDrift(
+      [
+        { key: "__growth__", valueKrw: 900 },
+        { key: "__value__", valueKrw: 100 },
+      ],
+      { growth: 8, value: 2 },
+    );
+    expect(isStyleDriftBeyondThreshold(drifted, 5)).toBe(true);
+    expect(isStyleDriftBeyondThreshold(drifted, 15)).toBe(false);
+  });
 });

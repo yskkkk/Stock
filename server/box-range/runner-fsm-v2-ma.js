@@ -34,6 +34,11 @@ import { boxRangeBuyDedupeKey } from "./buy-guard.js";
 import { resolveBoxSellQuantitySync } from "./lot-reconcile.js";
 import { markCatalogBoxConsumedSync } from "./catalog-store.js";
 import { getBoxRangeV2MaProfile } from "./v2-ma-models.js";
+import {
+  liveTradeSellLockKey,
+  tryAcquireLiveTradeSellLock,
+  releaseLiveTradeSellLock,
+} from "../live-trade-sell-inflight.js";
 
 /** @type {Set<string>} */
 const boxBuyInFlight = new Set();
@@ -457,6 +462,8 @@ async function executeV2MaSell(opts) {
   } = opts;
 
   if (boxSellInFlight.has(sellKey)) return;
+  const symLock = liveTradeSellLockKey(userId, market, sym);
+  if (!tryAcquireLiveTradeSellLock(symLock)) return;
   boxSellInFlight.add(sellKey);
   const now = Date.now();
 
@@ -529,5 +536,6 @@ async function executeV2MaSell(opts) {
     touchLiveTradeProgramRunSync(program.id, msg);
   } finally {
     boxSellInFlight.delete(sellKey);
+    releaseLiveTradeSellLock(symLock);
   }
 }

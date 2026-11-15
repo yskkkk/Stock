@@ -31,6 +31,11 @@ import { markCatalogBoxConsumedSync } from "./catalog-store.js";
 import { notifyBoxRangeDipRecoveryEntry } from "./box-range-telegram.js";
 import { isBoxRangeV2MaProgram } from "./v2-ma-models.js";
 import { processBoxFsmV2Ma } from "./runner-fsm-v2-ma.js";
+import {
+  liveTradeSellLockKey,
+  tryAcquireLiveTradeSellLock,
+  releaseLiveTradeSellLock,
+} from "../live-trade-sell-inflight.js";
 
 /** @type {Set<string>} */
 const boxBuyInFlight = new Set();
@@ -529,9 +534,12 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
     }
     if (!exitSide) return;
 
+    const userId = String(program.userId ?? "").trim();
+    const symLock = liveTradeSellLockKey(userId, market, sym);
+    if (!tryAcquireLiveTradeSellLock(symLock)) return;
+
     boxSellInFlight.add(sellKey);
     try {
-      const userId = String(program.userId ?? "").trim();
       if (live && isProgramArmedForMarket(program, market)) {
         let simulated = false;
         if (market === "crypto") {
@@ -616,6 +624,7 @@ export async function processBoxFsmForProgram(program, box, lastPrice, live) {
       touchLiveTradeProgramRunSync(program.id, msg);
     } finally {
       boxSellInFlight.delete(sellKey);
+      releaseLiveTradeSellLock(symLock);
     }
   }
 }

@@ -220,6 +220,7 @@ import { listPollersStatusSync, setPollerRuntimeEnabled } from "./poller-registr
 import { sendChatNoCodeTelegram } from "./ops-chat-no-code-notify.js";
 import { registerUserCredentialRoutes } from "./user-credentials-routes.js";
 import { registerAccountHoldingStyleRoutes } from "./account-holding-style-routes.js";
+import { registerTossRebalanceAlertRoutes } from "./toss-rebalance-alert-routes.js";
 import {
   getBithumbTradingStatusForUserSync,
   listCredentialMetaForUserSync,
@@ -386,6 +387,7 @@ export function createApp() {
   registerUserAuthRoutes(app);
   registerUserCredentialRoutes(app);
   registerAccountHoldingStyleRoutes(app);
+  registerTossRebalanceAlertRoutes(app);
 
   app.get("/api/health", (_req, res) => {
     try {

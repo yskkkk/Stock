@@ -208,6 +208,17 @@ export const ko = {
     accountManageStyleTargetCashShortSplit:
       "현금 부족 {amount} (원화 {krw} · 달러 {usd})",
     accountManageStyleTargetPresetAria: "목표 비중 빠른 설정 {ratio}",
+    accountManageDriftAlertTitle: "비중 괴리 알림 (토스)",
+    accountManageDriftAlertHint:
+      "성장·가치 비중이 목표 대비 임계값(%p) 이상 벌어지면 알려 줍니다. 기본은 꺼짐 · 이 토스 계좌에만 적용됩니다.",
+    accountManageDriftAlertToggle: "괴리 알림 사용",
+    accountManageDriftAlertToggleAria: "토스 계좌 비중 괴리 알림 켜기/끄기",
+    accountManageDriftAlertThreshold: "임계값 (%p)",
+    accountManageDriftAlertThresholdAria: "괴리 알림 임계값 퍼센트포인트",
+    accountManageDriftAlertBreached:
+      "목표 대비 괴리가 임계값 {threshold}%p를 넘었습니다. 성장 {growthDrift} · 가치 {valueDrift}",
+    accountManageDriftAlertOk:
+      "목표 대비 괴리가 임계값 {threshold}%p 이내입니다.",
     accountManageTabChart: "원형 차트",
     accountManageTabList: "보유 목록",
     accountManageGroupSector: "업종·섹터",
