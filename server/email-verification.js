@@ -122,7 +122,6 @@ export async function sendEmailVerificationCode(email, purpose = "register") {
     purpose: kind,
   });
 
-  const ttlMin = Math.round(getVerificationTtlMs() / 60_000);
   const subject =
     kind === "login"
       ? "[YSTOCK] 로그인 이메일 인증번호"
@@ -131,10 +130,11 @@ export async function sendEmailVerificationCode(email, purpose = "register") {
     kind === "login"
       ? "YSTOCK 로그인 인증번호입니다."
       : "YSTOCK 회원가입 인증번호입니다.";
+  // 안내 문구만 1분 — 실제 인증번호 TTL과 무관
   const text =
     `${lead}\n\n` +
     `인증번호: ${code}\n` +
-    `유효 시간: ${ttlMin}분\n\n` +
+    `유효 시간: 1분\n\n` +
     `본인이 요청하지 않았다면 이 메일을 무시하세요.\n`;
 
   await sendTransactionalEmail({
@@ -144,7 +144,7 @@ export async function sendEmailVerificationCode(email, purpose = "register") {
     html:
       `<p>${lead}</p>` +
       `<p style="font-size:1.35rem;font-weight:700;letter-spacing:0.2em">${code}</p>` +
-      `<p>유효 시간: ${ttlMin}분</p>` +
+      `<p>유효 시간: 1분</p>` +
       `<p style="color:#64748b;font-size:0.9rem">본인이 요청하지 않았다면 무시하세요.</p>`,
   });
 
