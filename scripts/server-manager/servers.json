@@ -1,0 +1,53 @@
+{
+  "exclude_roots": ["C:\\poster", "C:/poster"],
+  "exclude_ports": [5000],
+  "exclude_cmdline": ["C:\\poster", "C:/poster"],
+  "servers": [
+    {
+      "id": "stock-web",
+      "name": "YSTOCK 웹",
+      "note": "주식 웹사이트 (Vite + API)",
+      "root": "C:\\Stock",
+      "port": 5173,
+      "url": "http://127.0.0.1:5173",
+      "health_paths": ["/api/health", "/api/access/status"],
+      "pause_file": "C:\\Stock\\scripts\\STOCK_MANAGER_OFF",
+      "start_cmd": ["C:\\Stock\\scripts\\autostart-stock.cmd", "/quiet"],
+      "start_cwd": "C:\\Stock",
+      "needles": [
+        "c:/stock/scripts/dev-server-guard.mjs",
+        "dev-server-guard.mjs",
+        "dev:guard",
+        "c:/stock/node_modules/vite",
+        "autostart-stock.cmd",
+        "c:/stock && npm"
+      ],
+      "logs": [
+        "C:\\Stock\\logs\\autostart-stock.log",
+        "C:\\Stock\\logs\\dev-guard-run.log"
+      ]
+    },
+    {
+      "id": "kis-account",
+      "name": "한국투자 잔고",
+      "note": "주식 계좌 웹사이트",
+      "root": "C:\\kis-account-web",
+      "port": 3780,
+      "url": "http://127.0.0.1:3780",
+      "health_paths": ["/api/health"],
+      "pause_file": "C:\\kis-account-web\\MANAGER_OFF",
+      "start_cmd": ["C:\\kis-account-web\\autostart.cmd"],
+      "start_cwd": "C:\\kis-account-web",
+      "needles": [
+        "c:/kis-account-web",
+        "kis-account-web",
+        "kis-account",
+        "kis68445711acct"
+      ],
+      "logs": [
+        "C:\\kis-account-web\\logs\\autostart.log",
+        "C:\\kis-account-web\\logs\\tunnel.log"
+      ]
+    }
+  ]
+}

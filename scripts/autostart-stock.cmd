@@ -4,6 +4,10 @@ title Stock
 cd /d "%~dp0.."
 if not exist logs mkdir logs
 echo [%date% %time%] autostart-stock %* >> logs\autostart-stock.log
+if exist "%~dp0STOCK_MANAGER_OFF" (
+  echo [%date% %time%] manager off — skip >> logs\autostart-stock.log
+  exit /b 0
+)
 
 set "PATH=C:\Program Files\nodejs;%PATH%"
 if exist "%ProgramFiles%\nodejs\npm.cmd" set "PATH=%ProgramFiles%\nodejs;%PATH%"
@@ -13,7 +17,7 @@ if /I "%~1"=="/quiet" set "QUIET=1"
 
 where npm >nul 2>&1
 if errorlevel 1 (
-  echo [Stock] npm 없음 >> logs\autostart-stock.log
+  echo [Stock] npm missing >> logs\autostart-stock.log
   if "%QUIET%"=="1" exit /b 1
   echo [Stock] ERROR: npm not found.
   pause

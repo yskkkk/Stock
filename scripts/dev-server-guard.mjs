@@ -17,13 +17,20 @@
  *   VITE_DEV_PORT — dev 포트. 기본 5173
  */
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import http from "node:http";
+import path from "node:path";
 import process from "node:process";
 import treeKill from "tree-kill";
 import { killProcessOnPort } from "../server/kill-tcp-port.js";
 import { isViteRestartRecent } from "../server/vite-restart-marker.js";
 
 const ROOT = process.cwd();
+const MANAGER_OFF = path.join(ROOT, "scripts", "STOCK_MANAGER_OFF");
+
+function managerPaused() {
+  return existsSync(MANAGER_OFF);
+}
 const INTERVAL_MS = Number(process.env.DEV_GUARD_INTERVAL_MS) || 15_000;
 const PORT = Number(process.env.VITE_DEV_PORT) || 5173;
 const FAIL_THRESHOLD_DEAD = Math.max(
@@ -176,6 +183,7 @@ async function probeDevServerWithRetries(tries, gapMs) {
 }
 
 async function restartDev(reason) {
+  if (managerPaused()) return;
   if (shuttingDown || restarting) return;
   const since = Date.now() - lastRestartAt;
   if (since < COOLDOWN_MS) {
@@ -256,6 +264,11 @@ async function main() {
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
 
+  if (managerPaused()) {
+    console.log("[dev:guard] 서버 관리에서 꺼 둠 — 기동하지 않음");
+    return;
+  }
+
   console.log(
     `[dev:guard] 포트 ${PORT} 감시 · ${INTERVAL_MS / 1000}초마다 확인 · ` +
       `실패 ${FAIL_THRESHOLD_ALIVE}(alive)/${FAIL_THRESHOLD_DEAD}(dead) · Ctrl+C 종료`,
@@ -264,6 +277,11 @@ async function main() {
 
   for (;;) {
     await sleep(INTERVAL_MS);
+    if (managerPaused()) {
+      console.log("[dev:guard] 서버 관리에서 꺼짐 — 감시 종료");
+      await shutdown();
+      return;
+    }
     if (shuttingDown || restarting) continue;
 
     if (inViteRestartQuietPeriod()) {

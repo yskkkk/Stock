@@ -1,5 +1,10 @@
 $ErrorActionPreference = "Stop"
 $root = "C:\Stock"
+# Permanent: boot must NOT start the Stock server. Use Python server-manager GUI (manual).
+# Delete scripts\AUTOSTART_DISABLED only if auto-start is intentionally wanted again.
+if (Test-Path (Join-Path $root "scripts\AUTOSTART_DISABLED")) { exit 0 }
+# Server manager "끄기" — watch가 다시 켜지 않음 (켜면 이 파일 삭제)
+if (Test-Path (Join-Path $root "scripts\STOCK_MANAGER_OFF")) { exit 0 }
 $log = Join-Path $root "logs\autostart-stock.log"
 $cmd = Join-Path $root "scripts\autostart-stock.cmd"
 $port = if ($env:VITE_DEV_PORT) { [int]$env:VITE_DEV_PORT } else { 5173 }

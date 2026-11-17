@@ -1,6 +1,7 @@
 # Cursor 에이전트 — 이미 켜져 있으면 그대로, 없으면 Stock 워크스페이스로 연다.
 $ErrorActionPreference = "Stop"
 $root = "C:\Stock"
+if (Test-Path (Join-Path $root "scripts\AUTOSTART_DISABLED")) { exit 0 }
 $log = Join-Path $root "logs\autostart-cursor.log"
 $workspace = $root
 

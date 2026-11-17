@@ -5,6 +5,8 @@ server/.data
 server/.logs
 .DS_Store
 *.log
+scripts/STOCK_MANAGER_OFF
+scripts/server-manager/__pycache__/
 scripts/pc-lag-guard/pc-lag-guard.state.json
 .cursor/**
 !.cursor/rules/

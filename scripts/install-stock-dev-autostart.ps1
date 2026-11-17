@@ -1,18 +1,20 @@
-# Windows 로그인·부팅 후 Stock만 따로 자동 기동 (여행 업로드와 합치지 않음)
+# Boot: Python server-manager GUI only. Servers start manually from that UI.
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path $PSScriptRoot -Parent
-$StartCmd = Join-Path $PSScriptRoot "autostart-stock.cmd"
-$Ensure = Join-Path $PSScriptRoot "ensure-stock-dev.ps1"
-$WatchCmd = Join-Path $PSScriptRoot "watch-stock.cmd"
-$ShortcutName = "Stock-Dev-AutoStart.lnk"
+$ManagerPy = Join-Path $PSScriptRoot "server-manager\server_manager.py"
+$DisabledMarker = Join-Path $PSScriptRoot "AUTOSTART_DISABLED"
+# ASCII name avoids PowerShell encoding issues with Korean filenames in scripts.
+$ShortcutName = "Server-Manager.lnk"
+$LegacyManagerName = ([string]::Concat([char]0xC11C, [char]0xBC84, " ", [char]0xAD00, [char]0xB9AC, ".lnk")) # 서버 관리.lnk
+$OldShortcutName = "Stock-Dev-AutoStart.lnk"
 $StartupDir = [Environment]::GetFolderPath("Startup")
 $ShortcutPath = Join-Path $StartupDir $ShortcutName
+$LegacyManagerPath = Join-Path $StartupDir $LegacyManagerName
+$OldShortcutPath = Join-Path $StartupDir $OldShortcutName
 $RunKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-$ps = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
 
-if (-not (Test-Path $StartCmd)) { throw "not found: $StartCmd" }
-if (-not (Test-Path $Ensure)) { throw "not found: $Ensure" }
+if (-not (Test-Path $ManagerPy)) { throw "not found: $ManagerPy" }
 
 function Enable-StartupApproved($kind, $name) {
   $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\$kind"
@@ -20,42 +22,43 @@ function Enable-StartupApproved($kind, $name) {
   New-ItemProperty -Path $path -Name $name -PropertyType Binary -Value ([byte[]](2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)) -Force | Out-Null
 }
 
+# Remove legacy auto-start of npm/dev server
+if (Test-Path $OldShortcutPath) {
+  Remove-Item -LiteralPath $OldShortcutPath -Force
+  Write-Host "removed legacy: $OldShortcutPath"
+}
+Remove-ItemProperty -Path $RunKey -Name "StockDev" -ErrorAction SilentlyContinue
+foreach ($name in @("Stock-Dev-AutoStart", "StockDevLogon", "StockDevWatch")) {
+  cmd.exe /c "schtasks /Delete /F /TN `"$name`" >nul 2>&1" | Out-Null
+}
+
+# Block ensure/watch from resurrecting the server
+Set-Content -Path $DisabledMarker -Value ("manual-only via server-manager {0}`n" -f (Get-Date).ToString("o")) -Encoding utf8
+
+# Prefer pyw.exe; fall back to start-server-manager.cmd
+$pyw = Join-Path $env:WINDIR "pyw.exe"
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($ShortcutPath)
-$shortcut.TargetPath = $StartCmd
+if (Test-Path $pyw) {
+  $shortcut.TargetPath = $pyw
+  $shortcut.Arguments = "-3 `"$ManagerPy`""
+} else {
+  $shortcut.TargetPath = Join-Path $PSScriptRoot "start-server-manager.cmd"
+  $shortcut.Arguments = ""
+}
 $shortcut.WorkingDirectory = $Root
 $shortcut.WindowStyle = 1
-$shortcut.Description = "Stock — 부팅 후 따로 자동 시작"
+$shortcut.Description = "Local server manager — manual start only"
 $shortcut.Save()
-
-New-ItemProperty -Path $RunKey -Name "StockDev" -PropertyType String -Force -Value "`"$StartCmd`"" | Out-Null
 Enable-StartupApproved "StartupFolder" $ShortcutName
-Enable-StartupApproved "Run" "StockDev"
 
-$action = New-ScheduledTaskAction -Execute $ps -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$Ensure`"" -WorkingDirectory $Root
-$settings = New-ScheduledTaskSettingsSet `
-  -StartWhenAvailable `
-  -AllowStartIfOnBatteries `
-  -DontStopIfGoingOnBatteries `
-  -ExecutionTimeLimit (New-TimeSpan -Minutes 8) `
-  -RestartCount 3 `
-  -RestartInterval (New-TimeSpan -Minutes 5) `
-  -MultipleInstances IgnoreNew
-$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
-$logon = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-$logon.Delay = "PT60S"
-$daily = New-ScheduledTaskTrigger -Daily -At "00:04"
-$daily.Repetition = (New-ScheduledTaskTrigger -Once -At "00:04" -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Hours 23)).Repetition
-Register-ScheduledTask -TaskName "StockDevLogon" -Action $action -Trigger @($logon, $daily) -Settings $settings -Principal $principal -Force | Out-Null
+# Drop duplicate Korean-named shortcut if present
+if (Test-Path -LiteralPath $LegacyManagerPath) {
+  Remove-Item -LiteralPath $LegacyManagerPath -Force
+  Write-Host "removed duplicate: $LegacyManagerPath"
+}
 
-cmd.exe /c "schtasks /Create /F /TN StockDevWatch /SC MINUTE /MO 5 /RL LIMITED /TR `"C:\Stock\scripts\watch-stock.cmd`""
-Write-Output "task-minute=StockDevWatch exit=$LASTEXITCODE"
-
-try { Start-ScheduledTask -TaskName "StockDevLogon" } catch { Write-Output "task-start=skip $($_.Exception.Message)" }
-& $ps -NoProfile -ExecutionPolicy Bypass -File $Ensure
-Write-Output "ensure=$LASTEXITCODE"
-Write-Host "등록 완료: Stock만 따로 자동 시작"
+Write-Host "Registered: boot opens server-manager GUI only"
 Write-Host "  $ShortcutPath"
-Write-Host "  HKCU Run StockDev"
-Write-Host "  작업 StockDevLogon / StockDevWatch"
-Write-Host "  해제: npm run autostart:uninstall"
+Write-Host "  marker $DisabledMarker"
+Write-Host "  Servers: start manually from GUI (or npm run servers:manage)"
